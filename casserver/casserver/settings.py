@@ -7,14 +7,6 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'fg+=-)7_)+mf*88$lj*o7l%66&p%ugq8zp-is^qq$hbh@a!#%7'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-
-ALLOWED_HOSTS = []
-
-
 # Application definition
 
 INSTALLED_APPS = (
@@ -68,5 +60,10 @@ STATIC_URL = '/static/'
 import django12factor
 globals().update(django12factor.factorise())
 
-# http://django-mama-cas.readthedocs.org/en/latest/settings.html
+if DEBUG:
+    ALLOWED_HOSTS = []
+else:
+    ALLOWED_HOSTS = ["cas.maurus.net", ]
 
+
+# http://django-mama-cas.readthedocs.org/en/latest/settings.html
