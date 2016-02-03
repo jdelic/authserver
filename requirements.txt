@@ -1,3 +1,4 @@
-django-mama-cas==1.1.1
-requests==2.7.0
+Django==1.9.2
+django-mama-cas==2.0
+requests==2.9.1
 django12factor==1.3
