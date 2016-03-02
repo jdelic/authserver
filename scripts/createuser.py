@@ -1,28 +1,33 @@
 #!/usr/bin/env python -u
 #
-
+import base64
 import os
 import sys
 import getpass
-
-from argparse import ArgumentParser
-from django.contrib.auth.hashers import make_password
-from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
 
 
 def read_password(filename):
     if not os.path.exists(filename):
         print("%s does not exist" % filename)
 
-    if not os.getuid() == os.stat(filename).st_uid:
-        print("File %s must be owned by user executing createuser.py (%s != %s)" % (filename, os.getuid(),
-                                                                                    os.stat(filename).st_uid))
+    if os.name == "posix":
+        if not os.getuid() == os.stat(filename).st_uid:
+            print("File %s must be owned by user executing createuser.py (%s != %s)" % (filename, os.getuid(),
+                                                                                        os.stat(filename).st_uid))
 
-    if not
+        if not oct(os.stat(filename).st_mode & 0o777) in (0o600, 0o400):
+            print("File %s must be only writable by the user executing createuser.py or not at all" % filename)
+
+    with open(filename, "r") as f:
+        return f.readline(128).strip()
 
 
 def main():
+    from argparse import ArgumentParser
+    from django.contrib.auth.hashers import make_password
+    from django.contrib.auth.models import User
+    from django.core.exceptions import ValidationError
+
     parser = ArgumentParser(description="Create a user in the CAS server database. The user will be able to "
                                         "log into all servers which authenticate against this CAS server. "
                                         "Users are authenticated through their usernames or email addresses and "
@@ -65,13 +70,13 @@ def main():
         if clear_password != verify_password:
             print("Supplied passwords did not match.")
             sys.exit(1)
-        verify_password = None
+        del verify_password  # erase verify_password so later code makes no accidental use of it
 
     if _args.set_password:
         hashed_password = _args.set_password
     else:
         hashed_password = make_password(clear_password)
-        clear_password = None
+        del clear_password  # erase clear_password so later code makes no accidental use of it
 
     try:
         user = User.objects.create_user(_args.username, _args.email)
@@ -83,3 +88,10 @@ def main():
 
     print("User %s (%s) created." % (_args.username, _args.email))
 
+
+if __name__ == "__main__":
+    basepath = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
+    sys.path.append(os.path.join(basepath, "casserver"))
+    os.environ["DJANGO_SETTINGS_MODULE"] = "casserver.settings"
+    os.environ["SECRET_KEY"] = base64.b64encode(os.urandom(16)).decode("utf-8")
+    main()
