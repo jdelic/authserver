@@ -2,3 +2,4 @@ Django==1.9.2
 django-mama-cas==2.0
 requests==2.9.1
 django12factor==1.3
+gunicorn==19.6.0
