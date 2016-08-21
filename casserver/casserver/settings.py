@@ -1,14 +1,9 @@
-import dj_database_url
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+from casserver.casserver.vault_db_credentials import VaultCredentialProvider
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
-
-# Application definition
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -49,17 +44,24 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'casserver.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/1.10/ref/settings/#databases
-
-DATABASES = {
-    'default': dj_database_url.config(default='postgresql://localhost:3306/casserver')
-}
-
-
 import django12factor
 globals().update(django12factor.factorise())
+
+creds = VaultCredentialProvider("https://vault.local:8200/", os.getenv("VAULT_TOKEN"),
+                                "postgresql/creds/casserver", os.getenv("VAULT_CA", None), True,
+                                DEBUG)
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'mnusers',
+        'USER': creds.username,
+        'PASSWORD': creds.password,
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
+    }
+}
+
 
 if DEBUG:
     ALLOWED_HOSTS = []
