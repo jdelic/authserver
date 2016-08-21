@@ -6,7 +6,7 @@ from pip.download import PipSession
 
 import time
 _version = "1.0.dev%s" % int(time.time())
-_packages = find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"])
+_packages = find_packages(where='casserver', exclude=["*.tests", "*.tests.*", "tests.*", "tests"])
 
 pipsession = PipSession()
 reqs_generator = parse_requirements(os.path.join(os.path.abspath(os.path.dirname(__file__)), "requirements.txt"),
@@ -22,5 +22,8 @@ setup(
     ],
     version=_version,
     packages=_packages,
+    package_dir={
+        '': 'casserver',
+    },
     install_requires=reqs,
 )

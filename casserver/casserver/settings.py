@@ -1,7 +1,7 @@
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-from casserver.casserver.vault_db_credentials import VaultCredentialProvider
+from casserver.vault_db_credentials import VaultCredentialProvider
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
