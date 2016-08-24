@@ -1,7 +1,8 @@
 # -* encoding: utf-8 *-
 import datetime
 import logging
-from typing import Dict
+import os
+from typing import Dict, Tuple, Union
 
 import hvac
 import pytz
@@ -15,33 +16,92 @@ class VaultCredentialProviderException(Exception):
     pass
 
 
+class VaultAuthentication:
+    def __init__(self) -> None:
+        self.credentials = None  # type: Union[str, Tuple[str, str]]
+        self.authtype = None
+        super().__init__()
+
+    @staticmethod
+    def app_id(app_id: str, user_id: str) -> 'VaultAuthentication':
+        i = VaultAuthentication()
+        i.credentials = (app_id, user_id)
+        i.authtype = "app-id"
+        return i
+
+    @staticmethod
+    def ssl_client_cert(certfile: str, keyfile: str) -> 'VaultAuthentication':
+        if not os.path.isfile(certfile) or not os.access(certfile, os.R_OK):
+            raise VaultCredentialProviderException("File not found or not readable: %s" % certfile)
+
+        if not os.path.isfile(keyfile) or not os.access(keyfile, os.R_OK):
+            raise VaultCredentialProviderException("File not found or not readable: %s" % keyfile)
+
+        i = VaultAuthentication()
+        i.credentials = (certfile, keyfile)
+        i.authtype = "ssl"
+        return i
+
+    @staticmethod
+    def token(token: str) -> 'VaultAuthentication':
+        i = VaultAuthentication()
+        i.credentials = token
+        i.authtype = "token"
+        return i
+
+    @staticmethod
+    def fromenv() -> 'VaultAuthentication':
+        if os.getenv("VAULT_TOKEN", None):
+            return VaultAuthentication.token(os.getenv("VAULT_TOKEN"))
+
+        if os.getenv("VAULT_APPID", None) and os.getenv("VAULT_USERID", None):
+            return VaultAuthentication.app_id(os.getenv("VAULT_APPID"), os.getenv("VAULT_USERID"))
+
+        if os.getenv("VAULT_SSLCERT", None) and os.getenv("VAULT_SSLKEY", None):
+            return VaultAuthentication.ssl_client_cert(os.getenv("VAULT_SSLCERT"), os.getenv("VAULT_SSLKEY"))
+
+        raise VaultCredentialProviderException("Unable to configure Vault authentication from the environment")
+
+    def authenticated_client(self, *args, **kwargs) -> hvac.Client:
+        if self.authtype == "token":
+            cl = hvac.Client(token=self.credentials, *args, **kwargs)
+        elif self.authtype == "app-id":
+            cl = hvac.Client(*args, **kwargs)
+            cl.auth_app_id(*self.credentials)
+        elif self.authtype == "ssl":
+            cl = hvac.Client(cert=self.credentials, *args, **kwargs)
+            cl.auth_tls()
+        else:
+            raise VaultCredentialProviderException("no auth config")
+
+        if not cl.is_authenticated():
+            raise VaultCredentialProviderException("Unable to authenticate Vault client using provided credentials "
+                                                   "(type=%s)" % self.authtype)
+        return cl
+
+
 class VaultCredentialProvider:
-    def __init__(self, vaulturl: str, accesstoken: str, secretpath: str, pin_cacert: str=None,
+    def __init__(self, vaulturl: str, vaultauth: VaultAuthentication, secretpath: str, pin_cacert: str=None,
                  ssl_verify: bool=False, debug_output: bool=False) -> None:
         self.vaulturl = vaulturl
-        self.accesstoken = accesstoken
+        self._vaultauth = vaultauth
         self.secretpath = secretpath
         self.pin_cacert = pin_cacert
         self.ssl_verify = ssl_verify
         self.debug_output = debug_output
-        self._cache = None  # type: Dict[str. str]
+        self._cache = None  # type: Dict[str, str]
         self._leasetime = None  # type: datetime.datetime
         self._updatetime = None  # type: datetime.datetime
         self._lease_id = None  # type: str
 
-    def _now(self):
+    def _now(self) -> datetime.datetime:
         return datetime.datetime.now(tz=pytz.UTC)
 
-    def _refresh(self):
-        vcl = hvac.Client(url=self.vaulturl,
-                          token=self.accesstoken,
-                          verify=self.pin_cacert if self.pin_cacert else self.ssl_verify)
-
-        if not vcl.is_authenticated():
-            raise VaultCredentialProviderException(
-                "Unable to authenticate with provided Vault token. Token: %s" %
-                self.accesstoken if self.debug_output else "Token withheld, debug output is disabled"
-            )
+    def _refresh(self) -> None:
+        vcl = self._vaultauth.authenticated_client(
+            url=self.vaulturl,
+            verify=self.pin_cacert if self.pin_cacert else self.ssl_verify
+        )
 
         try:
             result = vcl.read(self.secretpath)
@@ -67,7 +127,7 @@ class VaultCredentialProvider:
                    self._lease_id, str(self._leasetime), result["lease_duration"], self._cache["username"],
                    self._cache["password"] if self.debug_output else "Password withheld, debug output is disabled")
 
-    def _get_or_update(self, key):
+    def _get_or_update(self, key) -> str:
         if self._cache is None or (self._updatetime - self._now()).total_seconds() < 10:
             # if we have less than 10 seconds in a lease ot no lease at all, we get new credentials
             _log.info("Vault DB credential lease has expired, refreshing for %s" % key)
