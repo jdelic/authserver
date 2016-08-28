@@ -1,5 +1,5 @@
 # -* encoding: utf-8 *-
-from django.contrib.auth import models as auth_models, base_user, base_user
+from django.contrib.auth import models as auth_models, base_user
 from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
 from django.db import models
@@ -35,7 +35,7 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
     is_active = models.BooleanField(
         _("active"),
         default=True,
-        help_text=_(s
+        help_text=_(
             "Designates whether this user should be treated as active. "
             "Unselect this instead of deleting accounts."
         ),
