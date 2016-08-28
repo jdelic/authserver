@@ -6,6 +6,7 @@ from casserver.vault_db_credentials import VaultCredentialProvider, VaultAuthent
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 INSTALLED_APPS = [
+    'casserver',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -68,6 +69,10 @@ if DEBUG:
     ALLOWED_HOSTS = []
 else:
     ALLOWED_HOSTS = ["cas.maurus.net", ]
+
+AUTH_USER_MODEL = "casserver.MNUser"
+
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {
