@@ -45,7 +45,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'casserver.wsgi.application'
 
-import django12factor
+import casserver.vendor.django12factor as django12factor
 globals().update(django12factor.factorise())
 
 if DEBUG:
