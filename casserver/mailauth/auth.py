@@ -1,5 +1,5 @@
 # -* encoding: utf-8 *-
-from casserver.models import Domain, EmailAlias
+from mailauth.models import Domain, EmailAlias
 
 
 class MNUserAuthenticationBackend(object):
@@ -11,5 +11,3 @@ class MNUserAuthenticationBackend(object):
 
         if Domain.objects.filter(name=domain).count() == 0:
             return None
-
-        EmailAlias.objects.g

@@ -1,9 +1,10 @@
 # -* encoding: utf-8 *-
 import django.contrib.auth.admin as auth_admin
+from django.utils.translation import ugettext_lazy as _
 from django.contrib import admin
 
-from casserver.forms import MNUserChangeForm, MNUserCreationForm
-from casserver.models import MNUser
+from mailauth.forms import MNUserChangeForm, MNUserCreationForm
+from mailauth.models import MNUser
 
 
 @admin.register(MNUser)

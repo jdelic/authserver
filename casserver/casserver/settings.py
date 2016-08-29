@@ -49,6 +49,7 @@ import django12factor
 globals().update(django12factor.factorise())
 
 if DEBUG:
+    SECRET_KEY = "secretsekrit"  # FOR DEBUG ONLY!
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -78,7 +79,7 @@ if DEBUG:
 else:
     ALLOWED_HOSTS = ["cas.maurus.net", ]
 
-AUTH_USER_MODEL = "casserver.MNUser"
+AUTH_USER_MODEL = "mailauth.MNUser"
 
 # set PASSWORD_HASHERS[0] to bcrypt256 which is hopefully compatible with OpenSMTPD and Dovecot
 PASSWORD_HASHERS = [
