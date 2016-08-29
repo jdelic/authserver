@@ -4,6 +4,15 @@ from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
 from django.db import models
 
+#
+# The data model here is:
+#     - the org owns D domains
+#     - a user account has 1:N email aliases
+#     - 1 email alias belongs to 1 domain
+#     - a user will be able to authenticate to the app using any of his aliases and his password
+#     - 'identifier' is meaningless for authentication
+#
+
 
 class Domain(models.Model):
     name = models.CharField(max_length=255, unique=True)
