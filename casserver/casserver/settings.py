@@ -6,7 +6,7 @@ from casserver.vault_db_credentials import VaultCredentialProvider, VaultAuthent
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 INSTALLED_APPS = [
-    'casserver',
+    'mailauth.MailAuthApp',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -48,21 +48,29 @@ WSGI_APPLICATION = 'casserver.wsgi.application'
 import django12factor
 globals().update(django12factor.factorise())
 
-VAULT = VaultAuthentication.fromenv()
-CREDS = VaultCredentialProvider("https://vault.local:8200/", VAULT,
-                                "postgresql/creds/casserver", os.getenv("VAULT_CA", None), True,
-                                DEBUG)
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'mnusers',
-        'USER': CREDS.username,
-        'PASSWORD': CREDS.password,
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
+if DEBUG:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': 'mnusers.sqlite3',
+        }
     }
-}
+else:
+    VAULT = VaultAuthentication.fromenv()
+    CREDS = VaultCredentialProvider("https://vault.local:8200/", VAULT,
+                                    "postgresql/creds/casserver", os.getenv("VAULT_CA", None), True,
+                                    DEBUG)
+
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'mnusers',
+            'USER': CREDS.username,
+            'PASSWORD': CREDS.password,
+            'HOST': '127.0.0.1',
+            'PORT': '5432',
+        }
+    }
 
 
 if DEBUG:
@@ -72,7 +80,14 @@ else:
 
 AUTH_USER_MODEL = "casserver.MNUser"
 
-
+# set PASSWORD_HASHERS[0] to bcrypt256 which is hopefully compatible with OpenSMTPD and Dovecot
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    'django.contrib.auth.hashers.BCryptPasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+]
 
 AUTH_PASSWORD_VALIDATORS = [
     {

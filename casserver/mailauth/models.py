@@ -12,6 +12,7 @@ from django.db import models
 #     - a user will be able to authenticate to the app using any of his aliases and his password
 #     - 'identifier' is meaningless for authentication
 #
+from typing import Any
 
 
 class Domain(models.Model):
@@ -63,7 +64,7 @@ class MNUserManager(base_user.BaseUserManager):
     # serializes Manager into migrations. I set this here because it's set on the default UserManager
     use_in_migrations = True
 
-    def _create_user(self, identifier, firstname, lastname, password, **extrafields) -> MNUser:
+    def _create_user(self, identifier: str, firstname: str, lastname: str, password: str, **extrafields: Any) -> MNUser:
         if not identifier:
             raise ValueError("MNUserManager._create_user requires set identifier")
 
@@ -75,12 +76,14 @@ class MNUserManager(base_user.BaseUserManager):
 
     # create_superuser MUST require a password
     # see https://docs.djangoproject.com/en/1.10/topics/auth/customizing/#extending-the-existing-user-model
-    def create_superuser(self, identifier, firstname, lastname, password, **extrafields) -> MNUser:
+    def create_superuser(self, identifier: str, firstname: str, lastname: str, password: str,
+                         **extrafields: Any) -> MNUser:
         extrafields["is_superuser"] = True
         extrafields["is_staff"] = True
         return self._create_user(identifier, firstname, lastname, password, **extrafields)
 
-    def create_user(self, identifier, firstname, lastname, password=None, **extrafields) -> MNUser:
+    def create_user(self, identifier: str, firstname: str, lastname: str, password: str=None,
+                    **extrafields: Any) -> MNUser:
         extrafields.setdefault("is_superuser", False)
         extrafields.setdefault("is_staff", False)
         return self._create_user(identifier, firstname, lastname, password, **extrafields)
