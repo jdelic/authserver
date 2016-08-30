@@ -48,7 +48,7 @@ WSGI_APPLICATION = 'casserver.wsgi.application'
 import casserver.vendor.django12factor as django12factor
 globals().update(django12factor.factorise())
 
-if DEBUG:
+if DEBUG and not VaultAuthentication.has_envconfig():
     SECRET_KEY = "secretsekrit"  # FOR DEBUG ONLY!
     DATABASES = {
         'default': {
