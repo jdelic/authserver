@@ -20,6 +20,7 @@ class VaultAuthentication:
     def __init__(self) -> None:
         self.credentials = None  # type: Union[str, Tuple[str, str]]
         self.authtype = None
+        self.unwrap_response = False
         super().__init__()
 
     @staticmethod
@@ -50,15 +51,29 @@ class VaultAuthentication:
         return i
 
     @staticmethod
+    def has_envconfig() -> bool:
+        if (os.getenv("VAULT_TOKEN", None) or
+           (os.getenv("VAULT_APPID", None) and os.getenv("VAULT_USERID", None)) or
+           (os.getenv("VAULT_SSLCERT", None) and os.getenv("VAULT_SSLKEY", None))):
+            return True
+
+        return False
+
+    @staticmethod
     def fromenv() -> 'VaultAuthentication':
+        i = None
         if os.getenv("VAULT_TOKEN", None):
-            return VaultAuthentication.token(os.getenv("VAULT_TOKEN"))
+            i = VaultAuthentication.token(os.getenv("VAULT_TOKEN"))
+        elif os.getenv("VAULT_APPID", None) and os.getenv("VAULT_USERID", None):
+            i = VaultAuthentication.app_id(os.getenv("VAULT_APPID"), os.getenv("VAULT_USERID"))
+        elif os.getenv("VAULT_SSLCERT", None) and os.getenv("VAULT_SSLKEY", None):
+            i = VaultAuthentication.ssl_client_cert(os.getenv("VAULT_SSLCERT"), os.getenv("VAULT_SSLKEY"))
 
-        if os.getenv("VAULT_APPID", None) and os.getenv("VAULT_USERID", None):
-            return VaultAuthentication.app_id(os.getenv("VAULT_APPID"), os.getenv("VAULT_USERID"))
-
-        if os.getenv("VAULT_SSLCERT", None) and os.getenv("VAULT_SSLKEY", None):
-            return VaultAuthentication.ssl_client_cert(os.getenv("VAULT_SSLCERT"), os.getenv("VAULT_SSLKEY"))
+        if i:
+            e = os.getenv("VAULT_UNWRAP", "False")
+            if e.lower() in ["true", "1", "yes"]:
+                i.unwrap_response = True
+            return i
 
         raise VaultCredentialProviderException("Unable to configure Vault authentication from the environment")
 
