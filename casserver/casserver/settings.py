@@ -81,14 +81,12 @@ else:
 
 AUTH_USER_MODEL = "mailauth.MNUser"
 
-# set PASSWORD_HASHERS[0] to bcrypt256 which is hopefully compatible with OpenSMTPD and Dovecot
-PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
-    'django.contrib.auth.hashers.BCryptPasswordHasher',
-    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
-    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
-    'django.contrib.auth.hashers.Argon2PasswordHasher',
-]
+# Validate email addresses against our special DB structure
+AUTHENTICATION_BACKENDS = ['mailauth.auth.MNUserAuthenticationBackend']
+
+# we use our own modular crypt format sha256 hasher for maximum compatibility
+# with Dovecot, OpenSMTPD etc.
+PASSWORD_HASHERS = ['mailauth.auth.UnixCryptCompatibleSHA256Hasher']
 
 AUTH_PASSWORD_VALIDATORS = [
     {
