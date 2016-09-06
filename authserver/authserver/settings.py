@@ -1,7 +1,7 @@
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-from casserver.vault_db_credentials import VaultCredentialProvider, VaultAuthentication
+from authserver.vault_db_credentials import VaultCredentialProvider, VaultAuthentication
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -25,7 +25,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'casserver.urls'
+ROOT_URLCONF = 'authserver.urls'
 
 TEMPLATES = [
     {
@@ -43,9 +43,9 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'casserver.wsgi.application'
+WSGI_APPLICATION = 'authserver.wsgi.application'
 
-import casserver.vendor.django12factor as django12factor
+import authserver.vendor.django12factor as django12factor
 globals().update(django12factor.factorise())
 
 if DEBUG and not VaultAuthentication.has_envconfig():
@@ -59,7 +59,7 @@ if DEBUG and not VaultAuthentication.has_envconfig():
 else:
     VAULT = VaultAuthentication.fromenv()
     CREDS = VaultCredentialProvider("https://vault.local:8200/", VAULT,
-                                    "postgresql/creds/casserver", os.getenv("VAULT_CA", None), True,
+                                    "postgresql/creds/authserver", os.getenv("VAULT_CA", None), True,
                                     DEBUG)
 
     DATABASES = {

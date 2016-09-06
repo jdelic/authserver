@@ -32,7 +32,7 @@ def main():
                                         "log into all servers which authenticate against this CAS server. "
                                         "Users are authenticated through their usernames or email addresses and "
                                         "their passwords. Passwords will be hashed and randomly salted in accordance "
-                                        "with the settings in casserver.settings.")
+                                        "with the settings in authserver.settings.")
 
     pos_args = parser.add_argument_group("Positional arguments")
     pos_args.add_argument("username", dest="username",
@@ -50,7 +50,7 @@ def main():
                          help="Set the password to the value provided as a command-line parameter. The password MUST "
                               "already be hashed with a valid algorithm. Does NOT support plaintext passwords. You can "
                               "use 'mkpasswd' to hash passwords. However, passwords will be converted to the hashing "
-                              "algorithm selected in casserver.settings the next time the user logs in, if you use "
+                              "algorithm selected in authserver.settings the next time the user logs in, if you use "
                               "a password hashed with a different hashing algorithm.")
 
     _args = parser.parse_args()
@@ -91,7 +91,7 @@ def main():
 
 if __name__ == "__main__":
     basepath = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
-    sys.path.append(os.path.join(basepath, "casserver"))
-    os.environ["DJANGO_SETTINGS_MODULE"] = "casserver.settings"
+    sys.path.append(os.path.join(basepath, "authserver"))
+    os.environ["DJANGO_SETTINGS_MODULE"] = "authserver.settings"
     os.environ["SECRET_KEY"] = base64.b64encode(os.urandom(16)).decode("utf-8")
     main()
