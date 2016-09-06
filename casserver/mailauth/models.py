@@ -1,4 +1,6 @@
 # -* encoding: utf-8 *-
+import uuid
+
 from django.contrib.auth import models as auth_models, base_user
 from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
@@ -59,7 +61,8 @@ class MNUserManager(base_user.BaseUserManager):
 
 
 class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
-    identifier = models.CharField("User ID", max_length=255, unique=True)
+    identifier = models.CharField("User ID", max_length=255, unique=True, db_index=True)
+    uuid = models.UUIDField("Shareable ID", default=uuid.uuid4, editable=False, primary_key=True)
     firstname = models.CharField("First name", max_length=255)
     lastname = models.CharField("Last name", max_length=255)
 
