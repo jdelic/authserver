@@ -4,7 +4,7 @@ from typing import Tuple
 
 from django.contrib.auth import hashers
 from django.utils.translation import ugettext_lazy as _
-from mailauth.models import Domain, EmailAlias
+from mailauth.models import Domain, EmailAlias, MNUser
 
 # noinspection PyUnresolvedReferences
 from passlib.hash import sha256_crypt
@@ -92,11 +92,27 @@ class UnixCryptCompatibleSHA256Hasher(object):
 
 
 class MNUserAuthenticationBackend(object):
-    def authenticate(self, email: str, password: str) -> bool:
+    def authenticate(self, email: str, password: str) -> MNUser:
         if "@" not in email or email.count("@") > 1:
             return None
 
         mailprefix, domain = email.split("@")
 
         if Domain.objects.filter(name=domain).count() == 0:
+            return None
+
+        try:
+            user = EmailAlias.objects.get(mailprefix__istartswith=mailprefix, domain__name=domain).user
+        except EmailAlias.DoesNotExist:
+            return None
+
+        if hashers.check_password(password, user.password):
+            return user
+        else:
+            return None
+
+    def get_user(self, user_id: str) -> MNUser:
+        try:
+            return MNUser.objects.get(uuid=user_id)
+        except MNUser.DoesNotExist:
             return None
