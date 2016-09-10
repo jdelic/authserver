@@ -1,0 +1,16 @@
+-p authserver_{{debian_version.version}}.deb
+-n authserver
+--provides maurusnet-authserver
+-v "{{debian_version.version}}"
+-m "Jonas Maurus"
+-d python3
+-d python3-pip
+-d python3-virtualenv
+--directories "{{basedir}}"
+--directories /run/authserver
+--deb-systemd .gopythongo/etc/authserver.service
+{{basedir}}
+.gopythongo/etc/appconfig/authserver/build_cert.pem=/etc/appconfig/authserver/build_cert.pem
+.gopythongo/etc/appconfig/authserver/build_key.pem=/etc/appconfig/authserver/build_key.pem
+.gopythongo/etc/appconfig/authserver/vaultchain.pem=/etc/appconfig/authserver/vaultchain.pem
+.gopythongo/etc/appconfig/authserver/AUTHCONFIG=/etc/appconfig/authserver/AUTHCONFIG

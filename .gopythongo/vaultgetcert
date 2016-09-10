@@ -1,0 +1,11 @@
+# the arguments below belong on the build server in envvars
+vault-pki=pki-dev/issue/build
+git-include-commit-san
+
+output=.gopythongo/etc/appconfig/authserver/AUTHCONFIG
+common-name=authserver
+certfile-out=.gopythongo/etc/appconfig/authserver/build_cert.pem
+keyfile-out=.gopythongo/etc/appconfig/authserver/build_key.pem
+issuer-bundle=.gopythongo/etc/appconfig/authserver/vaultchain.pem
+output-bundle-envvar=[VAULT_CERT=.gopythongo/etc/appconfig/authserver/vaultchain.pem:/etc/appconfig/authserver]
+output-key-envvar=[VAULT_KEY:/etc/appconfig/authserver]

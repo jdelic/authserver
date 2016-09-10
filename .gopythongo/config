@@ -1,0 +1,29 @@
+builder=pbuilder
+distribution=jessie
+
+# local build options
+pbuilder-create-opts="--keyring /etc/apt/trusted.gpg --debootstrapopts --keyring=/etc/apt/trusted.gpg --mirror http://fileserver.maurusnet.test/debian"
+apt-get=[libssl-dev, libffi-dev]
+run-after-create=[.gopythongo/install_fpm.sh]
+packer=fpm
+
+store=aptly
+use-aptly-vault-wrapper
+repo=maurusnet
+aptly-config=/etc/aptly/aptly.conf
+aptly-distribution=jessie
+# reference for build server
+aptly-publish-opts="-config=/etc/aptly/aptly.conf -architectures=amd64 -keyring=/etc/gpg-managed-keyring/pubring.gpg -secret-keyring=/etc/gpg-managed-keyring/secring.gpg -gpg-key=DDB131CF1DF6A9CF8200799002CBD940A78049AF"
+aptly-publish-endpoint=s3:maurusnet:nightly
+
+versioner=pymodule
+pymodule-read=authserver.version
+version-parser=pep440
+version-action=bump-revision
+
+use-fpm=/usr/local/bin/fpm
+run-fpm=template:.gopythongo/fpm_opts
+
+eatmydata
+eatmydata-path=/usr/bin/eatmydata
+
