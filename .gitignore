@@ -12,3 +12,4 @@ dist
 *.egg-info
 *.iml
 static
+.gopythongo/etc/appconfig
