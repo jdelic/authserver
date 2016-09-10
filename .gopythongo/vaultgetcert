@@ -2,7 +2,7 @@
 vault-pki=pki-dev/issue/build
 git-include-commit-san
 
-output=.gopythongo/etc/appconfig/authserver/AUTHCONFIG
+output=.gopythongo/etc/appconfig/authserver/BUILD_CONFIG
 common-name=authserver
 certfile-out=.gopythongo/etc/appconfig/authserver/build_cert.pem
 keyfile-out=.gopythongo/etc/appconfig/authserver/build_key.pem
