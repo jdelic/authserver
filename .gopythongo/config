@@ -1,6 +1,8 @@
 builder=pbuilder
 distribution=jessie
 
+assemblers=[virtualenv, certifybuild]
+
 # local build options
 pbuilder-create-opts="--keyring /etc/apt/trusted.gpg --debootstrapopts --keyring=/etc/apt/trusted.gpg --mirror http://fileserver.maurusnet.test/debian"
 apt-get=[libssl-dev, libffi-dev]
