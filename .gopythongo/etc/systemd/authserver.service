@@ -1,0 +1,19 @@
+[Unit]
+Description=authserver - A Django CAS/OAUTH server to manage a PostgreSQL credential DB
+
+[Service]
+Type=simple
+User=authserver
+Group=authserver
+# Load env vars from /etc/default/ and /etc/sysconfig/ if they exist.
+# Prefixing the path with '-' makes it try to load, but if the file doesn't
+# exist, it continues onward.
+EnvironmentFile=-/etc/appconfig/authserver/MANAGED_CONFIG
+EnvironmentFile=-/etc/appconfig/authserver/BUILD_CONFIG
+ExecStart=/usr/local/authserver/bin/gunicorn -b ${BINDIP}:${BINDPORT} -w 2 authserver.wsgi:application
+Restart=on-failure
+WorkingDirectory=/usr/local/authserver
+PIDFIle=/run/authserver/authserver.pid
+
+[Install]
+WantedBy=multi-user.target
