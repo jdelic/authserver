@@ -2,7 +2,7 @@
 import datetime
 import logging
 import os
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple, Union, Any
 
 import hvac
 import pytz
@@ -19,7 +19,7 @@ class VaultCredentialProviderException(Exception):
 class VaultAuthentication:
     def __init__(self) -> None:
         self.credentials = None  # type: Union[str, Tuple[str, str]]
-        self.authtype = None
+        self.authtype = None  # type: str
         self.unwrap_response = False
         super().__init__()
 
@@ -77,7 +77,7 @@ class VaultAuthentication:
 
         raise VaultCredentialProviderException("Unable to configure Vault authentication from the environment")
 
-    def authenticated_client(self, *args, **kwargs) -> hvac.Client:
+    def authenticated_client(self, *args: Any, **kwargs: Any) -> hvac.Client:
         if self.authtype == "token":
             cl = hvac.Client(token=self.credentials, *args, **kwargs)
         elif self.authtype == "app-id":
@@ -110,7 +110,7 @@ class VaultCredentialProvider:
         self._lease_id = None  # type: str
 
     def _now(self) -> datetime.datetime:
-        return datetime.datetime.now(tz=pytz.UTC)
+        return datetime.datetime.now(pytz.timezone("UTC"))
 
     def _refresh(self) -> None:
         vcl = self._vaultauth.authenticated_client(
@@ -142,7 +142,7 @@ class VaultCredentialProvider:
                    self._lease_id, str(self._leasetime), result["lease_duration"], self._cache["username"],
                    self._cache["password"] if self.debug_output else "Password withheld, debug output is disabled")
 
-    def _get_or_update(self, key) -> str:
+    def _get_or_update(self, key: str) -> str:
         if self._cache is None or (self._updatetime - self._now()).total_seconds() < 10:
             # if we have less than 10 seconds in a lease ot no lease at all, we get new credentials
             _log.info("Vault DB credential lease has expired, refreshing for %s" % key)

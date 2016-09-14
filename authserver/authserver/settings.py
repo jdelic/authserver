@@ -1,4 +1,5 @@
 import os
+from typing import List
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 from authserver.vault_db_credentials import VaultCredentialProvider, VaultAuthentication
@@ -45,6 +46,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'authserver.wsgi.application'
 
+DEBUG = False  # overridden by factorise() if defined
+
 import authserver.vendor.django12factor as django12factor
 globals().update(django12factor.factorise())
 
@@ -75,7 +78,7 @@ else:
 
 
 if DEBUG:
-    ALLOWED_HOSTS = []
+    ALLOWED_HOSTS = []  # type: List[str]
 else:
     ALLOWED_HOSTS = ["cas.maurus.net", ]
 

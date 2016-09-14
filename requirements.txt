@@ -2,7 +2,6 @@ psycopg2==2.6.2
 Django==1.10.1
 django-mama-cas==2.0.1
 requests==2.11.1
-django12factor==1.4.dev
 gunicorn==19.6.0
 hvac==0.2.16
 typing==3.5.2.2
