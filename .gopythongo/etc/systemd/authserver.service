@@ -10,6 +10,7 @@ Group=authserver
 # exist, it continues onward.
 EnvironmentFile=-/etc/appconfig/authserver/MANAGED_CONFIG
 EnvironmentFile=-/etc/appconfig/authserver/BUILD_CONFIG
+EnvironmentFile=-/etc/appconfig/authserver/SECRET_KEY
 ExecStart=/usr/local/authserver/bin/gunicorn -b ${BINDIP}:${BINDPORT} -w 2 authserver.wsgi:application
 Restart=on-failure
 WorkingDirectory=/usr/local/authserver
