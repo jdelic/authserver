@@ -35,3 +35,10 @@ Future extensions
  * add Google Authenticator support via `django-otp`
  * add oauth2 support using `django-oauth-toolkit`
  * fully implement CAS
+
+
+TODO
+====
+
+ * Figure out where VAULT_CA should come from
+ * refactor Vault fullaccess role into actually granting access to new tables
