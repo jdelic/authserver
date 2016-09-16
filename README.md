@@ -23,10 +23,10 @@ SECRET_KEY    | The Django settings.SECRET_KEY value to be used
 Managed configuration
 ---------------------
 
-Variable      | Description
---------------|---------------------------------------------------------------
-VAULT_CA      | The CA to use to validate that we're talking to the right Vault
-DATABASE_URL  |
+Variable            | Description
+--------------------|---------------------------------------------------------
+VAULT_CA            | The CA to use to validate that we're talking to the right Vault
+VAULT_DATABASE_PATH | The key path to read from Vault to get database credentials
 
 
 Future extensions

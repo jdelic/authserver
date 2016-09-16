@@ -56,19 +56,20 @@ if DEBUG and not VaultAuthentication.has_envconfig():
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': 'mnusers.sqlite3',
+            'NAME': 'authserver.sqlite3',
         }
     }
 else:
     VAULT = VaultAuthentication.fromenv()
     CREDS = VaultCredentialProvider("https://vault.local:8200/", VAULT,
-                                    "postgresql/creds/authserver", os.getenv("VAULT_CA", None), True,
+                                    os.getenv("VAULT_DATABASE_PATH", "db-authserver/creds/fullaccess"),
+                                    os.getenv("VAULT_CA", None), True,
                                     DEBUG)
 
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'mnusers',
+            'NAME': 'authserver',
             'USER': CREDS.username,
             'PASSWORD': CREDS.password,
             'HOST': '127.0.0.1',
