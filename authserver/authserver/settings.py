@@ -69,7 +69,7 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'authserver',
+            'NAME': os.getenv("DATABASE_NAME", "authserver"),
             'USER': CREDS.username,
             'PASSWORD': CREDS.password,
             'HOST': '127.0.0.1',
