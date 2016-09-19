@@ -74,6 +74,7 @@ else:
             'PASSWORD': CREDS.password,
             'HOST': '127.0.0.1',
             'PORT': '5432',
+            'SET_ROLE': os.getenv("DATABASE_PARENTROLE", "authserver")
         }
     }
 
