@@ -9,19 +9,25 @@ database credentials.
 Here is a command list for doing so (assuming you are authenticated to the
 Vault instance):
 
+As `postgres`:
 ```
-vault mount postgresql
-vault write postgresql/config/connection connection_url=-
+createuser -D -E -I -P -l -r -S vaultadmin
+createuser -D -E -I -L -R -S authserver
+createdb -E utf8 -O authserver authserver
+```
 
-postgresql://vaultadmin:(PASSWORD)@postgresql.local:5432/postgres
+Then configure Vault:
+```
+vault mount -path=db-authserver postgresql
+vault write db-authserver/config/connection connection_url=-
+postgresql://vaultadmin:(password)@postgresql.local:5432/authserver
 
-vault write postgresql/config/lease lease=1h lease_max=24h
+vault write db-authserver/config/lease lease=1h lease_max=24h
 
-vault write postgresql/roles/authserver sql=-
-
-CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '{{password}}'
-    VALID UNTIL '{{expiration}}';
-GRANT ALL PRIVILEGES ON DATABASE mnusers TO "{{name}}";
+vault write db-authserver/roles/authserver sql=-
+CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '{{password}}' VALID
+UNTIL '{{expiration}}' IN ROLE "mydatabaseowner" INHERIT NOCREATEROLE
+NOCREATEDB NOSUPERUSER NOREPLICATION NOBYPASSRLS;
 
 # now you can create database logins like this:
 # vault read -format=json postgresql/creds/authserver
