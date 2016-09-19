@@ -6,7 +6,7 @@ gunicorn==19.6.0
 hvac==0.2.16
 typing==3.5.2.2
 passlib==1.6.5
-django-postgresql-setrole==1.0.4
+django-postgresql-setrole==1.0.5
 
 # vendored dependencies from django12factor
 dj-database-url==0.4.1
