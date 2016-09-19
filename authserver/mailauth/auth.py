@@ -21,6 +21,7 @@ class UnixCryptCompatibleSHA256Hasher(object):
 
     # double the default
     rounds = 1070000  # type: int
+    algorithm = "sha256_passlib"  # type: str
 
     def _split_encoded(self, encoded: str) -> Tuple[int, str, str]:
         _, five, rounds, salt, hash = encoded.split("$")
