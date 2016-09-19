@@ -7,6 +7,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 INSTALLED_APPS = [
     'mailauth.MailAuthApp',
+    'postgresql_setrole',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -59,14 +60,6 @@ if DEBUG and not VaultAuthentication.has_envconfig():
         }
     }
 else:
-    from django.db.backends.postgresql import base as _base
-
-    def init_connection_state(self) -> None:
-        self.connection.cursor().execute("SET ROLE %s", (os.getenv("DATABASE_PARENTROLE", "authserver"),))
-
-    _base.DatabaseWrapper._authserver_init_connection_state = _base.DatabaseWrapper.init_connection_state
-    _base.DatabaseWrapper.init_connection_state = init_connection_state
-
     VAULT = VaultAuthentication.fromenv()
     CREDS = VaultCredentialProvider("https://vault.local:8200/", VAULT,
                                     os.getenv("VAULT_DATABASE_PATH", "db-authserver/creds/fullaccess"),
