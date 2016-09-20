@@ -10,8 +10,5 @@
 --directories /run/authserver
 --deb-systemd .gopythongo/etc/systemd/authserver.service
 {{basedir}}
-.gopythongo/etc/appconfig/authserver/build_cert.pem=/etc/appconfig/authserver/build_cert.pem
-.gopythongo/etc/appconfig/authserver/build_key.pem=/etc/appconfig/authserver/build_key.pem
-.gopythongo/etc/appconfig/authserver/vaultchain.pem=/etc/appconfig/authserver/vaultchain.pem
-.gopythongo/etc/appconfig/authserver/BUILD_CONFIG=/etc/appconfig/authserver/BUILD_CONFIG
-.gopythongo/etc/appconfig/authserver/SECRET_KEY=/etc/appconfig/authserver/SECRET_KEY
+.gopythongo/etc/appconfig/authserver/files/=/etc/appconfig/authserver/files/
+.gopythongo/etc/appconfig/authserver/env/=/etc/appconfig/authserver/env/

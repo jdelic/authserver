@@ -2,10 +2,11 @@
 vault-pki=pki-dev/issue/build
 git-include-commit-san
 
-output=.gopythongo/etc/appconfig/authserver/BUILD_CONFIG
+envdir=True
+output=.gopythongo/etc/appconfig/authserver/env/
 common-name=authserver
-certfile-out=.gopythongo/etc/appconfig/authserver/build_cert.pem
-keyfile-out=.gopythongo/etc/appconfig/authserver/build_key.pem
-issuer-bundle=.gopythongo/etc/appconfig/authserver/vaultchain.pem
-output-bundle-envvar=[VAULT_SSLCERT=.gopythongo/etc/appconfig/authserver/vaultchain.pem:/etc/appconfig/authserver]
-output-key-envvar=[VAULT_SSLKEY:/etc/appconfig/authserver]
+certfile-out=.gopythongo/etc/appconfig/authserver/files/build_cert.pem
+keyfile-out=.gopythongo/etc/appconfig/authserver/files/build_key.pem
+issuer-bundle=.gopythongo/etc/appconfig/authserver/files/vaultchain.pem
+output-bundle-envvar=[VAULT_SSLCERT=.gopythongo/etc/appconfig/authserver/files/vaultchain.pem:/etc/appconfig/authserver/files]
+output-key-envvar=[VAULT_SSLKEY:/etc/appconfig/authserver/files]
