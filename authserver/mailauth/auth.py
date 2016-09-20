@@ -22,7 +22,8 @@ class UnixCryptCompatibleSHA256Hasher(object):
 
     # double the default
     rounds = 1070000  # type: int
-    # algorithm must be empty for hackish compatibility with django.contrib.auth.hashers
+    # algorithm must be non-empty for hackish compatibility with django.contrib.auth.hashers so
+    # identify_hasher can find us
     algorithm = "sha256_passlib"  # type: str
 
     def _split_encoded(self, encoded: str) -> Tuple[int, str, str]:
@@ -48,7 +49,8 @@ class UnixCryptCompatibleSHA256Hasher(object):
         """
         Checks if the given password is correct
         """
-        logging.debug("Verify password %s against %s", password, encoded)
+        # we get passed the value modified by the password getter in MNUser, so we need to remove
+        # the fake algorithm identification string
         if encoded.startswith(self.algorithm):
             encoded = encoded[len(self.algorithm):]
         return sha256_crypt.verify(password, encoded)

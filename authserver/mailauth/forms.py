@@ -4,6 +4,9 @@
 #
 import django.contrib.auth.forms as auth_forms
 
+from django.utils.text import ugettext_lazy as _
+from typing import Any
+
 from mailauth.models import MNUser
 
 
@@ -15,6 +18,9 @@ class MNUserCreationForm(auth_forms.UserCreationForm):
 
 
 class MNUserChangeForm(auth_forms.UserChangeForm):
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
     class Meta:
         model = MNUser
         fields = '__all__'

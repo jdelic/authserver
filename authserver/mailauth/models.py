@@ -22,6 +22,9 @@ from typing import Any
 class Domain(models.Model):
     name = models.CharField(max_length=255, unique=True)
 
+    def __str__(self):
+        return self.name
+
 
 class EmailAlias(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="aliases")
@@ -30,6 +33,9 @@ class EmailAlias(models.Model):
 
     class Meta:
         unique_together = (("mailprefix", "domain"),)
+
+    def __str__(self):
+        return "%s@%s (%s)" % (self.mailprefix, self.domain, self.user.identifier)
 
 
 class MNUserManager(base_user.BaseUserManager):
@@ -63,13 +69,27 @@ class MNUserManager(base_user.BaseUserManager):
 
 
 class PretendHasherPasswordField(models.CharField):
+    """
+    This just makes sure that no mention of sha256_passlib makes it into the database, even when
+    Django sidesteps the Model instance which has a property below and instantiates the Field class
+    directly.
+    """
     def get_prep_value(self, value: str) -> str:
-        logging.debug("get_prep_value %s", value)
+        # we might get a value previously modified by the password getter below. In that case we remove
+        # the unwanted prefix.
         from mailauth.auth import UnixCryptCompatibleSHA256Hasher
         if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
             return value[len(UnixCryptCompatibleSHA256Hasher.algorithm):]
         else:
             return value
+
+    def value_from_object(self, obj):
+        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
+        value = super().value_from_object(obj)
+        if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
+            return value
+        else:
+            return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, value)
 
 
 class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
@@ -77,7 +97,7 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
     uuid = models.UUIDField("Shareable ID", default=uuid.uuid4, editable=False, primary_key=True)
     firstname = models.CharField("First name", max_length=255)
     lastname = models.CharField("Last name", max_length=255)
-    sha256_password = PretendHasherPasswordField(_("password"), max_length=128)
+    password = PretendHasherPasswordField(_("password"), max_length=128)
 
     USERNAME_FIELD = 'identifier'
     # password and USERNAME_FIELD are autoadded to REQUIRED_FIELDS.
@@ -100,20 +120,34 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
 
     objects = MNUserManager()
 
-    @property
-    def password(self) -> str:
-        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
-        if self.sha256_password.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
-            logging.debug("getter direct %s", self.sha256_password)
-            return self.sha256_password
-        else:
-            logging.debug("getter %s%s", UnixCryptCompatibleSHA256Hasher.algorithm, self.sha256_password)
-            return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, self.sha256_password)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._masked_password = self.password
 
-    @password.setter
-    def password(self, value: str) -> None:
-        logging.debug("setter %s", value)
-        self.sha256_password = value
+        # hacky hacky this will breaky at some point in the future
+        # but it's the solution that allows the most code reuse from django.contrib.auth
+        # without having two password columns in the database table
+        setattr(self.__class__, 'password',
+                property(fget=MNUser._get_sha256_password, fset=MNUser._set_sha256_password))
+
+    def _get_sha256_password(self) -> str:
+        # pretend to return a Django crypt format password string
+        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
+        if isinstance(self._masked_password, str):
+            if self._masked_password.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
+                return self._masked_password
+            else:
+                return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, self._masked_password)
+        return self._masked_password
+
+    def _set_sha256_password(self, value: str) -> None:
+        # pretend to be a standard CharField
+        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
+        if isinstance(value, str):
+            if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
+                self._masked_password = value[len(UnixCryptCompatibleSHA256Hasher.algorithm):]
+                return
+        self._masked_password = value
 
     def get_full_name(self) -> str:
         return "%s %s" % (self.firstname, self.lastname)
