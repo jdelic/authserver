@@ -15,7 +15,7 @@ class MNUserAdmin(auth_admin.UserAdmin):
         (_('Personal info'), {'fields': ('firstname', 'lastname')}),
         (_('Permissions'), {'fields': ('is_active', 'is_staff', 'is_superuser',
                                        'groups', 'user_permissions')}),
-        (_('Important dates'), {'fields': ('last_login', 'date_joined')}),
+        (_('Important dates'), {'fields': ('last_login',)}),
     )
     add_fieldsets = (
         (None, {
@@ -39,5 +39,5 @@ class DomainAdmin(admin.ModelAdmin):
 
 
 @admin.register(EmailAlias)
-class EmaiLAliasAdmin(admin.ModelAdmin):
+class EmailAliasAdmin(admin.ModelAdmin):
     pass
