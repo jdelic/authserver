@@ -4,7 +4,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.contrib import admin
 
 from mailauth.forms import MNUserChangeForm, MNUserCreationForm
-from mailauth.models import MNUser
+from mailauth.models import MNUser, Domain, EmailAlias
 
 
 @admin.register(MNUser)
@@ -31,3 +31,13 @@ class MNUserAdmin(auth_admin.UserAdmin):
     search_fields = ('identifier', 'firstname', 'lastname')
     ordering = ('identifier',)
     filter_horizontal = ('groups', 'user_permissions',)
+
+
+@admin.register(Domain)
+class DomainAdmin(admin.ModelAdmin):
+    pass
+
+
+@admin.register(EmailAlias)
+class EmaiLAliasAdmin(admin.ModelAdmin):
+    pass

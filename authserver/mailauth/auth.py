@@ -5,8 +5,8 @@ from typing import Tuple
 
 from django.contrib.auth import hashers
 from django.utils.translation import ugettext_lazy as _
-from mailauth.models import Domain, EmailAlias, MNUser
 
+from mailauth.models import Domain, EmailAlias, MNUser
 # noinspection PyUnresolvedReferences
 from passlib.hash import sha256_crypt
 
@@ -22,6 +22,7 @@ class UnixCryptCompatibleSHA256Hasher(object):
 
     # double the default
     rounds = 1070000  # type: int
+    # algorithm must be empty for hackish compatibility with django.contrib.auth.hashers
     algorithm = "sha256_passlib"  # type: str
 
     def _split_encoded(self, encoded: str) -> Tuple[int, str, str]:
@@ -47,6 +48,9 @@ class UnixCryptCompatibleSHA256Hasher(object):
         """
         Checks if the given password is correct
         """
+        logging.debug("Verify password %s against %s", password, encoded)
+        if encoded.startswith(self.algorithm):
+            encoded = encoded[len(self.algorithm):]
         return sha256_crypt.verify(password, encoded)
 
     def encode(self, password: str, salt: str) -> str:
@@ -67,7 +71,7 @@ class UnixCryptCompatibleSHA256Hasher(object):
         """
         roundcount, salt, hash = self._split_encoded(encoded)
         return OrderedDict([
-            (_('algorithm'), "sha256_crypt"),
+            (_('algorithm'), self.algorithm),
             (_('iterations'), str(roundcount)),
             (_('salt'), hashers.mask_hash(salt)),
             (_('hash'), hashers.mask_hash(hash)),
@@ -95,12 +99,31 @@ class UnixCryptCompatibleSHA256Hasher(object):
 
 class MNUserAuthenticationBackend(object):
     def authenticate(self, username: str, password: str) -> MNUser:
+        # the argument names must be 'username' and 'password' because the authenticator interface is tightly coupled
+        # to the parameter names between login forms and authenticators
         if "@" not in username or username.count("@") > 1:
+            try:
+                user = MNUser.objects.get(identifier=username)
+            except MNUser.DoesNotExist:
+                logging.debug("No user found %s for identifier login", username)
+                return None
+
+            # if the user is a staff user, they may also log in using their identifier
+            if user.is_staff:
+                logging.debug("User %s is staff, allowing identifier login", username)
+                if hashers.check_password(password, user.password):
+                    logging.debug("User %s logged in with correct password")
+                    return user
+                else:
+                    logging.debug("Incorrect password for user %s (%s)", username, user.password)
+
             return None
 
+        logging.debug("logging user %s in as email alias", username)
         mailprefix, domain = username.split("@")
 
         if Domain.objects.filter(name=domain).count() == 0:
+            logging.debug("Domain %s does not exist", domain)
             return None
 
         try:
