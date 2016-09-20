@@ -1,6 +1,6 @@
 import os
 from typing import List
-from authserver.vault_db_credentials import VaultCredentialProvider, VaultAuthentication
+from vault12factor import VaultCredentialProvider, VaultAuth12Factor
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -76,7 +76,7 @@ LOGGING = {
     },
 }
 
-if DEBUG and not VaultAuthentication.has_envconfig():
+if DEBUG and not VaultAuth12Factor.has_envconfig():
     SECRET_KEY = "secretsekrit"  # FOR DEBUG ONLY!
     DATABASES = {
         'default': {
@@ -85,7 +85,7 @@ if DEBUG and not VaultAuthentication.has_envconfig():
         }
     }
 else:
-    VAULT = VaultAuthentication.fromenv()
+    VAULT = VaultAuth12Factor.fromenv()
     CREDS = VaultCredentialProvider("https://vault.local:8200/", VAULT,
                                     os.getenv("VAULT_DATABASE_PATH", "db-authserver/creds/fullaccess"),
                                     os.getenv("VAULT_CA", None), True,
