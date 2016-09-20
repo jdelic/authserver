@@ -1,4 +1,5 @@
 # -* encoding: utf-8 *-
+import logging
 from collections import OrderedDict
 from typing import Tuple
 
@@ -93,11 +94,11 @@ class UnixCryptCompatibleSHA256Hasher(object):
 
 
 class MNUserAuthenticationBackend(object):
-    def authenticate(self, email: str, password: str) -> MNUser:
-        if "@" not in email or email.count("@") > 1:
+    def authenticate(self, username: str, password: str) -> MNUser:
+        if "@" not in username or username.count("@") > 1:
             return None
 
-        mailprefix, domain = email.split("@")
+        mailprefix, domain = username.split("@")
 
         if Domain.objects.filter(name=domain).count() == 0:
             return None
