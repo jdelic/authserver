@@ -97,6 +97,8 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
     firstname = models.CharField("First name", max_length=255)
     lastname = models.CharField("Last name", max_length=255)
     password = PretendHasherPasswordField(_("password"), max_length=128)
+    pgp_key_id = models.CharField("PGP Key ID", max_length=64, blank=True, default="")
+    yubikey_serial = models.CharField("Yubikey Serial", max_length=64, blank=True, default="")
 
     USERNAME_FIELD = 'identifier'
     # password and USERNAME_FIELD are autoadded to REQUIRED_FIELDS.
