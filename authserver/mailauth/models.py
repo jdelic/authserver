@@ -31,6 +31,7 @@ class EmailAlias(models.Model):
 
     class Meta:
         unique_together = (("mailprefix", "domain"),)
+        verbose_name_plural = "Email aliases"
 
     def __str__(self):
         return "%s@%s (%s)" % (self.mailprefix, self.domain, self.user.identifier)
