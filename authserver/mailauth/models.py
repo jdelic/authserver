@@ -2,7 +2,6 @@
 import uuid
 
 from django.contrib.auth import models as auth_models, base_user
-from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
 from django.db import models
 from typing import Any
@@ -30,7 +29,7 @@ class EmailAlias(models.Model):
     mailprefix = models.CharField("Mail prefix", max_length=255)
 
     class Meta:
-        unique_together = (("mailprefix", "domain"),)
+        unique_together = (('mailprefix', 'domain'),)
         verbose_name_plural = "Email aliases"
 
     def __str__(self):
@@ -41,12 +40,11 @@ class MNUserManager(base_user.BaseUserManager):
     # serializes Manager into migrations. I set this here because it's set on the default UserManager
     use_in_migrations = True
 
-    def _create_user(self, identifier: str, firstname: str, lastname: str, password: str,
-                     **extrafields: Any) -> 'MNUser':
+    def _create_user(self, identifier: str, fullname: str, password: str, **extrafields: Any) -> 'MNUser':
         if not identifier:
             raise ValueError("MNUserManager._create_user requires set identifier")
 
-        user = MNUser(identifier=MNUser.normalize_username(identifier), firstname=firstname, lastname=lastname,
+        user = MNUser(identifier=MNUser.normalize_username(identifier), fullname=fullname,
                       **extrafields)
         user.set_password(password)
         user.save(using=self._db)
@@ -54,17 +52,15 @@ class MNUserManager(base_user.BaseUserManager):
 
     # create_superuser MUST require a password
     # see https://docs.djangoproject.com/en/1.10/topics/auth/customizing/#extending-the-existing-user-model
-    def create_superuser(self, identifier: str, firstname: str, lastname: str, password: str,
-                         **extrafields: Any) -> 'MNUser':
+    def create_superuser(self, identifier: str, fullname: str, password: str, **extrafields: Any) -> 'MNUser':
         extrafields["is_superuser"] = True
         extrafields["is_staff"] = True
-        return self._create_user(identifier, firstname, lastname, password, **extrafields)
+        return self._create_user(identifier, fullname, password, **extrafields)
 
-    def create_user(self, identifier: str, firstname: str, lastname: str, password: str=None,
-                    **extrafields: Any) -> 'MNUser':
+    def create_user(self, identifier: str, fullname: str, password: str=None, **extrafields: Any) -> 'MNUser':
         extrafields.setdefault("is_superuser", False)
         extrafields.setdefault("is_staff", False)
-        return self._create_user(identifier, firstname, lastname, password, **extrafields)
+        return self._create_user(identifier, fullname, password, **extrafields)
 
 
 class PretendHasherPasswordField(models.CharField):
@@ -94,29 +90,26 @@ class PretendHasherPasswordField(models.CharField):
 class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
     identifier = models.CharField("User ID", max_length=255, unique=True, db_index=True)
     uuid = models.UUIDField("Shareable ID", default=uuid.uuid4, editable=False, primary_key=True)
-    firstname = models.CharField("First name", max_length=255)
-    lastname = models.CharField("Last name", max_length=255)
-    password = PretendHasherPasswordField(_("password"), max_length=128)
+    fullname = models.CharField("Full name", max_length=255)
+    password = PretendHasherPasswordField("Password", max_length=128)
     pgp_key_id = models.CharField("PGP Key ID", max_length=64, blank=True, default="")
     yubikey_serial = models.CharField("Yubikey Serial", max_length=64, blank=True, default="")
 
     USERNAME_FIELD = 'identifier'
     # password and USERNAME_FIELD are autoadded to REQUIRED_FIELDS.
-    REQUIRED_FIELDS = ['firstname', 'lastname']
+    REQUIRED_FIELDS = ['fullname',]
 
     is_staff = models.BooleanField(
-        _("staff status"),
+        "Staff status",
         default=False,
-        help_text=_("Designates whether the user can log into this admin site."),
+        help_text="Designates whether the user can log into this admin site.",
     )
 
     is_active = models.BooleanField(
-        _("active"),
+        "Active",
         default=True,
-        help_text=_(
-            "Designates whether this user should be treated as active. "
-            "Unselect this instead of deleting accounts."
-        ),
+        help_text="Designates whether this user should be treated as active. "
+                  "Unselect this instead of deleting accounts.",
     )
 
     objects = MNUserManager()
