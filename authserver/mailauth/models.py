@@ -24,7 +24,8 @@ class Domain(models.Model):
 
 
 class EmailAlias(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="aliases")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="aliases",
+                             null=False)
     domain = models.ForeignKey(Domain, verbose_name="On domain")
     mailprefix = models.CharField("Mail prefix", max_length=255)
 
@@ -88,16 +89,18 @@ class PretendHasherPasswordField(models.CharField):
 
 
 class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
-    identifier = models.CharField("User ID", max_length=255, unique=True, db_index=True)
     uuid = models.UUIDField("Shareable ID", default=uuid.uuid4, editable=False, primary_key=True)
+    identifier = models.CharField("User ID", max_length=255, unique=True, db_index=True)
     fullname = models.CharField("Full name", max_length=255)
     password = PretendHasherPasswordField("Password", max_length=128)
+    delivery_mailbox = models.OneToOneField(EmailAlias, on_delete=models.PROTECT, null=True)
+
     pgp_key_id = models.CharField("PGP Key ID", max_length=64, blank=True, default="")
     yubikey_serial = models.CharField("Yubikey Serial", max_length=64, blank=True, default="")
 
     USERNAME_FIELD = 'identifier'
     # password and USERNAME_FIELD are autoadded to REQUIRED_FIELDS.
-    REQUIRED_FIELDS = ['fullname',]
+    REQUIRED_FIELDS = ['fullname', ]
 
     is_staff = models.BooleanField(
         "Staff status",
