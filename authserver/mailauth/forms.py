@@ -2,10 +2,9 @@
 #
 # The forms in here are hooked up to Django admin via mailauth.admin
 #
-import django.contrib.auth.forms as auth_forms
-
-from django.utils.text import ugettext_lazy as _
 from typing import Any
+
+import django.contrib.auth.forms as auth_forms
 
 from mailauth.models import MNUser
 
