@@ -1,6 +1,8 @@
 # -* encoding: utf-8 *-
 import django.contrib.auth.admin as auth_admin
 from django.contrib import admin
+from django.core import urlresolvers
+from django.utils.html import format_html
 
 from mailauth.forms import MNUserChangeForm, MNUserCreationForm
 from mailauth.models import MNUser, Domain, EmailAlias
@@ -40,3 +42,18 @@ class DomainAdmin(admin.ModelAdmin):
 @admin.register(EmailAlias)
 class EmailAliasAdmin(admin.ModelAdmin):
     search_fields = ('mailprefix', 'domain__name',)
+
+    def get_user(self, obj: EmailAlias) -> str:
+        return format_html(
+            "<a href=\"{}\">{}</a>",
+            urlresolvers.reverse('admin:mailauth_mnuser_change', args=[obj.user.uuid]),
+            obj.user.identifier,
+        )
+    get_user.short_description = "User"
+    get_user.admin_order_field = 'user__uuid'
+
+    def get_mailalias(self, obj: EmailAlias) -> str:
+        return "%s@%s" % (obj.mailprefix, obj.domain.name)
+    get_mailalias.short_description = "Mail alias"
+
+    list_display = ('get_mailalias', 'get_user',)
