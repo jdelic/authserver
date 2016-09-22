@@ -11,9 +11,9 @@ class MNUserAdmin(auth_admin.UserAdmin):
     # overwrite all the fields
     fieldsets = (
         (None, {'fields': ('identifier', 'password')}),
-        ("Personal info", {'fields': ('firstname', 'lastname')}),
+        ("Personal info", {'fields': ('fullname', 'delivery_mailbox', 'pgp_key_id', 'yubikey_serial', )}),
         ("Permissions", {'fields': ('is_active', 'is_staff', 'is_superuser',
-                                       'groups', 'user_permissions')}),
+                                    'groups', 'user_permissions')}),
         ("Important dates", {'fields': ('last_login',)}),
     )
     add_fieldsets = (
@@ -25,7 +25,7 @@ class MNUserAdmin(auth_admin.UserAdmin):
     form = MNUserChangeForm
     add_form = MNUserCreationForm
     change_password_form = auth_admin.AdminPasswordChangeForm
-    list_display = ('identifier', 'fullname', 'is_staff')
+    list_display = ('identifier', 'fullname', 'delivery_mailbox', 'is_staff', )
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups')
     search_fields = ('identifier', 'fullname')
     ordering = ('identifier',)
