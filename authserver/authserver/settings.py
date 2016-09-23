@@ -100,14 +100,15 @@ else:
             'HOST': '127.0.0.1',
             'PORT': '5432',
             'SET_ROLE': os.getenv("DATABASE_PARENTROLE", "authserver")
-        }
+        },
+
     }
 
 
 if DEBUG:
     ALLOWED_HOSTS = []  # type: List[str]
 else:
-    ALLOWED_HOSTS = ["cas.maurus.net", ]
+    ALLOWED_HOSTS = ["auth.maurus.net", ]
 
 AUTH_USER_MODEL = "mailauth.MNUser"
 
