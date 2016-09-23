@@ -5,8 +5,9 @@ Canonical reserved configuration folder for this app:
 **/etc/appconfig/authserver**
 
 Run ``django-admin.py`` like this:
-``bin/envdir /etc/appconfig/authserver/env bin/django-admin.py [command]
-    --settings=authserver.settings``
+
+    bin/envdir /etc/appconfig/authserver/env bin/django-admin.py [command]
+        --settings=authserver.settings``
 
 
 Environment configuration
