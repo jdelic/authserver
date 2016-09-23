@@ -53,6 +53,37 @@ Vault
 ==============
 
 
+Access methods
+==============
+
+There are multiple ways to authenticate user accounts against this program.
+Offered APIs will include OAuth and CAS.
+
+Stored Procdure API
+-------------------
+Since some applications (like OpenSMTPD) which are used by
+`my saltshaker <https://github.com/jdelic/saltshaker>`__  need lowest common
+denominator authentication, authserver includes a pgplsql stored procedure API
+tailored to OpenSMTPD to validate user accounts.
+
+=======================================  =====================================
+Function Name                            Description
+=======================================  =====================================
+``authserver_get_credentials(varchar)``  Gets a username password pair for the
+                                         provided email address. Users can log
+                                         in with every email alias and their
+                                         account password.
+``authserver_check_domain(varchar)``     Checks whether the passed domain is a
+                                         valid delivery domain.
+``authserver_resolve_alias(varchar)``    Resolves email addresses to known
+                                         ``MNUser`` instances. Resolving a
+                                         primary delivery address will return
+                                         the "magic" value "virtmail" pointing
+                                         to the system user normally handling
+                                         email delivery.
+=======================================  =====================================
+
+
 Future extensions
 =================
 
