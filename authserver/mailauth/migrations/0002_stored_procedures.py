@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
 
     operations = [
         RunSQL("""
-            CREATE FUNCTION authserver_resolve_alias(email varchar) RETURNS varchar AS $$
+            CREATE OR REPLACE FUNCTION authserver_resolve_alias(email varchar) RETURNS varchar AS $$
             DECLARE
                 user_mailprefix varchar;
                 user_domain varchar;
@@ -43,10 +43,10 @@ class Migration(migrations.Migration):
                     RETURN primary_email;
                 END IF;
             END;
-            $$ LANGUAGE plpgsql;
+            $$ LANGUAGE plpgsql SECURITY DEFINER;
         """),
         RunSQL("""
-            CREATE FUNCTION authserver_get_credentials(email varchar)
+            CREATE OR REPLACE FUNCTION authserver_get_credentials(email varchar)
                 RETURNS TABLE (username varchar, password varchar) AS $$
             DECLARE
                 user_mailprefix varchar;
@@ -64,19 +64,23 @@ class Migration(migrations.Migration):
                         "domain".name=user_domain AND
                         "alias".mailprefix=user_mailprefix AND
                         "alias".domain_id="domain".id;
-                RETURN QUERY SELECT email, password;
-                RETURN;
+                IF password IS NULL OR password = '' THEN
+                    RETURN;
+                ELSE
+                    RETURN QUERY SELECT email, password;
+                    RETURN;
+                END IF;
             END;
-            $$ LANGUAGE plpgsql;
+            $$ LANGUAGE plpgsql SECURITY DEFINER;
         """),
         RunSQL("""
-            CREATE FUNCTION authserver_check_domain(domain varchar) RETURNS varchar AS $$
+            CREATE OR REPLACE FUNCTION authserver_check_domain(domain varchar) RETURNS varchar AS $$
             DECLARE
                 ret varchar;
             BEGIN
                 SELECT name INTO ret FROM mailauth_domain WHERE name=domain;
                 RETURN ret;
             END;
-            $$ LANGUAGE plpgsql;
+            $$ LANGUAGE plpgsql SECURITY DEFINER;
         """),
     ]
