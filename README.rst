@@ -89,6 +89,8 @@ Function Name                            Description
                                          the "magic" value "virtmail" pointing
                                          to the system user normally handling
                                          email delivery.
+``authserver_iterate_users()``           Returns a list of all delivery
+                                         mailboxes.
 =======================================  =====================================
 
 

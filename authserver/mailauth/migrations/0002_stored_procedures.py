@@ -99,4 +99,19 @@ class Migration(migrations.Migration):
             END;
             $$ LANGUAGE plpgsql SECURITY DEFINER;
         """),
+        RunSQL("""
+            CREATE OR REPLACE FUNCTION authserver_iterate_users()
+                RETURNS TABLE (userid varchar) AS $$
+            BEGIN
+                RETURN QUERY SELECT "alias".mailprefix || '@' || "domain".name AS userid FROM
+                        mailauth_mnuser AS "user",
+                        mailauth_domain AS "domain",
+                        mailauth_emailalias AS "alias"
+                    WHERE
+                        "alias".id="user".delivery_mailbox_id AND
+                        "domain".id="alias".domain_id;
+                RETURN;
+            END;
+            $$ LANGUAGE plpgsql SECURITY DEFINER;
+        """)
     ]
