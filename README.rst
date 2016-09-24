@@ -77,9 +77,10 @@ tailored to OpenSMTPD to validate user accounts.
 Function Name                            Description
 =======================================  =====================================
 ``authserver_get_credentials(varchar)``  Gets a username password pair for the
-                                         provided email address. Users can log
-                                         in with every email alias and their
-                                         account password.
+                                         provided email address together with
+                                         the primary delivery email address.
+                                         (Users can log in with every email
+                                         alias and their account password.)
 ``authserver_check_domain(varchar)``     Checks whether the passed domain is a
                                          valid delivery domain.
 ``authserver_resolve_alias(varchar)``    Resolves email addresses to known

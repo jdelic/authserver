@@ -47,11 +47,12 @@ class Migration(migrations.Migration):
         """),
         RunSQL("""
             CREATE OR REPLACE FUNCTION authserver_get_credentials(email varchar)
-                RETURNS TABLE (username varchar, password varchar) AS $$
+                RETURNS TABLE (username varchar, password varchar, primary_alias varchar) AS $$
             DECLARE
                 user_mailprefix varchar;
                 user_domain varchar;
                 password varchar;
+                primary_alias varchar;
             BEGIN
                 SELECT split_part(email, '@', 1) INTO user_mailprefix;
                 SELECT split_part(email, '@', 2) INTO user_domain;
@@ -60,14 +61,29 @@ class Migration(migrations.Migration):
                         mailauth_domain AS "domain",
                         mailauth_emailalias AS "alias"
                     WHERE
-                        "user".uuid=alias.user_id AND
+                        "user".uuid="alias".user_id AND
                         "domain".name=user_domain AND
                         "alias".mailprefix=user_mailprefix AND
                         "alias".domain_id="domain".id;
+
+                SELECT "primary_alias".mailprefix || '@' || "primary_domain".name INTO primary_alias FROM
+                        mailauth_mnuser AS "user",
+                        mailauth_domain AS "domain",
+                        mailauth_domain AS "primary_domain",
+                        mailauth_emailalias AS "alias",
+                        mailauth_emailalias AS "primary_alias"
+                    WHERE
+                        "alias".mailprefix=user_mailprefix AND
+                        "domain".name=user_domain AND
+                        "user".uuid="alias".user_id AND
+                        "alias".domain_id="domain".id AND
+                        "primary_alias".id="user".delivery_mailbox_id AND
+                        "primary_domain".id="primary_alias".domain_id;
+
                 IF password IS NULL OR password = '' THEN
                     RETURN;
                 ELSE
-                    RETURN QUERY SELECT email, password;
+                    RETURN QUERY SELECT email, password, primary_alias;
                     RETURN;
                 END IF;
             END;
