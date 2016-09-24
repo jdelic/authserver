@@ -5,11 +5,10 @@ Description=authserver - A Django CAS/OAUTH server to manage a PostgreSQL creden
 Type=simple
 User=authserver
 Group=authserver
-# Load env vars from /etc/default/ and /etc/sysconfig/ if they exist.
-# Prefixing the path with '-' makes it try to load, but if the file doesn't
-# exist, it continues onward.
+ExecStartPre=/usr/local/authserver/bin/envdir /etc/appconfig/authserver/env /usr/local/authserver/bin/django-admin.py migrate --settings=authserver.settings
 ExecStart=/usr/local/authserver/bin/envdir /etc/appconfig/authserver/env /usr/local/authserver/bin/gunicorn -b ${BINDIP}:${BINDPORT} -w 2 authserver.wsgi:application
 Restart=on-failure
+RestartSec=5s
 WorkingDirectory=/usr/local/authserver
 PIDFIle=/run/authserver/authserver.pid
 
