@@ -23,19 +23,19 @@ class Migration(migrations.Migration):
                 SELECT split_part(email, '@', 1) INTO user_mailprefix;
                 SELECT split_part(email, '@', 2) INTO user_domain;
                 SELECT primary_alias.mailprefix || '@' || primary_domain.name INTO primary_email FROM
-                    mailauth_emailalias AS "alias",
-                    mailauth_domain AS "domain",
-                    mailauth_emailalias AS "primary_alias",
-                    mailauth_domain AS "primary_domain",
-                    mailauth_mnuser AS "user"
-                WHERE
-                    "primary_alias".user_id="user".uuid AND
-                    "primary_domain".id="primary_alias".domain_id AND
-                    "user".delivery_mailbox_id="primary_alias".id AND
-                    "user".uuid="alias".user_id AND
-                    "alias".domain_id="domain".id AND
-                    "alias".mailprefix=user_mailprefix AND
-                    "domain".name=user_domain;
+                        mailauth_emailalias AS "alias",
+                        mailauth_domain AS "domain",
+                        mailauth_emailalias AS "primary_alias",
+                        mailauth_domain AS "primary_domain",
+                        mailauth_mnuser AS "user"
+                    WHERE
+                        "primary_alias".user_id="user".uuid AND
+                        "primary_domain".id="primary_alias".domain_id AND
+                        "user".delivery_mailbox_id="primary_alias".id AND
+                        "user".uuid="alias".user_id AND
+                        "alias".domain_id="domain".id AND
+                        "alias".mailprefix=user_mailprefix AND
+                        "domain".name=user_domain;
 
                 IF primary_email = email THEN
                     RETURN 'virtmail';  -- primary email aliases are directed to delivery
