@@ -21,9 +21,9 @@ Build configuration
 ==============  ==============================================================
 Variable        Description
 ==============  ==============================================================
-VAULT_SSLCERT   The client certificate to be used to connect to Vault to 
+VAULT_SSLCERT   The client certificate to be used to connect to Vault to
                 retrieve database credentials
-VAULT_SSLKEY    The client key to be used to connect to Vault to retrieve 
+VAULT_SSLKEY    The client key to be used to connect to Vault to retrieve
                 database credentials
 SECRET_KEY      The Django settings.SECRET_KEY value to be used
 ==============  ==============================================================
@@ -34,16 +34,17 @@ Managed configuration
 ====================  ========================================================
 Variable              Description
 ====================  ========================================================
-VAULT_CA              The CA to use to validate that we're talking to the 
+VAULT_CA              The CA to use to validate that we're talking to the
                       right Vault
-VAULT_DATABASE_PATH   The key path to read from Vault to get database 
+VAULT_DATABASE_PATH   The key path to read from Vault to get database
                       credentials for a full access role
-DATABASE_PARENTROLE   The role that authserver should "sudo" into (via 
+DATABASE_PARENTROLE   The role that authserver should "sudo" into (via
                       ``SET ROLE``) after connecting to the database, i.e. the
                       primary access role.
 DATABASE_NAME         The name of the database to connect to.
-OPENSMTPD_DBUSER      A user being granted access to the stored procedure API
-                      in migration ``0003_opensmtpd_access``.
+SPAPI_DBUSERS         A comma-separated list of database users which are being
+                      granted access to the stored procedure API in migration
+                      ``0003_opensmtpd_access``.
 ====================  ========================================================
 
 
@@ -53,9 +54,9 @@ Smartstack services
 This application relies on the following smartstack services:
 
 ==============
-Service       
+Service
 ==============
-PostgreSQL      
+PostgreSQL
 Vault
 ==============
 
