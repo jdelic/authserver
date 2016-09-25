@@ -6,6 +6,7 @@ assembler=[virtualenv, certifybuild, django]
 django-gen-secret-key=.gopythongo/etc/appconfig/authserver/env/SECRET_KEY
 
 # local build options
+basetgz=/var/cache/pbuilder/authserver-dev.tgz
 pbuilder-create-opts="--keyring /etc/apt/trusted.gpg --debootstrapopts --keyring=/etc/apt/trusted.gpg --mirror http://fileserver.maurusnet.test/debian"
 apt-get=[libssl-dev, libffi-dev, libpq-dev]
 run-after-create=[.gopythongo/install_fpm.sh]
