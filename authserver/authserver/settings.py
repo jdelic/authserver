@@ -144,7 +144,7 @@ USE_L10N = True
 USE_TZ = True
 
 # third-party access credentials
-OPENSMTPD_DBUSER = os.getenv("OPENSMTPD_DBUSER", None)
+SPAPI_DBUSERS = [s.strip() for s in os.getenv("SPAPI_DBUSERS", "").split(",")]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.10/howto/static-files/

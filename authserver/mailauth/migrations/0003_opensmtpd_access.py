@@ -23,9 +23,12 @@ class Migration(migrations.Migration):
 
     operations = [
         RunPython(check_preconditions),
+    ] + \
+    [
         RunSQL("""
             GRANT EXECUTE ON FUNCTION authserver_check_domain(varchar) TO "{username}";
             GRANT EXECUTE ON FUNCTION authserver_get_credentials(varchar) TO "{username}";
             GRANT EXECUTE ON FUNCTION authserver_resolve_alias(varchar) TO "{username}";
-        """.format(username=settings.OPENSMTPD_DBUSER))
+            GRANT EXECUTE ON FUNCTION authserver_iterate_users() TO "{username}";
+        """.format(username=username)) for username in settings.SPAPI_DBUSERS
     ]
