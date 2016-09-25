@@ -6,8 +6,8 @@ gunicorn==19.6.0
 hvac==0.2.16
 typing==3.5.2.2
 passlib==1.6.5
-django-postgresql-setrole==1.0.5
-12factor-vault==0.1.1
+django-postgresql-setrole==1.0.7
+12factor-vault==0.1.3
 envdir==0.7
 
 # vendored dependencies from django12factor
