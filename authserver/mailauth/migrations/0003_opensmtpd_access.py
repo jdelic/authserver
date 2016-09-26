@@ -10,7 +10,7 @@ from django.db.migrations.operations.special import RunSQL, RunPython
 
 def check_preconditions(apps: Apps, schemaeditor: BaseDatabaseSchemaEditor):
     # make sure we have the config
-    if not settings.OPENSMTPD_DBUSER:
+    if not settings.SPAPI_DBUSERS:
         raise ImproperlyConfigured("Missing required settings for this migration: settings.OPENSMTPD_DBUSER")
 
 
