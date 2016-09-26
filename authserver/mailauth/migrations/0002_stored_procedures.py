@@ -23,6 +23,18 @@ class Migration(migrations.Migration):
             BEGIN
                 SELECT split_part(email, '@', 1) INTO user_mailprefix;
                 SELECT split_part(email, '@', 2) INTO user_domain;
+
+                -- handle dashext by resolving it to plusext
+                IF position('-' in user_mailprefix) > 0 THEN
+                    user_mailprefix := split_part(user_mailprefix, '-', 1) || '+' ||
+                                       split_part(user_mailprefix, '-', 2);
+                END IF;
+
+                -- handle plusext by cutting it and querying aliases
+                IF position('+' in user_mailprefix) > 0 THEN
+                    user_mailprefix := split_part(user_mailprefix, '+', 1);
+                END IF;
+
                 SELECT primary_alias.mailprefix || '@' || primary_domain.name INTO primary_email FROM
                         mailauth_emailalias AS "alias",
                         mailauth_domain AS "domain",
