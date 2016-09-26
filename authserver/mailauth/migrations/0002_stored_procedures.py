@@ -14,6 +14,7 @@ class Migration(migrations.Migration):
 
     operations = [
         RunSQL("""
+            DROP FUNCTION IF EXISTS authserver_resolve_alias(varchar);
             CREATE OR REPLACE FUNCTION authserver_resolve_alias(email varchar) RETURNS varchar AS $$
             DECLARE
                 user_mailprefix varchar;
@@ -46,6 +47,7 @@ class Migration(migrations.Migration):
             $$ LANGUAGE plpgsql SECURITY DEFINER;
         """),
         RunSQL("""
+            DROP FUNCTION IF EXISTS authserver_get_credentials(varchar);
             CREATE OR REPLACE FUNCTION authserver_get_credentials(email varchar)
                 RETURNS TABLE (username varchar, password varchar, primary_alias varchar) AS $$
             DECLARE
@@ -90,6 +92,7 @@ class Migration(migrations.Migration):
             $$ LANGUAGE plpgsql SECURITY DEFINER;
         """),
         RunSQL("""
+            DROP FUNCTION IF EXISTS authserver_check_domain(varchar);
             CREATE OR REPLACE FUNCTION authserver_check_domain(domain varchar) RETURNS varchar AS $$
             DECLARE
                 ret varchar;
@@ -100,6 +103,7 @@ class Migration(migrations.Migration):
             $$ LANGUAGE plpgsql SECURITY DEFINER;
         """),
         RunSQL("""
+            DROP FUNCTION IF EXISTS authserver_iterate_users();
             CREATE OR REPLACE FUNCTION authserver_iterate_users()
                 RETURNS TABLE (userid varchar) AS $$
             BEGIN
