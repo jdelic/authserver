@@ -48,7 +48,8 @@ class Migration(migrations.Migration):
                         "user".uuid="alias".user_id AND
                         "alias".domain_id="domain".id AND
                         "alias".mailprefix=user_mailprefix AND
-                        "domain".name=user_domain;
+                        "domain".name=user_domain AND
+                        "user".is_active=TRUE;
 
                 IF primary_email = email THEN
                     RETURN 'virtmail';  -- primary email aliases are directed to delivery
@@ -92,7 +93,8 @@ class Migration(migrations.Migration):
                         "user".uuid="alias".user_id AND
                         "alias".domain_id="domain".id AND
                         "primary_alias".id="user".delivery_mailbox_id AND
-                        "primary_domain".id="primary_alias".domain_id;
+                        "primary_domain".id="primary_alias".domain_id AND
+                        "user".is_active=TRUE;
 
                 IF password IS NULL OR password = '' THEN
                     RETURN;
@@ -125,7 +127,8 @@ class Migration(migrations.Migration):
                         mailauth_emailalias AS "alias"
                     WHERE
                         "alias".id="user".delivery_mailbox_id AND
-                        "domain".id="alias".domain_id;
+                        "domain".id="alias".domain_id AND
+                        "user".is_active=TRUE;
                 RETURN;
             END;
             $$ LANGUAGE plpgsql SECURITY DEFINER;
