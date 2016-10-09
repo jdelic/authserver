@@ -85,6 +85,9 @@ if DEBUG and not VaultAuth12Factor.has_envconfig():
         }
     }
 else:
+    if DEBUG:
+        SECRET_KEY = "secretsekrit"  # FOR DEBUG ONLY!
+
     VAULT = VaultAuth12Factor.fromenv()
     CREDS = VaultCredentialProvider("https://vault.local:8200/", VAULT,
                                     os.getenv("VAULT_DATABASE_PATH", "db-authserver/creds/fullaccess"),
