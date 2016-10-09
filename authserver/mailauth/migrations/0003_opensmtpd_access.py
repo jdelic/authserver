@@ -11,7 +11,7 @@ from django.db.migrations.operations.special import RunSQL, RunPython
 def check_preconditions(apps: Apps, schemaeditor: BaseDatabaseSchemaEditor):
     # make sure we have the config
     if not settings.SPAPI_DBUSERS:
-        raise ImproperlyConfigured("Missing required settings for this migration: settings.OPENSMTPD_DBUSER")
+        raise ImproperlyConfigured("Missing required settings for this migration: settings.SPAPI_DBUSERS")
 
 
 class Migration(migrations.Migration):
@@ -30,5 +30,5 @@ class Migration(migrations.Migration):
             GRANT EXECUTE ON FUNCTION authserver_get_credentials(varchar) TO "{username}";
             GRANT EXECUTE ON FUNCTION authserver_resolve_alias(varchar) TO "{username}";
             GRANT EXECUTE ON FUNCTION authserver_iterate_users() TO "{username}";
-        """.format(username=username)) for username in settings.SPAPI_DBUSERS
+        """.format(username=username)) for username in settings.SPAPI_DBUSERS if username
     ]
