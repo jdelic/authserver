@@ -95,17 +95,24 @@ else:
                                     DEBUG)
 
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv("DATABASE_NAME", "authserver"),
-            'USER': CREDS.username,
-            'PASSWORD': CREDS.password,
-            'HOST': '127.0.0.1',
-            'PORT': '5432',
-            'SET_ROLE': os.getenv("DATABASE_PARENTROLE", "authserver")
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DATABASE_NAME", "authserver"),
+            "USER": CREDS.username,
+            "PASSWORD": CREDS.password,
+            "HOST": "127.0.0.1",
+            "PORT": "5432",
+            "SET_ROLE": os.getenv("DATABASE_PARENTROLE", "authserver"),
         },
-
     }
+
+    if os.getenv("POSTGRESQL_CA", False):
+        # enable ssl
+        DATABASES["default"]["HOST"] = "postgresql.local"
+        DATABASES["default"]["OPTIONS"] = {
+            "sslmode": "verify-full",
+            "sslrootcert": os.getenv("POSTGRESQL_CA"),
+        }
 
 
 if DEBUG:
