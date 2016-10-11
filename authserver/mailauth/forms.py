@@ -17,7 +17,7 @@ class MNUserCreationForm(auth_forms.UserCreationForm):
 
 
 class MNUserChangeForm(auth_forms.UserChangeForm):
-    def __init__(self, *args: Any, **kwargs: Any):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
     class Meta:

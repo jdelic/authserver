@@ -1,4 +1,6 @@
 # -* encoding: utf-8 *-
+from typing import Tuple
+
 import django.contrib.auth.admin as auth_admin
 from django.contrib import admin
 from django.core import urlresolvers
@@ -17,13 +19,13 @@ class MNUserAdmin(auth_admin.UserAdmin):
         ("Permissions", {'fields': ('is_active', 'is_staff', 'is_superuser',
                                     'groups', 'user_permissions')}),
         ("Important dates", {'fields': ('last_login',)}),
-    )
+    )  # type: Tuple
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
             'fields': ('identifier', 'password1', 'password2'),
         }),
-    )
+    )  # type: Tuple
     form = MNUserChangeForm
     add_form = MNUserCreationForm
     change_password_form = auth_admin.AdminPasswordChangeForm
@@ -49,11 +51,11 @@ class EmailAliasAdmin(admin.ModelAdmin):
             urlresolvers.reverse('admin:mailauth_mnuser_change', args=[obj.user.uuid]),
             obj.user.identifier,
         )
-    get_user.short_description = "User"
-    get_user.admin_order_field = 'user__uuid'
+    get_user.short_description = "User"  # type: ignore  (mypy#708)
+    get_user.admin_order_field = 'user__uuid'  # type: ignore  (mypy#708)
 
     def get_mailalias(self, obj: EmailAlias) -> str:
         return "%s@%s" % (obj.mailprefix, obj.domain.name)
-    get_mailalias.short_description = "Mail alias"
+    get_mailalias.short_description = "Mail alias"  # type: ignore  (mypy#708)
 
     list_display = ('get_mailalias', 'get_user',)

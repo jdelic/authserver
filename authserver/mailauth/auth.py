@@ -1,7 +1,7 @@
 # -* encoding: utf-8 *-
 import logging
 from collections import OrderedDict
-from typing import Tuple
+from typing import Tuple, Dict
 
 from django.contrib.auth import hashers
 from django.utils.translation import ugettext_lazy as _
@@ -64,7 +64,7 @@ class UnixCryptCompatibleSHA256Hasher(object):
         """
         return sha256_crypt.encrypt(password, salt=salt, rounds=UnixCryptCompatibleSHA256Hasher.rounds)
 
-    def safe_summary(self, encoded):
+    def safe_summary(self, encoded: str) -> Dict[str, str]:
         """
         Returns a summary of safe values
 
@@ -79,10 +79,10 @@ class UnixCryptCompatibleSHA256Hasher(object):
             (_('hash'), hashers.mask_hash(hash)),
         ])
 
-    def must_update(self, encoded):
+    def must_update(self, encoded: str) -> bool:
         return False
 
-    def harden_runtime(self, password, encoded):
+    def harden_runtime(self, password: str, encoded: str) -> None:
         """
         Bridge the runtime gap between the work factor supplied in `encoded`
         and the work factor suggested by this hasher.

@@ -8,7 +8,7 @@ from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 from django.db.migrations.operations.special import RunSQL, RunPython
 
 
-def check_preconditions(apps: Apps, schemaeditor: BaseDatabaseSchemaEditor):
+def check_preconditions(apps: Apps, schemaeditor: BaseDatabaseSchemaEditor) -> None:
     # make sure we have the config
     if not settings.SPAPI_DBUSERS:
         raise ImproperlyConfigured("Missing required settings for this migration: settings.SPAPI_DBUSERS")

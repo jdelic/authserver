@@ -107,7 +107,7 @@ else:
         }),
     }
 
-    if os.getenv("POSTGRESQL_CA", False):
+    if os.getenv("POSTGRESQL_CA", None):
         # enable ssl
         DATABASES["default"]["HOST"] = "postgresql.local"
         DATABASES["default"]["OPTIONS"] = {
