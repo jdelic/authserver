@@ -16,6 +16,30 @@ from typing import Any
 #
 
 
+class PretendHasherPasswordField(models.CharField):
+    """
+    This just makes sure that no mention of sha256_passlib makes it into the database, even when
+    Django sidesteps the Model instance which has a property below and instantiates the Field class
+    directly.
+    """
+    def get_prep_value(self, value: str) -> str:
+        # we might get a value previously modified by the password getter below. In that case we remove
+        # the unwanted prefix.
+        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
+        if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
+            return value[len(UnixCryptCompatibleSHA256Hasher.algorithm):]
+        else:
+            return value
+
+    def value_from_object(self, obj: Any) -> str:
+        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
+        value = super().value_from_object(obj)
+        if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
+            return value
+        else:
+            return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, value)
+
+
 class Domain(models.Model):
     name = models.CharField(max_length=255, unique=True)
 
@@ -35,6 +59,33 @@ class EmailAlias(models.Model):
 
     def __str__(self) -> str:
         return "%s@%s (%s)" % (self.mailprefix, self.domain, self.user.identifier)
+
+
+class MNUserManager(base_user.BaseUserManager):
+    # serializes Manager into migrations. I set this here because it's set on the default UserManager
+    use_in_migrations = True
+
+    def _create_user(self, identifier: str, fullname: str, password: str, **extrafields: Any) -> 'MNUser':
+        if not identifier:
+            raise ValueError("MNUserManager._create_user requires set identifier")
+
+        user = MNUser(identifier=MNUser.normalize_username(identifier), fullname=fullname,
+                      **extrafields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    # create_superuser MUST require a password
+    # see https://docs.djangoproject.com/en/1.10/topics/auth/customizing/#extending-the-existing-user-model
+    def create_superuser(self, identifier: str, fullname: str, password: str, **extrafields: Any) -> 'MNUser':
+        extrafields["is_superuser"] = True
+        extrafields["is_staff"] = True
+        return self._create_user(identifier, fullname, password, **extrafields)
+
+    def create_user(self, identifier: str, fullname: str, password: str=None, **extrafields: Any) -> 'MNUser':
+        extrafields.setdefault("is_superuser", False)
+        extrafields.setdefault("is_staff", False)
+        return self._create_user(identifier, fullname, password, **extrafields)
 
 
 class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
@@ -100,54 +151,3 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
 
     def get_short_name(self) -> str:
         return self.identifier
-
-
-class MNUserManager(base_user.BaseUserManager):
-    # serializes Manager into migrations. I set this here because it's set on the default UserManager
-    use_in_migrations = True
-
-    def _create_user(self, identifier: str, fullname: str, password: str, **extrafields: Any) -> 'MNUser':
-        if not identifier:
-            raise ValueError("MNUserManager._create_user requires set identifier")
-
-        user = MNUser(identifier=MNUser.normalize_username(identifier), fullname=fullname,
-                      **extrafields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-    # create_superuser MUST require a password
-    # see https://docs.djangoproject.com/en/1.10/topics/auth/customizing/#extending-the-existing-user-model
-    def create_superuser(self, identifier: str, fullname: str, password: str, **extrafields: Any) -> 'MNUser':
-        extrafields["is_superuser"] = True
-        extrafields["is_staff"] = True
-        return self._create_user(identifier, fullname, password, **extrafields)
-
-    def create_user(self, identifier: str, fullname: str, password: str=None, **extrafields: Any) -> 'MNUser':
-        extrafields.setdefault("is_superuser", False)
-        extrafields.setdefault("is_staff", False)
-        return self._create_user(identifier, fullname, password, **extrafields)
-
-
-class PretendHasherPasswordField(models.CharField):
-    """
-    This just makes sure that no mention of sha256_passlib makes it into the database, even when
-    Django sidesteps the Model instance which has a property below and instantiates the Field class
-    directly.
-    """
-    def get_prep_value(self, value: str) -> str:
-        # we might get a value previously modified by the password getter below. In that case we remove
-        # the unwanted prefix.
-        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
-        if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
-            return value[len(UnixCryptCompatibleSHA256Hasher.algorithm):]
-        else:
-            return value
-
-    def value_from_object(self, obj: Any) -> str:
-        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
-        value = super().value_from_object(obj)
-        if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
-            return value
-        else:
-            return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, value)
