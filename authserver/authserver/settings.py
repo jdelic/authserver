@@ -1,6 +1,6 @@
 import os
 from typing import List
-from vault12factor import VaultCredentialProvider, VaultAuth12Factor
+from vault12factor import VaultCredentialProvider, VaultAuth12Factor, DjangoAutoRefreshDBCredentialsDict
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -8,6 +8,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INSTALLED_APPS = [
     'mailauth.MailAuthApp',
     'postgresql_setrole',
+    'vault12factor',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -95,7 +96,7 @@ else:
                                     DEBUG)
 
     DATABASES = {
-        "default": {
+        "default": DjangoAutoRefreshDBCredentialsDict(CREDS, {
             "ENGINE": "django.db.backends.postgresql",
             "NAME": os.getenv("DATABASE_NAME", "authserver"),
             "USER": CREDS.username,
@@ -103,7 +104,7 @@ else:
             "HOST": "127.0.0.1",
             "PORT": "5432",
             "SET_ROLE": os.getenv("DATABASE_PARENTROLE", "authserver"),
-        },
+        }),
     }
 
     if os.getenv("POSTGRESQL_CA", False):
