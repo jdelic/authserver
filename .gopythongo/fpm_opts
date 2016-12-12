@@ -6,6 +6,7 @@
 -d python3
 -d python3-pip
 -d python3-virtualenv
+-d adduser
 --after-install .gopythongo/post_install.sh
 --directories "{{basedir}}"
 --directories /run/authserver
@@ -13,3 +14,4 @@
 {{basedir}}
 .gopythongo/etc/appconfig/authserver/files/=/etc/appconfig/authserver/files/
 .gopythongo/etc/appconfig/authserver/env/=/etc/appconfig/authserver/env/
+.gopythongo/authserver.tmpfilesd.conf=/usr/lib/tmpfiles.d/authserver.conf
