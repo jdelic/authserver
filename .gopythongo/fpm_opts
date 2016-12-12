@@ -6,6 +6,7 @@
 -d python3
 -d python3-pip
 -d python3-virtualenv
+--after-install .gopythongo/post_install.sh
 --directories "{{basedir}}"
 --directories /run/authserver
 --deb-systemd .gopythongo/etc/systemd/authserver.service
