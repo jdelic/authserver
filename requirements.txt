@@ -1,5 +1,5 @@
 psycopg2==2.6.2
-Django==1.10.1
+Django==1.10.4
 django-mama-cas==2.0.1
 requests==2.11.1
 gunicorn==19.6.0
