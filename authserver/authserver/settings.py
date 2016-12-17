@@ -1,5 +1,7 @@
 import os
 from typing import List
+
+import dj_database_url
 from vault12factor import VaultCredentialProvider, VaultAuth12Factor, DjangoAutoRefreshDBCredentialsDict
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -77,18 +79,10 @@ LOGGING = {
     },
 }
 
-if DEBUG and not VaultAuth12Factor.has_envconfig():
+if DEBUG:
     SECRET_KEY = "secretsekrit"  # FOR DEBUG ONLY!
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': 'authserver.sqlite3',
-        }
-    }
-else:
-    if DEBUG:
-        SECRET_KEY = "secretsekrit"  # FOR DEBUG ONLY!
 
+if VaultAuth12Factor.has_envconfig():
     VAULT = VaultAuth12Factor.fromenv()
     CREDS = VaultCredentialProvider("https://vault.local:8200/", VAULT,
                                     os.getenv("VAULT_DATABASE_PATH", "db-authserver/creds/fullaccess"),
@@ -106,15 +100,26 @@ else:
             "SET_ROLE": os.getenv("DATABASE_PARENTROLE", "authserver"),
         }),
     }
-
-    if os.getenv("POSTGRESQL_CA", None):
-        # enable ssl
-        DATABASES["default"]["HOST"] = "postgresql.local"
-        DATABASES["default"]["OPTIONS"] = {
-            "sslmode": "verify-full",
-            "sslrootcert": os.getenv("POSTGRESQL_CA"),
+else:
+    if os.getenv("DATABASE_URL", None):
+        DATABASES = {
+            "default": dj_database_url.config("DATABASE_URL"),
+        }
+    else:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': 'authserver.sqlite3',
+            }
         }
 
+if os.getenv("POSTGRESQL_CA", None) and DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql":
+    # enable ssl
+    DATABASES["default"]["HOST"] = "postgresql.local"
+    DATABASES["default"]["OPTIONS"] = {
+        "sslmode": "verify-full",
+        "sslrootcert": os.getenv("POSTGRESQL_CA"),
+    }
 
 if DEBUG:
     ALLOWED_HOSTS = []  # type: List[str]
