@@ -42,6 +42,7 @@ class PretendHasherPasswordField(models.CharField):
 
 class Domain(models.Model):
     name = models.CharField(max_length=255, unique=True)
+    dkimkey = models.TextField(verbose_name="DKIM private key (PEM)", blank=True)
 
     def __str__(self) -> str:
         return self.name
