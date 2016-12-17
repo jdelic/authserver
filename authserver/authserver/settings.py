@@ -82,10 +82,10 @@ LOGGING = {
 if DEBUG:
     SECRET_KEY = "secretsekrit"  # FOR DEBUG ONLY!
 
-if VaultAuth12Factor.has_envconfig():
+if VaultAuth12Factor.has_envconfig() and os.getenv("VAULT_DATABASE_PATH"):
     VAULT = VaultAuth12Factor.fromenv()
     CREDS = VaultCredentialProvider("https://vault.local:8200/", VAULT,
-                                    os.getenv("VAULT_DATABASE_PATH", "db-authserver/creds/fullaccess"),
+                                    os.getenv("VAULT_DATABASE_PATH"),
                                     os.getenv("VAULT_CA", None), True,
                                     DEBUG)
 
@@ -100,18 +100,6 @@ if VaultAuth12Factor.has_envconfig():
             "SET_ROLE": os.getenv("DATABASE_PARENTROLE", "authserver"),
         }),
     }
-else:
-    if os.getenv("DATABASE_URL", None):
-        DATABASES = {
-            "default": dj_database_url.config("DATABASE_URL"),
-        }
-    else:
-        DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': 'authserver.sqlite3',
-            }
-        }
 
 if os.getenv("POSTGRESQL_CA", None) and DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql":
     # enable ssl
