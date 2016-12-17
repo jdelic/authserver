@@ -15,11 +15,6 @@ reqs = [str(r.req) for r in reqs_generator]
 
 setup(
     name='net.maurus.authserver',
-    scripts=[
-        # 'scripts/checkpassword.py',
-        'scripts/createuser.py',
-        # 'scripts/deleteuser.py',
-    ],
     version=_version,
     packages=_packages,
     package_dir={
