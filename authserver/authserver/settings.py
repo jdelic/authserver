@@ -101,13 +101,19 @@ if VaultAuth12Factor.has_envconfig() and os.getenv("VAULT_DATABASE_PATH"):
         }),
     }
 
-if os.getenv("POSTGRESQL_CA", None) and DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql":
-    # enable ssl
-    DATABASES["default"]["HOST"] = "postgresql.local"
-    DATABASES["default"]["OPTIONS"] = {
-        "sslmode": "verify-full",
-        "sslrootcert": os.getenv("POSTGRESQL_CA"),
-    }
+if DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql":
+    if os.getenv("POSTGRESQL_CA", None):
+        # enable ssl
+        DATABASES["default"]["HOST"] = "postgresql.local"
+        DATABASES["default"]["OPTIONS"] = {
+            "sslmode": "verify-full",
+            "sslrootcert": os.getenv("POSTGRESQL_CA"),
+        }
+    if os.getenv("DB_SSLCERT", None):
+        DATABASES["default"]["OPTIONS"] = {
+            "sslcert": os.getenv("DB_SSLCERT"),
+            "sslkey": os.getenv("DB_SSLKEY"),
+        }
 
 if DEBUG:
     ALLOWED_HOSTS = []  # type: List[str]
