@@ -120,8 +120,6 @@ if DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql" or \
 
 if DEBUG:
     ALLOWED_HOSTS = []  # type: List[str]
-else:
-    ALLOWED_HOSTS = ["auth.maurus.net", ]
 
 AUTH_USER_MODEL = "mailauth.MNUser"
 
