@@ -7,7 +7,9 @@
 -d python3-pip
 -d python3-virtualenv
 -d adduser
+--before-remove .gopythongo/pre_rm.sh
 --after-install .gopythongo/post_install.sh
+--after-remove .gopythongo/post_rm.sh
 --directories "{{basedir}}"
 --directories /run/authserver
 --deb-systemd .gopythongo/etc/systemd/authserver.service
