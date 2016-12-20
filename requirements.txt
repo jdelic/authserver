@@ -7,7 +7,7 @@ hvac==0.2.16
 typing==3.5.2.2
 passlib==1.6.5
 django-postgresql-setrole==1.0.7
-12factor-vault==0.1.5
+12factor-vault==0.1.6
 envdir==0.7
 sqlparse==0.2.2
 
