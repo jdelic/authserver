@@ -3,6 +3,8 @@
 # add the authserver user and group if it doesn't exist yet
 adduser --home /run/authserver --disabled-login --disabled-password --system --group authserver
 
+chown authserver.authserver /etc/appconfig/authserver/files/*
+
 # the following was assembled from various default blocks created by dh_make helpers
 # in packages using the default deb build system
 if [ -x "/usr/bin/deb-systemd-helper" ]; then
