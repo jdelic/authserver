@@ -6,8 +6,9 @@ Type=simple
 User=authserver
 Group=authserver
 ExecStartPre=/usr/local/authserver/bin/envdir /etc/appconfig/authserver/env /usr/local/authserver/bin/django-admin.py migrate --settings=authserver.settings
+# $$ to quote envvars so systemd doesn't expand them first
 ExecStart=/usr/local/authserver/bin/envdir /etc/appconfig/authserver/env \
-    /bin/bash -c '/usr/local/authserver/bin/gunicorn -b ${BINDIP}:${BINDPORT} -w 2 -p /run/authserver/authserver.pid \
+    /bin/bash -c '/usr/local/authserver/bin/gunicorn -b $${BINDIP}:$${BINDPORT} -w 2 -p /run/authserver/authserver.pid \
     authserver.wsgi:application'
 Restart=on-failure
 RestartSec=5s
