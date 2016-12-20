@@ -10,6 +10,7 @@ django-postgresql-setrole==1.0.7
 12factor-vault==0.1.8
 envdir==0.7
 sqlparse==0.2.2
+whitenoise==3.2.2
 
 # vendored dependencies from django12factor
 dj-database-url==0.4.1
