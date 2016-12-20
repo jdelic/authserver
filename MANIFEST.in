@@ -1,0 +1,3 @@
+recursive-include authserver/*/static *
+recursive-include authserver/*/templates *
+recursive-include templates *
