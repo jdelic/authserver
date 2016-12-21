@@ -40,7 +40,7 @@ def read_version() -> str:
         lines = vf.readlines()
 
     for l in lines:
-        m = re.match("version = \"(.+?)\"")
+        m = re.match("version = \"(.+?)\"", l)
         if m:
             return m.group(1)
     raise Exception("Can't read base version from %s" % fn)
