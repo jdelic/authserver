@@ -35,7 +35,7 @@ def create_paths(root_dir: str) -> 'List[str]':
 
 
 def read_version() -> str:
-    fn = os.path.join(os.path.abspath(os.path.dirname(__file__)), "authserver", "__init__.py")
+    fn = os.path.join(os.path.abspath(os.path.dirname(__file__)), "authserver", "authserver", "__init__.py")
     with open(fn, "rt", encoding="utf-8") as vf:
         lines = vf.readlines()
 
