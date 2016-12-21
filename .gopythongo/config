@@ -24,7 +24,7 @@ aptly-publish-opts="-config=/etc/aptly/aptly.conf -architectures=amd64 -keyring=
 aptly-publish-endpoint=s3:maurusnet:nightly
 
 versioner=searchfile
-search-version-in=authserver.version
+search-version-in=authserver/authserver/__init__.py
 version-parser=pep440
 version-action=bump-revision
 
