@@ -1,25 +1,18 @@
 #!/usr/bin/env python -u
 import os
 import re
+import time
+from typing import Dict, List
+
 from setuptools import setup, find_packages
 from pip.req import parse_requirements
 from pip.download import PipSession
 
-import time
-_version = "1.0.dev%s" % int(time.time())
-_packages = find_packages(where='authserver', exclude=["*.tests", "*.tests.*", "tests.*", "tests"])
 
-pipsession = PipSession()
-reqs_generator = parse_requirements(os.path.join(os.path.abspath(os.path.dirname(__file__)), "requirements.txt"),
-                                    session=pipsession)  # prepend setup.py's path (make no assumptions about cwd)
-reqs = [str(r.req) for r in reqs_generator]
-
-
-_root_directory = "authserver"
 _INCLUDE = re.compile("\.(txt|gif|jpg|png|css|html|js|xml|po|mo)$")
 
 
-def get_package_data():
+def get_package_data() -> Dict[str, List[str]]:
     package_data = {}
     for pkg in os.listdir(_root_directory):
         pkg_path = os.path.join(_root_directory, pkg)
@@ -28,7 +21,7 @@ def get_package_data():
     return package_data
 
 
-def create_paths(root_dir):
+def create_paths(root_dir: str) -> List[str]:
     paths = []
     is_package = os.path.exists(os.path.join(root_dir, '__init__.py'))
     children = os.listdir(root_dir)
@@ -42,8 +35,34 @@ def create_paths(root_dir):
     return paths
 
 
+def read_version() -> str:
+    fn = os.path.join(os.path.abspath(os.path.dirname(__file__)), "authserver", "__init__.py")
+    with open(fn, "rt", encoding="utf-8") as vf:
+        lines = vf.readlines()
+
+    for l in lines:
+        m = re.match("version = \"(.+?)\"")
+        if m:
+            return m.group(1)
+    raise Exception("Can't read base version from %s" % fn)
+
+version = read_version()
+if version.endswith(".dev"):
+    _version = "%s.dev%s" % (version, int(time.time()))
+else:
+    _version = version
+
+_packages = find_packages(where='authserver', exclude=["*.tests", "*.tests.*", "tests.*", "tests"])
+
+pipsession = PipSession()
+reqs_generator = parse_requirements(os.path.join(os.path.abspath(os.path.dirname(__file__)), "requirements.txt"),
+                                    session=pipsession)  # prepend setup.py's path (make no assumptions about cwd)
+reqs = [str(r.req) for r in reqs_generator]
+
+_root_directory = "authserver"
+
 setup(
-    name='net.maurus.authserver',
+    name="net.maurus.authserver",
     version=_version,
     packages=_packages,
     package_dir={

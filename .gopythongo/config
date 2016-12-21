@@ -23,8 +23,8 @@ aptly-distribution=mn-nightly
 aptly-publish-opts="-config=/etc/aptly/aptly.conf -architectures=amd64 -keyring=/etc/gpg-managed-keyring/pubring.gpg -secret-keyring=/etc/gpg-managed-keyring/secring.gpg -gpg-key=DDB131CF1DF6A9CF8200799002CBD940A78049AF"
 aptly-publish-endpoint=s3:maurusnet:nightly
 
-versioner=pymodule
-pymodule-read=authserver.version
+versioner=searchfile
+search-version-in=authserver.version
 version-parser=pep440
 version-action=bump-revision
 
