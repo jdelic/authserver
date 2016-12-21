@@ -47,7 +47,7 @@ def read_version() -> str:
 
 version = read_version()
 if version.endswith(".dev"):
-    _version = "%s.dev%s" % (version, int(time.time()))
+    _version = "%s%s" % (version, int(time.time()))
 else:
     _version = version
 
