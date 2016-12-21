@@ -2,7 +2,6 @@
 import os
 import re
 import time
-from typing import Dict, List
 
 from setuptools import setup, find_packages
 from pip.req import parse_requirements
@@ -12,7 +11,7 @@ from pip.download import PipSession
 _INCLUDE = re.compile("\.(txt|gif|jpg|png|css|html|js|xml|po|mo)$")
 
 
-def get_package_data() -> Dict[str, List[str]]:
+def get_package_data() -> 'Dict[str, List[str]]':
     package_data = {}
     for pkg in os.listdir(_root_directory):
         pkg_path = os.path.join(_root_directory, pkg)
@@ -21,7 +20,7 @@ def get_package_data() -> Dict[str, List[str]]:
     return package_data
 
 
-def create_paths(root_dir: str) -> List[str]:
+def create_paths(root_dir: str) -> 'List[str]':
     paths = []
     is_package = os.path.exists(os.path.join(root_dir, '__init__.py'))
     children = os.listdir(root_dir)
