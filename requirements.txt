@@ -12,6 +12,9 @@ envdir==0.7
 sqlparse==0.2.2
 whitenoise==3.2.2
 
+# DKIM filter dependencies
+mn-dkimpy==0.5.7.dev1
+
 # vendored dependencies from django12factor
 dj-database-url==0.4.1
 dj-email-url==0.0.8
