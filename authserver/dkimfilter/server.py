@@ -5,9 +5,11 @@ import argparse
 import asyncore
 import logging
 import smtplib
+import signal
 import sys
 import os
 
+from types import FrameType
 from smtpd import SMTPServer
 from typing import Tuple, Sequence, Any
 
@@ -49,7 +51,14 @@ def run() -> None:
     asyncore.loop()
 
 
+def _sigint_handler(sig: int, frame: FrameType) -> None:
+    print("CTRL+C exiting")
+    sys.exit(1)
+
+
 def main() -> None:
+    signal.signal(signal.SIGINT, _sigint_handler)
+
     global _args
     parser = argparse.ArgumentParser(
         description="This is a SMTP daemon that is used through OpenSMTPD configuration "
