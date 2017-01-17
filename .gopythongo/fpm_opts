@@ -13,6 +13,7 @@
 --directories "{{basedir}}"
 --directories /run/authserver
 --deb-systemd .gopythongo/etc/systemd/authserver.service
+--deb-systemd .gopythongo/etc/systemd/dkimsigner.service
 {{basedir}}
 .gopythongo/etc/appconfig/authserver/files/=/etc/appconfig/authserver/files/
 .gopythongo/etc/appconfig/authserver/env/=/etc/appconfig/authserver/env/

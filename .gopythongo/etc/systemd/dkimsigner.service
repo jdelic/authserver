@@ -1,0 +1,21 @@
+[Unit]
+Description=maurus.net dkimsigner
+
+[Service]
+Type=simple
+User=authserver
+Group=authserver
+# $$ to quote envvars so systemd doesn't expand them first
+ExecStart=/usr/local/authserver/bin/envdir /etc/appconfig/authserver/env \
+    /bin/bash -c '/usr/local/authserver/bin/dkimsigner -p /run/authserver/dkimsigner.pid \
+        --input-ip $${DKIMSIGNER_BINDIP} \
+        --input-port $${DKIMSIGNER_BINDPORT} \
+        --output-ip $${DKIMSIGNER_RELAYIP} \
+        --output-port $${DKIMSIGNER_RELAYPORT}'
+Restart=on-failure
+RestartSec=5s
+WorkingDirectory=/usr/local/authserver
+PIDFIle=/run/authserver/dkimsigner.pid
+
+[Install]
+WantedBy=multi-user.target
