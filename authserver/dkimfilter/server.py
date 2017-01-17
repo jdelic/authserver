@@ -33,8 +33,8 @@ class DKIMFilterServer(SMTPServer):
             return "450 unknown domain"
 
         if dom.dkimkey:
-            sig = dkim.sign(data, dom.dkimselector, dom.name, dom.dkimkey)
-            data = "%s%s" % (sig, data)
+            sig = dkim.sign(data.encode("utf-8"), dom.dkimselector.encode("utf-8"), dom.name.encode("utf-8"), dom.dkimkey.replace("\r\n", "\n").encode("utf-8"))
+            data = "%s%s" % (sig.decode("utf-8"), data)
             _log.debug("Signed output:\n%s", data)
 
         # now send the mail back to be processed
