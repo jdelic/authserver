@@ -7,6 +7,8 @@ django-gen-secret-key=.gopythongo/etc/appconfig/authserver/env/SECRET_KEY
 django-settings=authserver.settings
 collect-static
 
+vaultgetcert-config=[.gopythongo/authserver.vgc, .gopythongo/dkimsigner.vgc]
+
 # local build options
 basetgz=/var/cache/pbuilder/authserver-dev.tgz
 pbuilder-create-opts="--keyring /etc/apt/trusted.gpg --debootstrapopts --keyring=/etc/apt/trusted.gpg --mirror http://fileserver.maurusnet.test/debian"

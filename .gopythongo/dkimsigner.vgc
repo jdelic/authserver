@@ -1,0 +1,12 @@
+# the arguments below belong on the build server in envvars
+vault-pki=casserver-ca/issue/build
+git-include-commit-san
+
+envdir=True
+output=.gopythongo/etc/appconfig/dkimsigner/env/
+common-name=dkimsigner
+certfile-out=.gopythongo/etc/appconfig/dkimsigner/files/build_cert.pem
+keyfile-out=.gopythongo/etc/appconfig/dkimsigner/files/build_key.pem
+issuer-bundle=.gopythongo/etc/appconfig/dkimsigner/files/vaultchain.pem
+output-bundle-envvar=[VAULT_SSLCERT=.gopythongo/etc/appconfig/dkimsigner/files/vaultchain.pem:/etc/appconfig/dkimsigner/files,DB_SSLCERT=.gopythongo/etc/appconfig/dkimsigner/files/postgresql.crt:/etc/appconfig/dkimsigner/files]
+output-key-envvar=[VAULT_SSLKEY:/etc/appconfig/dkimsigner/files,DB_SSLKEY:/etc/appconfig/dkimsigner/files]

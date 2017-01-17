@@ -16,5 +16,8 @@
 --deb-systemd .gopythongo/etc/systemd/dkimsigner.service
 {{basedir}}
 .gopythongo/etc/appconfig/authserver/files/=/etc/appconfig/authserver/files/
+.gopythongo/etc/appconfig/dkimsigner/files/=/etc/appconfig/dkimsigner/files/
 .gopythongo/etc/appconfig/authserver/env/=/etc/appconfig/authserver/env/
+.gopythongo/etc/appconfig/dkimsigner/env/=/etc/appconfig/dkimsigner/env/
+.gopythongo/etc/appconfig/authserver/env/SECRET_KEY=/etc/appconfig/dkimsigner/env/SECRET_KEY
 .gopythongo/authserver.tmpfilesd.conf=/usr/lib/tmpfiles.d/authserver.conf
