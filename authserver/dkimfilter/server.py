@@ -98,6 +98,11 @@ def main() -> None:
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", _args.django_settings)
     # noinspection PyUnresolvedReferences
     from django.conf import settings  # initialize Django
+    import django
+
+    django.setup()
+
+    _log.info("Django ORM initialized")
 
     pidfile = open(_args.pidfile, "w")
 
@@ -118,4 +123,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    import weakref
+    logging._handlers = weakref.WeakValueDictionary()
+    logging.basicConfig(level=logging.DEBUG)
+    _log.info("DKIM signer starting")
     main()
