@@ -21,7 +21,7 @@ _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
 
 
-class DKIMFilterServer(SMTPServer):
+class DKIMSignerServer(SMTPServer):
     def process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: str,
                         **kwargs: Any) -> str:
         # we can't import the Domain model before Django has been initialized
@@ -48,7 +48,7 @@ class DKIMFilterServer(SMTPServer):
 
 
 def run() -> None:
-    server = DKIMFilterServer((_args.input_ip, _args.input_port), None)
+    server = DKIMSignerServer((_args.input_ip, _args.input_port), None)
     asyncore.loop()
 
 
@@ -68,7 +68,7 @@ def main() -> None:
     )
 
     grp_daemon = parser.add_argument_group("Daemon options")
-    grp_daemon.add_argument("-p", "--pidfile", dest="pidfile", default="./dkimfilter-server.pid",
+    grp_daemon.add_argument("-p", "--pidfile", dest="pidfile", default="./dkimsigner-server.pid",
                             help="Path to a pidfile")
     grp_daemon.add_argument("-u", "--user", dest="user", default=None, help="Drop privileges and switch to this user")
     grp_daemon.add_argument("-g", "--group", dest="group", default=None,
