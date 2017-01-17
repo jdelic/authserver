@@ -67,6 +67,11 @@ setup(
     package_dir={
         '': _root_directory,
     },
+    entry_points={
+        "console_scripts": [
+            "dkimsigner = dkimsigner.server:main",
+        ],
+    },
     install_requires=reqs,
     package_data=get_package_data(),
 )
