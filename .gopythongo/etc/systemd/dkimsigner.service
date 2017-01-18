@@ -6,12 +6,12 @@ Type=simple
 User=authserver
 Group=authserver
 # $$ to quote envvars so systemd doesn't expand them first
-ExecStart=/usr/local/authserver/bin/envdir /etc/appconfig/authserver/env \
+ExecStart=/usr/local/authserver/bin/envdir /etc/appconfig/dkimsigner/env \
     /bin/bash -c '/usr/local/authserver/bin/dkimsigner -p /run/authserver/dkimsigner.pid \
-        --input-ip $${DKIMSIGNER_BINDIP} \
-        --input-port $${DKIMSIGNER_BINDPORT} \
-        --output-ip $${DKIMSIGNER_RELAYIP} \
-        --output-port $${DKIMSIGNER_RELAYPORT}'
+        --input-ip $${BINDIP} \
+        --input-port $${BINDPORT} \
+        --output-ip $${RELAYIP} \
+        --output-port $${RELAYPORT}'
 Restart=on-failure
 RestartSec=5s
 WorkingDirectory=/usr/local/authserver
