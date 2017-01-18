@@ -4,6 +4,7 @@
 adduser --home /run/authserver --disabled-login --disabled-password --system --group authserver
 
 chown -R authserver:authserver /etc/appconfig/authserver/*
+chown -R authserver:authserver /etc/appconfig/dkimsigner/*
 
 # the following was assembled from various default blocks created by dh_make helpers
 # in packages using the default deb build system
