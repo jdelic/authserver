@@ -15,7 +15,7 @@ ExecStart=/usr/local/authserver/bin/envdir /etc/appconfig/dkimsigner/env \
 Restart=on-failure
 RestartSec=5s
 WorkingDirectory=/usr/local/authserver
-PIDFIle=/run/authserver/dkimsigner.pid
+PIDFile=/run/authserver/dkimsigner.pid
 
 [Install]
 WantedBy=multi-user.target

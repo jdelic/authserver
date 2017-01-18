@@ -14,7 +14,7 @@ ExecStart=/usr/local/authserver/bin/envdir /etc/appconfig/authserver/env \
 Restart=on-failure
 RestartSec=5s
 WorkingDirectory=/usr/local/authserver
-PIDFIle=/run/authserver/authserver.pid
+PIDFile=/run/authserver/authserver.pid
 
 [Install]
 WantedBy=multi-user.target
