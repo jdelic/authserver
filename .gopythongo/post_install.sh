@@ -15,25 +15,23 @@ if [ -x "/usr/bin/deb-systemd-helper" ]; then
     /usr/bin/deb-systemd-helper unmask authserver.service >/dev/null || true
     /usr/bin/deb-systemd-helper unmask dkimsigner.service >/dev/null || true
 
-    if /usr/bin/deb-systemd-helper --quiet was-enabled authserver.service; then
-        # Enables the unit on first installation, creates new
-        # symlinks on upgrades if the unit file has changed.
-        deb-systemd-helper enable authserver.service >/dev/null || true
-        deb-systemd-invoke start authserver >/dev/null || true
+    if /usr/bin/deb-systemd-helper --quiet is-enabled authserver.service; then
+        # If authserver had been installed before restart it (upgrade)
+        deb-systemd-helper reenable authserver.service >/dev/null || true
+        deb-systemd-invoke restart authserver >/dev/null || true
     else
-        # Update the statefile to add new symlinks (if any), which need to be
-        # cleaned up on purge. Also remove old symlinks.
+        # on first install, disable. The admin will enable and start the service.
+        deb-systemd-helper disable authserver.service > /dev/null || true
         deb-systemd-helper update-state authserver.service >/dev/null || true
     fi
 
-    if /usr/bin/deb-systemd-helper --quiet was-enabled dkimsigner.service; then
-        # Enables the unit on first installation, creates new
-        # symlinks on upgrades if the unit file has changed.
-        deb-systemd-helper enable dkimsigner.service >/dev/null || true
-        deb-systemd-invoke start dkimsigner >/dev/null || true
+    if /usr/bin/deb-systemd-helper --quiet is-enabled dkimsigner.service; then
+        # If dkimsigner had been installed before restart it (upgrade)
+        deb-systemd-helper reenable dkimsigner.service >/dev/null || true
+        deb-systemd-invoke restart dkimsigner >/dev/null || true
     else
-        # Update the statefile to add new symlinks (if any), which need to be
-        # cleaned up on purge. Also remove old symlinks.
+        # on first install, disable. The admin will enable and start the service.
+        deb-systemd-helper disable dkimsigner.service > /dev/null || true
         deb-systemd-helper update-state dkimsigner.service >/dev/null || true
     fi
 fi
