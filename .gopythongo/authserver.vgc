@@ -8,5 +8,6 @@ common-name=authserver
 certfile-out=.gopythongo/etc/appconfig/authserver/files/build_cert.pem
 keyfile-out=.gopythongo/etc/appconfig/authserver/files/build_key.pem
 issuer-bundle=.gopythongo/etc/appconfig/authserver/files/vaultchain.pem
-output-bundle-envvar=[VAULT_SSLCERT=.gopythongo/etc/appconfig/authserver/files/vaultchain.pem:/etc/appconfig/authserver/files,DB_SSLCERT=.gopythongo/etc/appconfig/authserver/files/postgresql.crt:/etc/appconfig/authserver/files]
+xsign-bundle-path=.gopythongo/etc/appconfig/authserver/files/
+output-bundle-envvar=[VAULT_SSLCERT=.gopythongo/etc/appconfig/authserver/files/vaultchain.pem:/etc/appconfig/authserver/files,DB_SSLCERT=postgresql.crt:/etc/appconfig/authserver/files]
 output-key-envvar=[VAULT_SSLKEY:/etc/appconfig/authserver/files,DB_SSLKEY:/etc/appconfig/authserver/files]
