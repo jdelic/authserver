@@ -15,7 +15,7 @@ from typing import Tuple, Sequence, Any
 
 import dkim
 import daemon
-
+from django.db.utils import OperationalError
 
 _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
@@ -32,7 +32,16 @@ class DKIMSignerServer(SMTPServer):
             dom = Domain.objects.get(name=mfdomain)  # type: Domain
         except Domain.DoesNotExist:
             _log.error("Unknown domain: %s (%s)", mfdomain, mailfrom)
-            return "450 unknown domain"
+            return "430 unknown domain"
+        except OperationalError:
+            # this is a hacky hack, but psycopg2 falls over when haproxy closes the connection on us
+            _log.info("Database connection closed, Operational Error, retrying")
+            from django.db import connection
+            connection.close()
+            if "retry" in kwargs:
+                _log.error("Database unavailable.")
+            else:
+                return self.process_message(peer, mailfrom, rcpttos, data, retry=True, **kwargs)
 
         if dom.dkimkey:
             sig = dkim.sign(data.encode("utf-8"), dom.dkimselector.encode("utf-8"), dom.name.encode("utf-8"),
