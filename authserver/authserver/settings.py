@@ -120,7 +120,7 @@ if DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql" or \
         DATABASES["default"]["OPTIONS"]["sslkey"] = os.getenv("DB_SSLKEY")
 
 if DEBUG:
-    ALLOWED_HOSTS = []  # type: List[str]
+    ALLOWED_HOSTS = ['*',]  # type: List[str]
 
 AUTH_USER_MODEL = "mailauth.MNUser"
 
