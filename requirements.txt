@@ -1,15 +1,16 @@
-psycopg2==2.6.2
+12factor-vault==0.1.8
 Django==1.10.4
 django-mama-cas==2.0.1
-requests==2.11.1
+django-postgresql-setrole==1.0.7
+envdir==0.7
 gunicorn==19.6.0
 hvac==0.2.16
-typing==3.5.2.2
 passlib==1.6.5
-django-postgresql-setrole==1.0.7
-12factor-vault==0.1.8
-envdir==0.7
+psycopg2==2.6.2
+pycrypto==2.6.1
+requests==2.11.1
 sqlparse==0.2.2
+typing==3.5.2.2
 whitenoise==3.2.2
 
 # DKIM filter dependencies
