@@ -1,12 +1,17 @@
 # -* encoding: utf-8 *-
-from typing import Tuple
+import functools
+from typing import Tuple, Type
 
 import django.contrib.auth.admin as auth_admin
+from Crypto.PublicKey import RSA
 from django.contrib import admin
 from django.core import urlresolvers
+from django.db.models.fields import Field as _ModelField
+from django.forms.fields import Field as _FormField
+from django.http.request import HttpRequest
 from django.utils.html import format_html
 
-from mailauth.forms import MNUserChangeForm, MNUserCreationForm
+from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm
 from mailauth.models import MNUser, Domain, EmailAlias
 
 
@@ -39,6 +44,25 @@ class MNUserAdmin(auth_admin.UserAdmin):
 @admin.register(Domain)
 class DomainAdmin(admin.ModelAdmin):
     search_fields = ('name',)
+    form = DomainForm
+
+    def get_form(self, req: HttpRequest, obj=None, **kwargs) -> type:
+        if req.GET.get("_prefill_key", "0") == "1":
+            def formfield_callback(field: _ModelField, request: HttpRequest=None, **kwargs) -> Type[_FormField]:
+                f = self.formfield_for_dbfield(field, request=request, **kwargs)  # type: _FormField
+                # f can be None if the dbfield does not get a FormField (like hidden fields
+                # or auto increment IDs). Only the dbfield has a .name attribute.
+                if f and field.name == "dkimkey":
+                    if obj:
+                        obj.dkimkey = RSA.generate(2048).exportKey("PEM").decode("utf-8")
+                    else:
+                        f.initial = RSA.generate(2048).exportKey("PEM").decode("utf-8")
+                return f
+
+            kwargs["formfield_callback"] = functools.partial(formfield_callback, request=req)
+
+        form_t = super().get_form(req, obj, **kwargs)
+        return form_t
 
 
 @admin.register(EmailAlias)

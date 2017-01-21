@@ -5,8 +5,13 @@
 from typing import Any
 
 import django.contrib.auth.forms as auth_forms
+from Crypto.PublicKey import RSA
+from django.contrib.admin import widgets
+from django.forms.models import ModelForm, ALL_FIELDS
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
-from mailauth.models import MNUser
+from mailauth.models import MNUser, Domain
 
 
 class MNUserCreationForm(auth_forms.UserCreationForm):
@@ -22,5 +27,31 @@ class MNUserChangeForm(auth_forms.UserChangeForm):
 
     class Meta:
         model = MNUser
-        fields = '__all__'
+        fields = ALL_FIELDS
         field_classes = {'identifier': auth_forms.UsernameField}
+
+
+class DomainKeyWidget(widgets.AdminTextareaWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def render(self, name, value, attrs=None):
+        ret = super().render(name, value, attrs)
+        if value and value.startswith("-----BEGIN RSA PRIVATE KEY"):
+            key = RSA.importKey(value)
+            ret += format_html("""
+        <pre>
+{public_key}</pre>
+        """, public_key=mark_safe(key.publickey().exportKey("PEM").decode('utf-8')))
+        else:
+            ret += format_html("""
+            <a href="?_prefill_key=1" class="button">Generate new key</a>
+        """)
+        return format_html("<div style=\"float: left\">{}</div>", ret)
+
+
+class DomainForm(ModelForm):
+    class Meta:
+        model = Domain
+        widgets = {'dkimkey': DomainKeyWidget()}
+        fields = ALL_FIELDS
