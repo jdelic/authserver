@@ -2,6 +2,7 @@
 #
 # The forms in here are hooked up to Django admin via mailauth.admin
 #
+import re
 from typing import Any
 
 import django.contrib.auth.forms as auth_forms
@@ -39,10 +40,19 @@ class DomainKeyWidget(widgets.AdminTextareaWidget):
         ret = super().render(name, value, attrs)
         if value and value.startswith("-----BEGIN RSA PRIVATE KEY"):
             key = RSA.importKey(value)
-            ret += format_html("""
-        <pre>
+            public_key = key.publickey().exportKey("PEM").decode('utf-8')
+            ret += format_html(
+                """
+<pre>
 {public_key}</pre>
-        """, public_key=mark_safe(key.publickey().exportKey("PEM").decode('utf-8')))
+<pre>
+"v=DKIM1\; k=rsa\; p=" {split_key}</pre>
+                """,
+                public_key=public_key,
+                split_key="\n".join(
+                    ['"%s"' % line for line in
+                        re.search("--\n(.*?)\n--", public_key, re.DOTALL).group(1).split("\n")]
+        ))
         else:
             ret += format_html("""
             <a href="?_prefill_key=1" class="button">Generate new key</a>
