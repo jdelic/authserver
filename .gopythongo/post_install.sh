@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 # add the authserver user and group if it doesn't exist yet
-adduser --home /run/authserver --disabled-login --disabled-password --system --group authserver
+adduser --quiet --home /run/authserver --disabled-login --disabled-password --system --group authserver
 
-chown -R authserver:authserver /etc/appconfig/authserver/*
-chown -R authserver:authserver /etc/appconfig/dkimsigner/*
+chown -R authserver:authserver /etc/appconfig/authserver/* > /dev/null
+chown -R authserver:authserver /etc/appconfig/dkimsigner/* > /dev/null
 
 systemctl --system daemon-reload >/dev/null || true
 
