@@ -1,5 +1,5 @@
 12factor-vault==0.1.8
-Django==1.10.4
+Django==1.10.5
 django-mama-cas==2.0.1
 django-postgresql-setrole==1.0.7
 envdir==0.7
