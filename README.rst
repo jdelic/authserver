@@ -74,25 +74,28 @@ Since some applications (like OpenSMTPD) which are used by
 denominator authentication, authserver includes a pgplsql stored procedure API
 tailored to OpenSMTPD to validate user accounts.
 
-=======================================  =====================================
-Function Name                            Description
-=======================================  =====================================
-``authserver_get_credentials(varchar)``  Gets a username password pair for the
-                                         provided email address together with
+==  ===================================  =====================================
+N   Function Name                        Description
+==  ===================================  =====================================
+1   ``authserver_get_credentials(        Gets a username password pair for the
+    varchar)``                           provided email address together with
                                          the primary delivery email address.
                                          (Users can log in with every email
                                          alias and their account password.)
-``authserver_check_domain(varchar)``     Checks whether the passed domain is a
-                                         valid delivery domain.
-``authserver_resolve_alias(varchar)``    Resolves email addresses to known
-                                         ``MNUser`` instances. Resolving a
+2   ``authserver_check_domain(           Checks whether the passed domain is a
+    varchar)``                           valid delivery domain.
+3   ``authserver_resolve_alias(varchar,  Resolves email addresses to known
+    boolean)``                           ``MNUser`` instances. Resolving a
                                          primary delivery address will return
                                          the "magic" value "virtmail" pointing
                                          to the system user normally handling
-                                         email delivery.
-``authserver_iterate_users()``           Returns a list of all delivery
+                                         email delivery if the boolean
+                                         parameter is ``true``. If the boolean
+                                         parameter is ``false`` it will return
+                                         the primary delivery address again.
+4   ``authserver_iterate_users()``       Returns a list of all delivery
                                          mailboxes.
-=======================================  =====================================
+==  ===================================  =====================================
 
 
 Future extensions

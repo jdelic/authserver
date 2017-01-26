@@ -15,7 +15,8 @@ class Migration(migrations.Migration):
     operations = [
         RunSQL("""
             DROP FUNCTION IF EXISTS authserver_resolve_alias(varchar);
-            CREATE OR REPLACE FUNCTION authserver_resolve_alias(email varchar) RETURNS varchar AS $$
+            CREATE OR REPLACE FUNCTION authserver_resolve_alias(email varchar,
+                                                                resolve_to_virtmail boolean) RETURNS varchar AS $$
             DECLARE
                 user_mailprefix varchar;
                 user_domain varchar;
@@ -51,7 +52,7 @@ class Migration(migrations.Migration):
                         "domain".name=user_domain AND
                         "user".is_active=TRUE;
 
-                IF primary_email = email THEN
+                IF primary_email = email AND resolve_to_virtmail IS TRUE THEN
                     RETURN 'virtmail';  -- primary email aliases are directed to delivery
                 ELSE
                     RETURN primary_email;
