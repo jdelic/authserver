@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
         RunSQL("""
             GRANT EXECUTE ON FUNCTION authserver_check_domain(varchar) TO "{username}";
             GRANT EXECUTE ON FUNCTION authserver_get_credentials(varchar) TO "{username}";
-            GRANT EXECUTE ON FUNCTION authserver_resolve_alias(varchar) TO "{username}";
+            GRANT EXECUTE ON FUNCTION authserver_resolve_alias(varchar, boolean) TO "{username}";
             GRANT EXECUTE ON FUNCTION authserver_iterate_users() TO "{username}";
         """.format(username=username)) for username in settings.SPAPI_DBUSERS if username
     ]
