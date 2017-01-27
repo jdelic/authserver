@@ -1,3 +1,3 @@
 # -* encoding: utf-8 *-
 
-version = "0.1.2.dev"
+version = "0.1.3.dev"
