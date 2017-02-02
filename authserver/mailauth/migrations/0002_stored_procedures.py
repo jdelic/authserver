@@ -108,13 +108,25 @@ class Migration(migrations.Migration):
             $$ LANGUAGE plpgsql SECURITY DEFINER;
         """),
         RunSQL("""
-            DROP FUNCTION IF EXISTS authserver_check_domain(varchar);
-            CREATE OR REPLACE FUNCTION authserver_check_domain(domain varchar) RETURNS varchar AS $$
+            DROP FUNCTION IF EXISTS authserver_check_domain(varchar, boolean);
+            CREATE OR REPLACE FUNCTION authserver_check_domain(domain varchar, invert_result boolean DEFAULT FALSE)
+                RETURNS TABLE (result varchar) AS $$
             DECLARE
                 ret varchar;
+                c int;
             BEGIN
-                SELECT name INTO ret FROM mailauth_domain WHERE name=domain;
-                RETURN ret;
+                IF invert_result IS TRUE THEN
+                    SELECT count(name) INTO c FROM mailauth_domain WHERE name=domain;
+                    IF c > 0 THEN
+                        RETURN;
+                    ELSE
+                        RETURN QUERY SELECT domain;
+                        RETURN;
+                    END IF;
+                ELSE
+                    RETURN QUERY SELECT name FROM mailauth_domain WHERE name=domain;
+                    RETURN;
+                END IF;
             END;
             $$ LANGUAGE plpgsql SECURITY DEFINER;
         """),
