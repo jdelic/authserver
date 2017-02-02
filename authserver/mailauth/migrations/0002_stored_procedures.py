@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
 
     operations = [
         RunSQL("""
-            DROP FUNCTION IF EXISTS authserver_resolve_alias(varchar);
+            DROP FUNCTION IF EXISTS authserver_resolve_alias(varchar, boolean);
             CREATE OR REPLACE FUNCTION authserver_resolve_alias(email varchar,
                                                                 resolve_to_virtmail boolean DEFAULT FALSE)
                               RETURNS varchar AS $$
