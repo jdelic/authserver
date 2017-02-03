@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
             DROP FUNCTION IF EXISTS authserver_resolve_alias(varchar, boolean);
             CREATE OR REPLACE FUNCTION authserver_resolve_alias(email varchar,
                                                                 resolve_to_virtmail boolean DEFAULT FALSE)
-                              RETURNS varchar AS $$
+                              RETURNS TABLE (alias varchar) AS $$
             DECLARE
                 user_mailprefix varchar;
                 user_domain varchar;
@@ -54,9 +54,15 @@ class Migration(migrations.Migration):
                         "user".is_active=TRUE;
 
                 IF primary_email = email AND resolve_to_virtmail IS TRUE THEN
-                    RETURN 'virtmail';  -- primary email aliases are directed to delivery
+                    RETURN QUERY SELECT 'virtmail'::varchar;  -- primary email aliases are directed to delivery
+                    RETURN;
                 ELSE
-                    RETURN primary_email;
+                    IF primary_email IS NULL THEN
+                        RETURN;
+                    ELSE
+                        RETURN QUERY SELECT primary_email;
+                        RETURN;
+                    END IF;
                 END IF;
             END;
             $$ LANGUAGE plpgsql SECURITY DEFINER;
