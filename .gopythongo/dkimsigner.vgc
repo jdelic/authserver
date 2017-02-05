@@ -7,7 +7,6 @@ output=.gopythongo/etc/appconfig/dkimsigner/env/
 common-name=dkimsigner
 certfile-out=.gopythongo/etc/appconfig/dkimsigner/files/build_cert.pem
 keyfile-out=.gopythongo/etc/appconfig/dkimsigner/files/build_key.pem
-issuer-bundle=.gopythongo/etc/appconfig/dkimsigner/files/vaultchain.pem
 xsign-bundle-path=.gopythongo/etc/appconfig/dkimsigner/files/
-output-bundle-envvar=[VAULT_SSLCERT=.gopythongo/etc/appconfig/dkimsigner/files/vaultchain.pem:/etc/appconfig/dkimsigner/files,DB_SSLCERT=postgresql.crt:/etc/appconfig/dkimsigner/files]
+output-bundle-envvar=[VAULT_SSLCERT=vault.crt:/etc/appconfig/dkimsigner/files,DB_SSLCERT=postgresql.crt:/etc/appconfig/dkimsigner/files]
 output-key-envvar=[VAULT_SSLKEY:/etc/appconfig/dkimsigner/files,DB_SSLKEY:/etc/appconfig/dkimsigner/files]
