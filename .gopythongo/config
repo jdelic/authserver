@@ -35,4 +35,3 @@ run-fpm=template:.gopythongo/fpm_opts
 
 eatmydata
 eatmydata-path=/usr/bin/eatmydata
-
