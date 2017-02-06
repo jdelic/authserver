@@ -1,7 +1,7 @@
 builder=pbuilder
 distribution=jessie
 
-assembler=[virtualenv, certifybuild, django]
+assembler=[certifybuild, django]
 
 django-gen-secret-key=.gopythongo/etc/appconfig/authserver/env/SECRET_KEY
 django-settings=authserver.settings
