@@ -1,4 +1,5 @@
 # -* encoding: utf-8 *-
+from gunicorn.workers.base import Worker
 
 LOGGING = {
     "version": 1,
@@ -26,7 +27,7 @@ LOGGING = {
 }
 
 
-def post_worker_init(worker):
+def post_worker_init(worker: Worker) -> None:
     # We have to fix logging somewhere, why not here.
     import logging
     import logging.config
