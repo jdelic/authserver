@@ -17,3 +17,6 @@ urlpatterns = [
     url(r"^o2/", include("oauth2_provider.urls", namespace="oauth2_provider")),
     url(r"^cas/", include("mama_cas.urls")),
 ]
+
+# TODO: remove once https://github.com/evonove/django-oauth-toolkit/issues/196 is fixed
+urlpatterns = [u for u in urlpatterns if "o2/^applications" not in u._regex]
