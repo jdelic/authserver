@@ -3,14 +3,6 @@ from django.contrib import admin
 from django.contrib.auth import views as authviews
 
 
-def ec():
-    from django.conf import settings
-    extra_context = {
-        "company_name": settings.COMPANY_NAME,
-        "company_logo": settings.COMPANY_LOGO_URL,
-    }
-    return extra_context
-
 urlpatterns = [
     url(r"^action/login/$", authviews.login, name="authserver-login"),
     url(r"^action/logout/$", authviews.logout),
