@@ -55,31 +55,6 @@ DEBUG = False  # overridden by factorise() if defined
 import authserver.vendor.django12factor as django12factor
 globals().update(django12factor.factorise())
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'simple': {
-            'format': '%(asctime)s %(levelname)s %(message)s'
-        },
-    },
-    'handlers': {
-        'stdout': {
-            'level': 'DEBUG',
-            'formatter': 'simple',
-            'class': 'logging.StreamHandler',
-            'stream': 'ext://sys.stdout',
-        }
-    },
-    'loggers': {
-        '': {
-            'handlers': ['stdout'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-    },
-}
-
 if DEBUG:
     SECRET_KEY = "secretsekrit"  # FOR DEBUG ONLY!
 

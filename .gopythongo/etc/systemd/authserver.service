@@ -10,6 +10,7 @@ ExecStartPre=/usr/local/authserver/bin/envdir /etc/appconfig/authserver/env /usr
 ExecStart=/usr/local/authserver/bin/envdir /etc/appconfig/authserver/env \
     /bin/bash -c '/usr/local/authserver/bin/gunicorn -b $${BINDIP}:$${BINDPORT} -w 2 \
     -p /run/authserver/authserver.pid \
+    --config python:authserver.gunicorn_conf \
     authserver.wsgi:application'
 Restart=on-failure
 RestartSec=5s
