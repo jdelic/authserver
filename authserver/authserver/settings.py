@@ -11,6 +11,9 @@ INSTALLED_APPS = [
     'mailauth.MailAuthApp',
     'postgresql_setrole',
     'vault12factor',
+    'oauth2_provider',
+    'mama_cas',
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -21,6 +24,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -96,6 +100,10 @@ if DATABASES["default"]["ENGINE"] == 'django.db.backends.postgresql' or \
 
 if DEBUG:
     ALLOWED_HOSTS = ['*',]  # type: List[str]
+    CORS_ORIGIN_ALLOW_ALL = True
+else:
+    CORS_ORIGIN_WHITELIST = os.getenv("CORS_ORIGIN_WHITELIST", "").split(',')
+    CORS_ORIGIN_REGEX_WHITELIST = os.getenv("CORS_ORIGIN_REGEX_WHITELIST", "").split(',')
 
 AUTH_USER_MODEL = 'mailauth.MNUser'
 
@@ -139,3 +147,6 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "authserver", "static")]
+
+# Authentication providers
+MAMA_CAS_SERVICES = []  # type: List[str]  # currently none
