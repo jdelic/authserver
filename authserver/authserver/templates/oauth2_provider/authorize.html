@@ -1,0 +1,42 @@
+{% extends "oauth2_provider/base.html" %}
+
+{% block body %}
+    <div class="centered">
+        {% if not error %}
+            <form class="pure-form pure-form-aligned" id="authorizationForm" method="post">
+                <fieldset>
+                    <legend><img src="{{company_logo}}"/> {{company_name}}</legend>
+                    <p>Authorize {{ application.name }}?</p>
+                    {% csrf_token %}
+
+                    {% for field in form %}
+                        {% if field.is_hidden %}
+                            {{ field }}
+                        {% endif %}
+                    {% endfor %}
+
+                    <p>Application requires following permissions</p>
+                    <ul>
+                        {% for scope in scopes_descriptions %}
+                            <li>{{ scope }}</li>
+                        {% endfor %}
+                    </ul>
+
+                    {{ form.errors }}
+                    {{ form.non_field_errors }}
+
+                    <div class="control-group">
+                        <div class="controls">
+                            <input type="submit" class="pure-button" value="Cancel"/>
+                            <input type="submit" class="pure-button pure-button-primary" name="allow" value="Authorize"/>
+                        </div>
+                    </div>
+                </fieldset>
+            </form>
+
+        {% else %}
+            <h2>Error: {{ error.error }}</h2>
+            <p>{{ error.description }}</p>
+        {% endif %}
+    </div>
+{% endblock %}
