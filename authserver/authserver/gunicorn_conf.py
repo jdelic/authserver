@@ -10,18 +10,34 @@ LOGGING = {
         },
     },
     "handlers": {
-        "stdout": {
+        "application_logs": {
             "level": "DEBUG",
             "formatter": "simple",
             "class": 'logging.StreamHandler',
+            "stream": 'ext://sys.stderr',
+        },
+        "server_logs": {
+            "level": "INFO",
+            "formatter": "simple",
+            "class": 'logging.StreamHandler',
             "stream": 'ext://sys.stdout',
-        }
+        },
     },
     "loggers": {
         "": {
-            "handlers": ["stdout"],
+            "handlers": ["application_logs"],
             "level": "DEBUG",
             "propagate": True,
+        },
+        "gunicorn.access": {
+            "handlers": ["server_logs"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "gunicorn.error": {
+            "handlers": ["application_logs"],
+            "level": "INFO",
+            "propagate": False,
         },
     },
 }
@@ -37,4 +53,3 @@ def post_worker_init(worker):
         del logging.root.handlers[:]
 
     logging.config.dictConfig(LOGGING)
-    logging.debug("start")
