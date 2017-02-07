@@ -43,7 +43,9 @@ LOGGING = {
 }
 
 
-def post_worker_init(worker):
+# can't add type annotations here, because gunicorn uses 'inspect'
+# which chokes on the annotations
+def post_worker_init(worker):  # type: ignore
     # We have to fix logging somewhere, why not here.
     import logging
     import logging.config
