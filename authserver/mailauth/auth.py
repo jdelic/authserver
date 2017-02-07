@@ -119,6 +119,7 @@ class MNUserAuthenticationBackend(object):
                 else:
                     logging.debug("Incorrect password for user %s (%s)", username, user.password)
 
+            logging.debug("Must provide an email address. %s is not an email address", username)
             return None
 
         logging.debug("logging user %s in as email alias", username)
