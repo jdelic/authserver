@@ -1,0 +1,51 @@
+<!DOCTYPE "html5">
+<html>
+<head>
+    <title>{{company_name}} authserver</title>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@0.6.2/build/pure-min.css" />
+    <!--[if lte IE 8]>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@0.6.2/build/grids-responsive-old-ie-min.css">
+    <![endif]-->
+    <!--[if gt IE 8]><!-->
+    <link rel="stylesheet" href="https://unpkg.com/purecss@0.6.2/build/grids-responsive-min.css">
+    <!--<![endif]-->
+    <style>
+        div.centered {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+        }
+
+        fieldset legend img {
+            vertical-align: middle;
+        }
+
+        .pure-form .has-error input,
+        .pure-form .has-error textarea,
+        .pure-form .has-error select,
+        .pure-form input.has-error,
+        .pure-form textarea.has-error,
+        .pure-form select.has-error {
+            border-color: #b94a48;
+        }
+
+        .pure-form .has-error input:focus,
+        .pure-form .has-error textarea:focus,
+        .pure-form .has-error select:focus,
+        .pure-form input.has-error:focus,
+        .pure-form textarea.has-error:focus,
+        .pure-form select.has-error:focus {
+            border-color: #e9322d;
+        }
+
+        p.error {
+            color: #b94a48;
+        }
+    </style>
+</head>
+<body>
+    {% block body %}{% endblock %}
+</body>
+</html>

@@ -54,6 +54,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'authserver.wsgi.application'
 
+LOGIN_URL = "authserver-login"
+LOGIN_REDIRECT_URL = "/"
+
 DEBUG = False  # overridden by factorise() if defined
 
 import authserver.vendor.django12factor as django12factor
@@ -150,3 +153,7 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, "authserver", "static")]
 
 # Authentication providers
 MAMA_CAS_SERVICES = []  # type: List[str]  # currently none
+
+# APP CONFIG
+COMPANY_NAME = "maurus.networks"
+COMPANY_LOGO_URL = "/static/mn.png"
