@@ -1,5 +1,4 @@
 # -* encoding: utf-8 *-
-from gunicorn.workers.base import Worker
 
 LOGGING = {
     "version": 1,
@@ -49,7 +48,6 @@ def post_worker_init(worker):  # type: ignore
     # We have to fix logging somewhere, why not here.
     import logging
     import logging.config
-    from django.conf import settings
 
     if logging.root:
         del logging.root.handlers[:]
