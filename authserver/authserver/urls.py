@@ -14,8 +14,8 @@ urlpatterns = [
         authviews.password_reset_confirm),
     url(r"^action/reset/done/", authviews.password_reset_complete),
     url(r"^admin/", admin.site.urls),
-    url(r"^o2/", include("oauth2_provider.urls", namespace="oauth2_provider")),
-    url(r"^cas/", include("mama_cas.urls")),
+    url(r"^o2/", include('oauth2_provider.urls', namespace="oauth2_provider")),
+    url(r"^cas/", include('mama_cas.urls')),
 ]
 
 # TODO: remove once https://github.com/evonove/django-oauth-toolkit/issues/196 is fixed
