@@ -27,7 +27,7 @@ LOGGING = {
 }
 
 
-def post_worker_init(worker: Worker) -> None:
+def post_worker_init(worker):
     # We have to fix logging somewhere, why not here.
     import logging
     import logging.config
