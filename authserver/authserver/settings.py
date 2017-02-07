@@ -67,7 +67,7 @@ if VaultAuth12Factor.has_envconfig() and os.getenv("VAULT_DATABASE_PATH"):
 
     DATABASES = {
         "default": DjangoAutoRefreshDBCredentialsDict(CREDS, {
-            "ENGINE": "django.db.backends.postgresql",
+            "ENGINE": 'django.db.backends.postgresql',
             "NAME": os.getenv("DATABASE_NAME", "authserver"),
             "USER": CREDS.username,
             "PASSWORD": CREDS.password,
@@ -79,8 +79,8 @@ if VaultAuth12Factor.has_envconfig() and os.getenv("VAULT_DATABASE_PATH"):
 
 
 # dj_database_url sets the old psycopg2 database provider for Django, so we need to check for that too
-if DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql" or \
-        DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql_psycopg2":
+if DATABASES["default"]["ENGINE"] == 'django.db.backends.postgresql' or \
+        DATABASES["default"]["ENGINE"] == 'django.db.backends.postgresql_psycopg2':
     if "OPTIONS" not in DATABASES["default"]:
         DATABASES["default"]["OPTIONS"] = {}
 
@@ -97,7 +97,7 @@ if DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql" or \
 if DEBUG:
     ALLOWED_HOSTS = ['*',]  # type: List[str]
 
-AUTH_USER_MODEL = "mailauth.MNUser"
+AUTH_USER_MODEL = 'mailauth.MNUser'
 
 # Validate email addresses against our special DB structure
 AUTHENTICATION_BACKENDS = ['mailauth.auth.MNUserAuthenticationBackend']
@@ -108,24 +108,24 @@ PASSWORD_HASHERS = ['mailauth.auth.UnixCryptCompatibleSHA256Hasher']
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": 'django.contrib.auth.password_validation.MinimumLengthValidator',
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": 'django.contrib.auth.password_validation.CommonPasswordValidator',
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
 
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.10/topics/i18n/
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "UTC"
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
@@ -136,6 +136,6 @@ SPAPI_DBUSERS = [s.strip() for s in os.getenv("SPAPI_DBUSERS", "").split(",")]
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.10/howto/static-files/
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-STATIC_URL = '/static/'
+STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "authserver", "static")]
