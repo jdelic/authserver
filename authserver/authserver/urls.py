@@ -1,3 +1,5 @@
+# -* encoding: utf-8 *-
+
 from django.conf.urls import url, include
 from django.contrib import admin
 from django.contrib.auth import views as authviews
@@ -16,6 +18,7 @@ urlpatterns = [
     url(r"^admin/", admin.site.urls),
     url(r"^o2/", include('oauth2_provider.urls', namespace="oauth2_provider")),
     url(r"^cas/", include('mama_cas.urls')),
+    url(r"^api/", include('api', namespace="api")),
 ]
 
 # TODO: remove once https://github.com/evonove/django-oauth-toolkit/issues/196 is fixed
