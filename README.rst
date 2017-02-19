@@ -9,6 +9,9 @@ OAuth2 applications can use a SSL client certificate to authenticate for a
 non-standard HTTP API to register as an OAuth2 client and get their OAuth2
 credentials, cutting down on manual configuration.
 
+Installation
+------------
+
 
 APPCONFIG FOLDER
 ----------------
@@ -84,11 +87,16 @@ Vault
 ==============
 
 
+Smartstack registration and loadbalancing
+-----------------------------------------
+
+
 Access methods
 --------------
 
 There are multiple ways to authenticate user accounts against this program.
-Offered APIs will include OAuth and CAS.
+Offered APIs include OAuth2, CAS and a "if nothing else works" abstraction
+layer for direct user database access based on stored procedures.
 
 Stored Procdure API
 +++++++++++++++++++
