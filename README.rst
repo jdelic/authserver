@@ -1,7 +1,23 @@
-APPCONFIG FOLDER
-================
+maurus.networks Authentication server
+=====================================
 
-Canonical reserved configuration folder for this app:
+This is a Python Django based server application that provides single sign-on
+services for my own setup. It has OAuth2 and CAS endpoints and for applications
+that don't support any of these a SQL stored procedure database abstraction.
+
+OAuth2 applications can use a SSL client certificate to authenticate for a
+non-standard HTTP API to register as an OAuth2 client and get their OAuth2
+credentials, cutting down on manual configuration.
+
+
+APPCONFIG FOLDER
+----------------
+
+This application uses `12factor <https://12factor.net/>`__ and in its systemd
+configuration loads its configuration from a
+`appconfig folder <https://github.com/jdelic/saltshaker/blob/master/ETC_APPCONFIG.md>`__.
+
+Canonical reserved configuration folders for this app:
 **/etc/appconfig/authserver**
 
 Run ``django-admin.py`` like this:
@@ -13,10 +29,13 @@ Run ``django-admin.py`` like this:
 
 
 Environment configuration
-=========================
+-------------------------
 
 Build configuration
--------------------
++++++++++++++++++++
+
+This configuration is generated during build time using
+`GoPythonGo tools <https://github.com/gopythongo/gopythongo`__.
 
 ==============  ==============================================================
 Variable        Description
@@ -29,7 +48,10 @@ SECRET_KEY      The Django settings.SECRET_KEY value to be used
 ==============  ==============================================================
 
 Managed configuration
----------------------
++++++++++++++++++++++
+
+These configuration values in the appconfig folder must be provided manually
+(or through comfiguration management).
 
 ====================  ========================================================
 Variable              Description
@@ -49,9 +71,10 @@ SPAPI_DBUSERS         A comma-separated list of database users which are being
 
 
 Smartstack services
-===================
+-------------------
 
-This application relies on the following smartstack services:
+This application relies on the following smartstack services being available
+on localhost:
 
 ==============
 Service
@@ -62,14 +85,14 @@ Vault
 
 
 Access methods
-==============
+--------------
 
 There are multiple ways to authenticate user accounts against this program.
 Offered APIs will include OAuth and CAS.
 
 Stored Procdure API
--------------------
-Since some applications (like OpenSMTPD) which are used by
++++++++++++++++++++
+Since some applications (like OpenSMTPD and Dovecot) which are used by
 `my saltshaker <https://github.com/jdelic/saltshaker>`__  need lowest common
 denominator authentication, authserver includes a pgplsql stored procedure API
 tailored to OpenSMTPD to validate user accounts.
@@ -98,11 +121,11 @@ N   Function Name                        Description
 ==  ===================================  =====================================
 
 
+
 Future extensions
-=================
+-----------------
 
  * add Google Authenticator support via ``django-otp``
- * add oauth2 support using ``django-oauth-toolkit``
  * fully implement CAS
 
 
