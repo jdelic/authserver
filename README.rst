@@ -93,12 +93,12 @@ Smartstack services
 This application relies on the following smartstack services being available
 on localhost:
 
-==============
-Service
-==============
-PostgreSQL
-Vault
-==============
+==== =========== ================
+Port Service     SSL Hostname
+==== =========== ================
+5432 PostgreSQL  postgresql.local
+8200 Vault       vault.local
+==== =========== ================
 
 
 Smartstack registration and loadbalancing
