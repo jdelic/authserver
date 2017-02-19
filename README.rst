@@ -9,6 +9,11 @@ OAuth2 applications can use a SSL client certificate to authenticate for a
 non-standard HTTP API to register as an OAuth2 client and get their OAuth2
 credentials, cutting down on manual configuration.
 
+As a second application it provides *dkimsigner*, a daemon that speaks SMTP and
+receives mail, then forwards it to another SMTP port after signing it with a
+DKIM key from its database.
+
+
 Installation
 ------------
 
@@ -21,7 +26,8 @@ configuration loads its configuration from a
 `appconfig folder <https://github.com/jdelic/saltshaker/blob/master/ETC_APPCONFIG.md>`__.
 
 Canonical reserved configuration folders for this app:
-**/etc/appconfig/authserver**
+  * **/etc/appconfig/authserver**
+  * **/etc/appconfig/dkimsigner**
 
 Run ``django-admin.py`` like this:
 
@@ -44,10 +50,14 @@ This configuration is generated during build time using
 Variable        Description
 ==============  ==============================================================
 VAULT_SSLCERT   The client certificate to be used to connect to Vault to
-                retrieve database credentials
+                retrieve database credentials.
 VAULT_SSLKEY    The client key to be used to connect to Vault to retrieve
-                database credentials
-SECRET_KEY      The Django settings.SECRET_KEY value to be used
+                database credentials.
+SECRET_KEY      The Django settings.SECRET_KEY value to be used.
+DB_SSLCERT      An alternative way for connecting to the database. If Vault
+                isn't used to manage database access, this can be set to a
+                SSL client certificate to authenticate with the database.
+DB_SSLKEY       The private key for ``DB_SSLCERT``.
 ==============  ==============================================================
 
 Managed configuration
@@ -60,9 +70,9 @@ These configuration values in the appconfig folder must be provided manually
 Variable              Description
 ====================  ========================================================
 VAULT_CA              The CA to use to validate that we're talking to the
-                      right Vault
+                      right Vault.
 VAULT_DATABASE_PATH   The key path to read from Vault to get database
-                      credentials for a full access role
+                      credentials for a full access role.
 DATABASE_PARENTROLE   The role that authserver should "sudo" into (via
                       ``SET ROLE``) after connecting to the database, i.e. the
                       primary access role.
@@ -70,6 +80,10 @@ DATABASE_NAME         The name of the database to connect to.
 SPAPI_DBUSERS         A comma-separated list of database users which are being
                       granted access to the stored procedure API in migration
                       ``0003_opensmtpd_access``.
+DATABASE_URL          When client SSL certificates or usernames and passwords
+                      are used to connect to the database instead of Vault,
+                      then this URL (parsed by dj-database-url) is used to
+                      connect.
 ====================  ========================================================
 
 
@@ -135,6 +149,29 @@ Future extensions
 
  * add Google Authenticator support via ``django-otp``
  * fully implement CAS
+
+
+Building
+========
+
+This application is meant to be built using
+`GoPythonGo <https://github.com/gopythongo/gopythongo/>`__ using gopythongo's
+``vaultgetcert`` tool to create a number of SSL client certificates (see
+"Environment configuration" above).
+
+If you plan on deploying authserver with usernames and passwords, you can
+just comment out the ``vaultgetcert-config`` line in ``.gopythongo/config``.
+Otherwise, set up intermediate CAs for your deployment environment and the
+``authserver`` application and install one of them in Vault, as described in
+`Certified Builds <https://github.com/jdelic/saltshaker/blob/master/CERTIFIED_BUILDS.md>`__
+and create a cross-signature configuration for the other CA using the
+``VGC_XSIGN_CACERT`` environment variable like so:
+
+.. code-block:: shell
+
+    export VGC_XSIGN_CACERT=postgresql.crt=/path/to/env-ca.crt,vault.crt=/path/to/app-ca.crt
+    export VGC_OVERWRITE=true
+    /opt/gopythongo/bin/gopythongo -v /usr/local/authserver /usr/local/src/authserver
 
 
 TODO
