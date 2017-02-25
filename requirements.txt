@@ -16,7 +16,7 @@ typing==3.5.2.2
 whitenoise==3.2.2
 
 # DKIM filter dependencies
-mn-dkimpy==0.5.7.dev1
+mn-dkimpy==0.6.1.dev1
 python-daemon==2.1.2
 
 # vendored dependencies from django12factor
