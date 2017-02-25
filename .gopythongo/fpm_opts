@@ -27,4 +27,4 @@
 .gopythongo/authserver.tmpfilesd.conf=/usr/lib/tmpfiles.d/authserver.conf
 .gopythongo/etc/systemd/authserver.service=/lib/systemd/system/authserver.service
 .gopythongo/etc/systemd/dkimsigner.service=/lib/systemd/system/dkimsigner.service
-.gopythongo/etc/cron/authserver_clean_tokens.sh=/etc/cron.daily/authserver_clean_tokens.sh
+.gopythongo/etc/cron.daily/authserver_clean_tokens.sh=/etc/cron.daily/authserver_clean_tokens.sh
