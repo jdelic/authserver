@@ -114,7 +114,7 @@ class MNUserAuthenticationBackend(object):
             if user.is_staff:
                 logging.debug("User %s is staff, allowing identifier login", username)
                 if hashers.check_password(password, user.password):
-                    logging.debug("User %s logged in with correct password")
+                    logging.debug("User %s logged in with correct password", username)
                     return user
                 else:
                     logging.debug("Incorrect password for user %s (%s)", username, user.password)
