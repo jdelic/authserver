@@ -44,7 +44,7 @@ Build configuration
 +++++++++++++++++++
 
 This configuration is generated during build time using
-`GoPythonGo tools <https://github.com/gopythongo/gopythongo`__.
+`GoPythonGo tools <https://github.com/gopythongo/gopythongo>`__.
 
 ==============  ==============================================================
 Variable        Description
