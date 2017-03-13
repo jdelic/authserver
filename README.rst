@@ -178,3 +178,14 @@ TODO
 ====
 
  * refactor Vault fullaccess role into actually granting access to new tables
+
+
+Licensing
+=========
+
+Please see the `LICENSE <LICENSE>`__ document for the terms under which this
+source code is licensed.
+
+This program includes a copy of
+`django12factor <https://github.com/doismellburning/django12factor/>`__ which is
+licensed unser The MIT License (MIT) Copyright (c) 2013-2017 Kristian Glass.
