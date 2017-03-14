@@ -93,6 +93,7 @@ GoPythonGo Tools configuration
 Some recommended build server config:
 
 .. code-block:: shell
+
     export VGC_XSIGN_CACERT=postgresql.crt=/etc/concourse/cacerts/env-build-ca.crt,vault.crt=/etc/concourse/cacerts/cas-build-ca.crt
     export VAULTWRAPPER_READ_KEY=secret/gpg/packaging_passphrase
     export VGC_OVERWRITE=True
