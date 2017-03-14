@@ -87,6 +87,18 @@ DATABASE_URL          When client SSL certificates or usernames and passwords
 ====================  ========================================================
 
 
+GoPythonGo Tools configuration
+------------------------------
+
+Some recommended build server config:
+
+.. code-block:: shell
+    export VGC_XSIGN_CACERT=postgresql.crt=/etc/concourse/cacerts/env-build-ca.crt,vault.crt=/etc/concourse/cacerts/cas-build-ca.crt
+    export VAULTWRAPPER_READ_KEY=secret/gpg/packaging_passphrase
+    export VGC_OVERWRITE=True
+    /opt/gopythongo/bin/gopythongo -v /usr/local/authserver /path/to/source
+
+
 Smartstack services
 -------------------
 
