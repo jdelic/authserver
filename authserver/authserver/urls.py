@@ -2,8 +2,11 @@ from django.conf.urls import url, include
 from django.contrib import admin
 from django.contrib.auth import views as authviews
 
+from authserver import base_views
 
 urlpatterns = [
+    url(r"^health/$", base_views.health),
+    url(r"^$", base_views.nothing),
     url(r"^action/login/$", authviews.login, name="authserver-login"),
     url(r"^action/logout/$", authviews.logout),
     url(r"^action/password_change/$", authviews.password_change),
@@ -16,6 +19,7 @@ urlpatterns = [
     url(r"^admin/", admin.site.urls),
     url(r"^o2/", include('oauth2_provider.urls', namespace="oauth2_provider")),
     url(r"^cas/", include('mama_cas.urls')),
+
 ]
 
 # TODO: remove once https://github.com/evonove/django-oauth-toolkit/issues/196 is fixed
