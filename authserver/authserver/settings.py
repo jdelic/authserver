@@ -68,7 +68,7 @@ if DEBUG:
 
 if VaultAuth12Factor.has_envconfig() and os.getenv("VAULT_DATABASE_PATH"):
     VAULT = VaultAuth12Factor.fromenv()
-    CREDS = VaultCredentialProvider("https://vault.local:8200/", VAULT,
+    CREDS = VaultCredentialProvider(os.getenv("VAULT_ADDR", "https://vault.local:8200/"), VAULT,
                                     os.getenv("VAULT_DATABASE_PATH"),
                                     os.getenv("VAULT_CA", None), True,
                                     DEBUG)
