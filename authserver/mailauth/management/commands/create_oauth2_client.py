@@ -53,7 +53,7 @@ class Command(BaseCommand):
                                      appmodel.GRANT_CLIENT_CREDENTIALS, appmodel.GRANT_PASSWORD],
                             help="Choose the OAuth2 grant type for this client.")
 
-        parser.add_argument("client_name", nargs="?",
+        parser.add_argument("client_name", nargs=1,
                             help="A human-readable name for the OAuth2 client that can be used to rerieve the same "
                                  "credentials later using this command.")
 
