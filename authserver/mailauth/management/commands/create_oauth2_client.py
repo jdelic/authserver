@@ -8,11 +8,11 @@ import hvac
 
 from django.core.management.base import BaseCommand
 from django.conf import settings
-from oauth2_provider import settings as oauth2_settings, models as oauth2_models
+from oauth2_provider import models as oauth2_models
 from typing import Any
 
 
-appmodel = oauth2_settings.APPLICATION_MODEL  # type: oauth2_models.Application
+appmodel = oauth2_models.get_application_model()  # type: oauth2_models.Application
 
 
 class Command(BaseCommand):
