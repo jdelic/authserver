@@ -19,12 +19,12 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument_group("Config output options")
-        parser.add_argument("--write-to-stdout", dest="write_to_stdout", action="store_true", default=False,
+        parser.add_argument("--publish-to-stdout", dest="publish_to_stdout", action="store_true", default=False,
                             help="write the OAuth2 credentials to stdout as a JSON object.")
-        parser.add_argument("--write-to-consulkv", dest="write_to_consulkv", default=None,
+        parser.add_argument("--publish-to-consulkv", dest="publish_to_consulkv", default=None,
                             help="write the OAuth2 credentials to Hashicorp Consul. The credentials will be stored in "
                                  "key/value pairs under the specified path.")
-        parser.add_argument("--write-to-vault", dest="write_to_vault", default=None,
+        parser.add_argument("--publish-to-vault", dest="publish_to_vault", default=None,
                             help="write the OAuth2 credentials to Hashicorp Vault. The credentials will be stored in "
                                  "key/value paris under the specified path. The path must reside in a Vault 'secret' "
                                  "backend. Set environment variables as specified by '12factor-vault' to configure "
@@ -74,18 +74,18 @@ class Command(BaseCommand):
             "client_secret": client.client_secret,
         }, indent=4)
 
-        if options["write_to_stdout"]:
+        if options["publish_to_stdout"]:
             self.stdout.write(json_str)
 
-        if options["write_to_consulkv"]:
+        if options["publish_to_consulkv"]:
             con = consul.Consul(host=options["consul_url"], token=options["consul_token"])
-            path = options["write_to_consulkv"]
+            path = options["publish_to_consulkv"]
             con.kv.put("%s/json" % path, json_str)
             con.kv.put("%s/name" % path, client.name)
             con.kv.put("%s/client_id" % path, client.client_id)
             con.kv.put("%s/client_secret" % path, client.client_secret)
 
-        if options["write_to_vault"]:
+        if options["publish_to_vault"]:
             pass
 
         self.stderr.write(self.style.SUCCESS("Created client %s (ID: %s)") % (options["client_name"],
