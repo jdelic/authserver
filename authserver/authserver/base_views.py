@@ -19,6 +19,6 @@ def health(request: HttpRequest) -> HttpResponse:
                             content_type="text/plain; charset=utf-8")
 
 
-def nothing(request: HttpRequest):
+def nothing(request: HttpRequest) -> HttpResponse:
     return HttpResponse(b'nothing to see here', status=200,
                         content_type="text/plain; charset=utf-8")

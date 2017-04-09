@@ -1,6 +1,6 @@
 # -* encoding: utf-8 *-
 import functools
-from typing import Tuple, Type
+from typing import Tuple, Type, Any
 
 import django.contrib.auth.admin as auth_admin
 from Crypto.PublicKey import RSA
@@ -46,9 +46,9 @@ class DomainAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     form = DomainForm
 
-    def get_form(self, req: HttpRequest, obj=None, **kwargs) -> type:
+    def get_form(self, req: HttpRequest, obj: Domain=None, **kwargs: Any) -> type:
         if req.GET.get("_prefill_key", "0") == "1":
-            def formfield_callback(field: _ModelField, request: HttpRequest=None, **kwargs) -> Type[_FormField]:
+            def formfield_callback(field: _ModelField, request: HttpRequest=None, **kwargs: Any) -> Type[_FormField]:
                 f = self.formfield_for_dbfield(field, request=request, **kwargs)  # type: _FormField
                 # f can be None if the dbfield does not get a FormField (like hidden fields
                 # or auto increment IDs). Only the dbfield has a .name attribute.
