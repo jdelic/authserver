@@ -25,6 +25,8 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR("Found multiple objects for %s. Do you have a two clients where one's "
                                                "ID is the other's name? You'll need to fix that in the database." %
                                                options["client_id_or_name"]))
-
-        client.delete()
-        self.stderr.write(self.style.SUCCESS("Client deleted: %s - %s") % (client.name, client.client_id))
+        except appmodel.DoesNotExist:
+            self.stderr.write(self.style.ERROR("Client %s not found." % options["client_id_or_name"]))
+        else:
+            client.delete()
+            self.stderr.write(self.style.SUCCESS("Client deleted: %s - %s") % (client.name, client.client_id))
