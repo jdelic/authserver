@@ -10,7 +10,6 @@ from Crypto.PublicKey import RSA
 from django.contrib.admin import widgets
 from django.forms.models import ModelForm, ALL_FIELDS
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
 
 from mailauth.models import MNUser, Domain
 
