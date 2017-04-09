@@ -2,6 +2,7 @@
 import argparse
 import json
 
+import consul
 import os
 
 from django.core.management.base import BaseCommand
@@ -29,8 +30,8 @@ class Command(BaseCommand):
                                  "backend. Set environment variables as specified by '12factor-vault' to configure "
                                  "Vault authentication in the Authserver settings.")
         parser.add_argument("--consul-url", dest="consul_url",
-                            default=os.getenv("CONSUL_ADDR", "http://127.0.0.1:8500/"),
-                            help="URL to use to contact the local Consul agent. Will use $CONSUL_ADDR from the "
+                            default=os.getenv("CONSUL_HTTP_ADDR", "http://127.0.0.1:8500/"),
+                            help="URL to use to contact the local Consul agent. Will use $CONSUL_HTTP_ADDR from the "
                                  "environment if it exists.")
         parser.add_argument("--consul-token", dest="consul_token",
                             default=None,
@@ -67,14 +68,22 @@ class Command(BaseCommand):
                 authorization_grant_type=options["grant_type"],
             )
 
-        if options["write_to_stdout"]:
-            self.stdout.write(json.dumps({
-                "client_id": client.client_id,
-                "client_secret": client.client_secret,
-            }, indent=4))
+        json_str = json.dumps({
+            "name": client.name,
+            "client_id": client.client_id,
+            "client_secret": client.client_secret,
+        }, indent=4)
 
-        if options["write_to_consul"]:
-            pass
+        if options["write_to_stdout"]:
+            self.stdout.write(json_str)
+
+        if options["write_to_consulkv"]:
+            con = consul.Consul(host=options["consul_url"], token=options["consul_token"])
+            path = options["write_to_consulkv"]
+            con.kv.put("%s/json" % path, json_str)
+            con.kv.put("%s/name" % path, client.name)
+            con.kv.put("%s/client_id" % path, client.client_id)
+            con.kv.put("%s/client_secret" % path, client.client_secret)
 
         if options["write_to_vault"]:
             pass
