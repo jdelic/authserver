@@ -40,4 +40,4 @@ class Command(BaseCommand):
 
         self.stdout.write("NAME%sID" % ((maxlen - 2) * " "))
         for cl in clients:
-            self.stdout.write("%s%s%s" % (cl.name, (maxlen + 2) * " ", cl.client_id))
+            self.stdout.write("%s%s%s" % (cl.name, (maxlen - len(cl.name) + 2) * " ", cl.client_id))
