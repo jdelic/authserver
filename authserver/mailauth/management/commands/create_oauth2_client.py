@@ -1,6 +1,8 @@
 # -* encoding: utf-8 *-
 import argparse
 import json
+from urllib.parse import urlparse
+
 import os
 
 import consul
@@ -53,7 +55,7 @@ class Command(BaseCommand):
                                      appmodel.GRANT_CLIENT_CREDENTIALS, appmodel.GRANT_PASSWORD],
                             help="Choose the OAuth2 grant type for this client.")
 
-        parser.add_argument("client_name", nargs=1,
+        parser.add_argument("client_name",
                             help="A human-readable name for the OAuth2 client that can be used to rerieve the same "
                                  "credentials later using this command.")
 
@@ -81,18 +83,27 @@ class Command(BaseCommand):
             self.stdout.write(json_str)
 
         if options["publish_to_consulkv"]:
-            con = consul.Consul(host=options["consul_url"], token=options["consul_token"])
+            urp = urlparse(options["consul_url"])
+            if ":" in urp.netloc:
+                host, port = urp.netloc.split(":", 1)
+            else:
+                host = urp.netloc
+                port = 8500
+
+            con = consul.Consul(host=host, port=port, scheme=urp.scheme, token=options["consul_token"])
             path = options["publish_to_consulkv"]
             con.kv.put("%s/json" % path, json_str)
             con.kv.put("%s/name" % path, client.name)
             con.kv.put("%s/client_id" % path, client.client_id)
             con.kv.put("%s/client_secret" % path, client.client_secret)
+            self.stderr.write(self.style.SUCCESS("INFO: Client credentials published to Consul"))
 
         if options["publish_to_vault"]:
             cl = settings.VAULT.authenticated_client()  # type: hvac.Client
             cl.write(options["publish_to_vault"],
                 **credentials
             )
+            self.stderr.write(self.style.SUCCESS("INFO: Client credentials published to Vault"))
 
         self.stderr.write(self.style.SUCCESS("Created client %s (ID: %s)") % (options["client_name"],
                                                                               client.client_id))
