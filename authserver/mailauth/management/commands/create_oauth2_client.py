@@ -1,9 +1,10 @@
 # -* encoding: utf-8 *-
 import argparse
 import json
+import os
 
 import consul
-import os
+import hvac
 
 from django.core.management.base import BaseCommand
 from django.conf import settings
@@ -68,11 +69,13 @@ class Command(BaseCommand):
                 authorization_grant_type=options["grant_type"],
             )
 
-        json_str = json.dumps({
+        credentials = {
             "name": client.name,
             "client_id": client.client_id,
             "client_secret": client.client_secret,
-        }, indent=4)
+        }
+
+        json_str = json.dumps(credentials, indent=4)
 
         if options["publish_to_stdout"]:
             self.stdout.write(json_str)
@@ -86,7 +89,10 @@ class Command(BaseCommand):
             con.kv.put("%s/client_secret" % path, client.client_secret)
 
         if options["publish_to_vault"]:
-            pass
+            cl = settings.VAULT.authenticated_client()  # type: hvac.Client
+            cl.write(options["publish_to_vault"],
+                **credentials
+            )
 
         self.stderr.write(self.style.SUCCESS("Created client %s (ID: %s)") % (options["client_name"],
                                                                               client.client_id))
