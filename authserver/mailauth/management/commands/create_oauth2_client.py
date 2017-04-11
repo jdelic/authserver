@@ -90,7 +90,8 @@ class Command(BaseCommand):
                 host = urp.netloc
                 port = 8500
 
-            con = consul.Consul(host=host, port=port, scheme=urp.scheme, token=options["consul_token"])
+            con = consul.Consul(host=host, port=port, scheme=urp.scheme,
+                                token=options.get("consul_token", os.getenv("CONSUL_HTTP_TOKEN", None)))
             path = options["publish_to_consulkv"]
             con.kv.put("%s/json" % path, json_str)
             con.kv.put("%s/name" % path, client.name)
@@ -100,7 +101,8 @@ class Command(BaseCommand):
 
         if options["publish_to_vault"]:
             cl = settings.VAULT.authenticated_client()  # type: hvac.Client
-            cl.write(options["publish_to_vault"],
+            cl.write(
+                options["publish_to_vault"],
                 **credentials
             )
             self.stderr.write(self.style.SUCCESS("INFO: Client credentials published to Vault"))
