@@ -75,15 +75,15 @@ class MNApplicationPermission(models.Model):
 
 class MNGroups(models.Model):
     class Meta:
-        verbose_name_plural = "Groups"
+        verbose_name_plural = "OAuth2/CAS Groups"
 
     name = models.CharField("Group name", max_length=255)
 
     group_permissions = models.ManyToManyField(
         MNApplicationPermission,
-        verbose_name=" permissions",
+        verbose_name="Application permissions",
         blank=True,
-        help_text="Permissions for OAuth2 applications",
+        help_text="Permissions for OAuth2/CAS applications",
         related_name='group_set',
         related_query_name='group',
     )
@@ -116,7 +116,7 @@ class MNUserManager(base_user.BaseUserManager):
         return self._create_user(identifier, fullname, password, **extrafields)
 
 
-class MNUser(base_user.AbstractBaseUser):
+class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
     class Meta:
         verbose_name_plural = "User accounts"
 
@@ -146,25 +146,18 @@ class MNUser(base_user.AbstractBaseUser):
                   "Unselect this instead of deleting accounts.",
     )
 
-    is_superuser = models.BooleanField(
-        "Superuser status",
-        default=False,
-        help_text="Designates that this user has all permissions without "
-                  "explicitly assigning them.",
-    )
-
-    user_permissions = models.ManyToManyField(
+    app_permissions = models.ManyToManyField(
         MNApplicationPermission,
-        verbose_name="user permissions",
+        verbose_name="OAuth2/CAS Application permissions",
         blank=True,
-        help_text="Permissions for OAuth2 applications",
+        help_text="Permissions for networkapplications",
         related_name='user_set',
         related_query_name='user',
     )
 
-    groups = models.ManyToManyField(
+    app_groups = models.ManyToManyField(
         MNGroups,
-        verbose_name="groups",
+        verbose_name="OAuth2/CAS Groups",
         blank=True,
         related_name="user_set",
         related_query_name='user',
@@ -206,6 +199,12 @@ class MNUser(base_user.AbstractBaseUser):
 
     def get_short_name(self) -> str:
         return self.identifier
+
+    # application access for OAuth2
+    def has_application_permission(self, perm):
+        # TODO: implement me
+        return True
+
 
 
 class MNApplication(oauth2_models.AbstractApplication):

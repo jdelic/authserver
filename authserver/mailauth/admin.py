@@ -5,7 +5,6 @@ from typing import Tuple, Type, Any
 import django.contrib.auth.admin as auth_admin
 from Crypto.PublicKey import RSA
 from django.contrib import admin
-from django.contrib.auth.models import Permission
 from django.core import urlresolvers
 from django.db.models.fields import Field as _ModelField
 from django.forms.fields import Field as _FormField
@@ -14,6 +13,9 @@ from django.utils.html import format_html
 
 from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm
 from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroups
+
+
+admin.site.unregister(auth_admin.Group)
 
 
 @admin.register(MNUser)
