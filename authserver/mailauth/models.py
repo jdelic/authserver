@@ -68,13 +68,18 @@ class EmailAlias(models.Model):
 
 class MNApplicationPermission(models.Model):
     class Meta:
+        verbose_name = "application permissions"
         verbose_name_plural = "Application permissions"
 
     identifier = models.CharField("Permission identifier", max_length=255)
 
+    def __str__(self) -> str:
+        return self.identifier
+
 
 class MNGroups(models.Model):
     class Meta:
+        verbose_name = "OAuth2/CAS Groups"
         verbose_name_plural = "OAuth2/CAS Groups"
 
     name = models.CharField("Group name", max_length=255)
@@ -87,6 +92,9 @@ class MNGroups(models.Model):
         related_name='group_set',
         related_query_name='group',
     )
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class MNUserManager(base_user.BaseUserManager):
@@ -204,7 +212,6 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
     def has_application_permission(self, perm):
         # TODO: implement me
         return True
-
 
 
 class MNApplication(oauth2_models.AbstractApplication):

@@ -12,8 +12,7 @@ from django.http.request import HttpRequest
 from django.utils.html import format_html
 
 from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm
-from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroups
-
+from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroups, MNApplication
 
 admin.site.unregister(auth_admin.Group)
 
@@ -90,10 +89,15 @@ class EmailAliasAdmin(admin.ModelAdmin):
 
 
 @admin.register(MNApplicationPermission)
-class PermissionAdmin(admin.ModelAdmin):
-    pass
+class MNApplicationPermissionAdmin(admin.ModelAdmin):
+    search_fields = ('name',)
 
 
 @admin.register(MNGroups)
 class MNGroupAdmin(admin.ModelAdmin):
-    pass
+    search_fields = ('name',)
+    fieldsets = (
+        (None, {'fields': ('name',)}),
+        ("Application permissions", {'fields': ('group_permissions',)}),
+    )
+    filter_horizontal = ('group_permissions',)
