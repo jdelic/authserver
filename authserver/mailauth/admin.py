@@ -26,6 +26,7 @@ class MNUserAdmin(auth_admin.UserAdmin):
         ("Personal info", {'fields': ('fullname', 'delivery_mailbox', 'pgp_key_id', 'yubikey_serial', )}),
         ("Permissions", {'fields': ('is_active', 'is_staff', 'is_superuser',
                                     'groups', 'user_permissions')}),
+        ("Application permissions", {'fields': ('app_permissions', 'app_groups',)}),
         ("Important dates", {'fields': ('last_login',)}),
     )  # type: Tuple
     add_fieldsets = (
@@ -41,7 +42,7 @@ class MNUserAdmin(auth_admin.UserAdmin):
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups')
     search_fields = ('identifier', 'fullname')
     ordering = ('identifier',)
-    filter_horizontal = ('groups', 'user_permissions',)
+    filter_horizontal = ('groups', 'user_permissions', 'app_permissions', 'app_groups',)
 
 
 @admin.register(Domain)
