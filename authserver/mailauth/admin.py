@@ -5,6 +5,7 @@ from typing import Tuple, Type, Any
 import django.contrib.auth.admin as auth_admin
 from Crypto.PublicKey import RSA
 from django.contrib import admin
+from django.contrib.auth.models import Permission
 from django.core import urlresolvers
 from django.db.models.fields import Field as _ModelField
 from django.forms.fields import Field as _FormField
@@ -83,3 +84,8 @@ class EmailAliasAdmin(admin.ModelAdmin):
     get_mailalias.short_description = "Mail alias"  # type: ignore  (mypy#708)
 
     list_display = ('get_mailalias', 'get_user',)
+
+
+@admin.register(Permission)
+class PermissionAdmin(admin.ModelAdmin):
+    pass
