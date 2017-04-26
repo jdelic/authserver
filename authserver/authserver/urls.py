@@ -2,6 +2,7 @@ from django.conf.urls import url, include
 from django.contrib import admin
 from django.contrib.auth import views as authviews
 
+from oauth2_provider.urls import base_urlpatterns as oauth2_base_urlpatterns
 from authserver import base_views
 
 urlpatterns = [
@@ -17,10 +18,6 @@ urlpatterns = [
         authviews.password_reset_confirm),
     url(r"^action/reset/done/", authviews.password_reset_complete),
     url(r"^admin/", admin.site.urls),
-    url(r"^o2/", include('oauth2_provider.urls', namespace="oauth2_provider")),
+    url(r"^o2/", include(oauth2_base_urlpatterns, namespace="oauth2_provider")),
     url(r"^cas/", include('mama_cas.urls')),
-
 ]
-
-# TODO: remove once https://github.com/evonove/django-oauth-toolkit/issues/196 is fixed
-urlpatterns = [u for u in urlpatterns if "o2/^applications" not in u._regex]

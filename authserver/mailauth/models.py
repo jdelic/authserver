@@ -6,6 +6,8 @@ from django.conf import settings
 from django.db import models
 from typing import Any
 
+from oauth2_provider import models as oauth2_models
+
 #
 # The data model here is:
 #     - the org owns D domains
@@ -154,3 +156,22 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
 
     def get_short_name(self) -> str:
         return self.identifier
+
+
+class MNApplication(oauth2_models.AbstractApplication):
+    """
+    Add permissions to applications. They are permissions that applications are *allowed to request
+    as scopes*.
+    """
+
+    required_permissions = models.ManyToManyField(
+        auth_models.Permission,
+        verbose_name="required permissions",
+        blank=True,
+        help_text="Permissions required for this application",
+        related_name='application_set',
+        related_query_name='application',
+    )
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
