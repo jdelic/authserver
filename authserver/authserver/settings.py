@@ -114,6 +114,13 @@ AUTH_USER_MODEL = 'mailauth.MNUser'
 # Validate email addresses against our special DB structure
 AUTHENTICATION_BACKENDS = ['mailauth.auth.MNUserAuthenticationBackend']
 
+# the one exception to the OAUTH2_PROVIDER dict, because this uses Django's 'swappable' builtin
+OAUTH2_PROVIDER_APPLICATION_MODEL = 'mailauth.MNApplication'
+
+OAUTH2_PROVIDER = {
+    #'SCOPES_BACKEND_CLASS': 'mailauth.scopes.MNAuthScopes',
+}
+
 # we use our own modular crypt format sha256 hasher for maximum compatibility
 # with Dovecot, OpenSMTPD etc.
 PASSWORD_HASHERS = ['mailauth.auth.UnixCryptCompatibleSHA256Hasher']
