@@ -14,7 +14,7 @@ from oauth2_provider import models as oauth2_models
 #     - a user account has 1:N email aliases
 #     - 1 email alias belongs to 1 domain
 #     - a user will be able to authenticate to the app using any of his aliases and his password
-#     - 'identifier' is meaningless for authentication
+#     - the user 'identifier' is meaningless for authentication
 #
 
 
