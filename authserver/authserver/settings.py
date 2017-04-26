@@ -60,6 +60,8 @@ LOGIN_REDIRECT_URL = "/"
 
 DEBUG = False  # overridden by factorise() if defined
 
+from authserver.gunicorn_conf import LOGGING
+
 import authserver.vendor.django12factor as django12factor
 globals().update(django12factor.factorise())
 
@@ -112,7 +114,9 @@ else:
 AUTH_USER_MODEL = 'mailauth.MNUser'
 
 # Validate email addresses against our special DB structure
-AUTHENTICATION_BACKENDS = ['mailauth.auth.MNUserAuthenticationBackend']
+AUTHENTICATION_BACKENDS = [
+    'mailauth.auth.MNUserAuthenticationBackend',
+]
 
 # the one exception to the OAUTH2_PROVIDER dict, because this uses Django's 'swappable' builtin
 OAUTH2_PROVIDER_APPLICATION_MODEL = 'mailauth.MNApplication'
