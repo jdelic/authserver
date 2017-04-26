@@ -13,7 +13,7 @@ from django.http.request import HttpRequest
 from django.utils.html import format_html
 
 from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm
-from mailauth.models import MNUser, Domain, EmailAlias
+from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroups
 
 
 @admin.register(MNUser)
@@ -86,6 +86,11 @@ class EmailAliasAdmin(admin.ModelAdmin):
     list_display = ('get_mailalias', 'get_user',)
 
 
-@admin.register(Permission)
+@admin.register(MNApplicationPermission)
 class PermissionAdmin(admin.ModelAdmin):
+    pass
+
+
+@admin.register(MNGroups)
+class MNGroupAdmin(admin.ModelAdmin):
     pass

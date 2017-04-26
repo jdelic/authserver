@@ -66,6 +66,29 @@ class EmailAlias(models.Model):
         return "%s@%s (%s)" % (self.mailprefix, self.domain, self.user.identifier)
 
 
+class MNApplicationPermission(models.Model):
+    class Meta:
+        verbose_name_plural = "Application permissions"
+
+    identifier = models.CharField("Permission identifier", max_length=255)
+
+
+class MNGroups(models.Model):
+    class Meta:
+        verbose_name_plural = "Groups"
+
+    name = models.CharField("Group name", max_length=255)
+
+    group_permissions = models.ManyToManyField(
+        MNApplicationPermission,
+        verbose_name=" permissions",
+        blank=True,
+        help_text="Permissions for OAuth2 applications",
+        related_name='group_set',
+        related_query_name='group',
+    )
+
+
 class MNUserManager(base_user.BaseUserManager):
     # serializes Manager into migrations. I set this here because it's set on the default UserManager
     use_in_migrations = True
@@ -93,7 +116,10 @@ class MNUserManager(base_user.BaseUserManager):
         return self._create_user(identifier, fullname, password, **extrafields)
 
 
-class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
+class MNUser(base_user.AbstractBaseUser):
+    class Meta:
+        verbose_name_plural = "User accounts"
+
     uuid = models.UUIDField("Shareable ID", default=uuid.uuid4, editable=False, primary_key=True)
     identifier = models.CharField("User ID", max_length=255, unique=True, db_index=True)
     fullname = models.CharField("Full name", max_length=255)
@@ -118,6 +144,30 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
         default=True,
         help_text="Designates whether this user should be treated as active. "
                   "Unselect this instead of deleting accounts.",
+    )
+
+    is_superuser = models.BooleanField(
+        "Superuser status",
+        default=False,
+        help_text="Designates that this user has all permissions without "
+                  "explicitly assigning them.",
+    )
+
+    user_permissions = models.ManyToManyField(
+        MNApplicationPermission,
+        verbose_name="user permissions",
+        blank=True,
+        help_text="Permissions for OAuth2 applications",
+        related_name='user_set',
+        related_query_name='user',
+    )
+
+    groups = models.ManyToManyField(
+        MNGroups,
+        verbose_name="groups",
+        blank=True,
+        related_name="user_set",
+        related_query_name='user',
     )
 
     objects = MNUserManager()
@@ -164,8 +214,11 @@ class MNApplication(oauth2_models.AbstractApplication):
     as scopes*.
     """
 
+    class Meta:
+        verbose_name_plural = "OAuth2 Applications"
+
     required_permissions = models.ManyToManyField(
-        auth_models.Permission,
+        MNApplicationPermission,
         verbose_name="required permissions",
         blank=True,
         help_text="Permissions required for this application",
