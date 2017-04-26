@@ -2,8 +2,9 @@ from django.conf.urls import url, include
 from django.contrib import admin
 from django.contrib.auth import views as authviews
 
-from oauth2_provider.urls import base_urlpatterns as oauth2_base_urlpatterns
+from oauth2_provider import views as oauth2_views
 from authserver import base_views
+from mailauth import views
 
 urlpatterns = [
     url(r"^health/$", base_views.health),
@@ -18,6 +19,10 @@ urlpatterns = [
         authviews.password_reset_confirm),
     url(r"^action/reset/done/", authviews.password_reset_complete),
     url(r"^admin/", admin.site.urls),
-    url(r"^o2/", include(oauth2_base_urlpatterns, namespace="oauth2_provider")),
     url(r"^cas/", include('mama_cas.urls')),
+
+    # manually assign oauth2 views instead of importing them since we override the authorize view
+    url(r'^o2/authorize/$', views.ScopeValidationAuthView, name="authorize"),
+    url(r'^o2/token/$', oauth2_views.TokenView.as_view(), name="token"),
+    url(r'^o2/revoke_token/$', oauth2_views.RevokeTokenView.as_view(), name="revoke-token"),
 ]
