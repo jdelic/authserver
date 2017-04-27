@@ -71,10 +71,11 @@ class MNApplicationPermission(models.Model):
         verbose_name = "application permissions"
         verbose_name_plural = "Application permissions"
 
-    identifier = models.CharField("Permission identifier", max_length=255)
+    name = models.CharField("Human readable name", max_length=255, blank=True, null=False)
+    scope_name = models.CharField("OAuth2 scope string", max_length=255, blank=False, null=True, unique=True)
 
     def __str__(self) -> str:
-        return self.identifier
+        return "%s (%s)" % (self.name, self.scope_name)
 
 
 class MNGroups(models.Model):
@@ -209,8 +210,9 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
         return self.identifier
 
     # application access for OAuth2
-    def has_application_permission(self, perm):
-        # TODO: implement me
+    def has_scope(self, scope):
+        # check for assigned permissions
+        #self.app_permissions.
         return True
 
 
