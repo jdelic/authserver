@@ -42,7 +42,7 @@ class ScopeValidationAuthView(AuthorizationView):
         missing_permissions = find_missing_permissions(app, request.user)
 
         _log.debug("missing_permissions: %s (%s)" %
-                   (",".join([m.scope_name for m missing_permissions]), bool(missing_permissions)))
+                   (",".join([m.scope_name for m in missing_permissions]), bool(missing_permissions)))
 
         if missing_permissions:
             return render(
