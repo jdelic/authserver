@@ -43,6 +43,10 @@ class ScopeValidationAuthView(AuthorizationView):
                 context={
                     "required_permissions": list(app.required_permissions.all()),
                     "missing_permissions": missing_permissions,
+                    "username": (
+                        str(request.user.delivery_mailbox) if request.user.delivery_mailbox
+                        else request.user.identifier
+                    ),
                 }
             )
 

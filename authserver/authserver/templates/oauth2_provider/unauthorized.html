@@ -5,16 +5,20 @@
         {% if not error %}
             <form class="pure-form pure-form-aligned" id="authorizationForm" method="post">
                 <fieldset>
+                    {% csrf_token %}
                     <legend><img src="{{company_logo}}"/> {{company_name}}</legend>
-                    <h1>Unauthorized access</h1>
-                    <p>This application requires the following permissions:</p>
+                    <h1>You can't authorize this application.</h1>
+                    <p>You are logged in as: <b>{{username}}</b>.</p>
+                    <p>
+                        You are missing the necessary permissions. To authorize this application,
+                        you require the following permissions:</p>
                     <ul>
                         {% for perm in required_permissions %}
                             <li>{{ perm.name }}</li>
                         {% endfor %}
                     </ul>
 
-                    <p>You are missing the following permissions:</p>
+                    <p>Of those, you are missing the following permissions:</p>
                     <ul>
                         {% for missing in missing_permissions %}
                             <li>{{ missing.name }}</li>
