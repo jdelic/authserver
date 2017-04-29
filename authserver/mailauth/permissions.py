@@ -26,5 +26,3 @@ def find_missing_permissions(app: MNApplication, user: MNUser) -> List[MNApplica
             missing_permissions.append(req)
 
     return missing_permissions
-
-
