@@ -209,12 +209,6 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
     def get_short_name(self) -> str:
         return self.identifier
 
-    # application access for OAuth2
-    def has_scope(self, scope):
-        # check for assigned permissions
-        #self.app_permissions.
-        return True
-
 
 class MNApplication(oauth2_models.AbstractApplication):
     """
