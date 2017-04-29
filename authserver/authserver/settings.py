@@ -123,6 +123,7 @@ OAUTH2_PROVIDER_APPLICATION_MODEL = 'mailauth.MNApplication'
 
 OAUTH2_PROVIDER = {
     #'SCOPES_BACKEND_CLASS': 'mailauth.scopes.MNAuthScopes',
+    'OAUTH2_VALIDATOR_CLASS': 'mailauth.oauth2.ClientPermissionValidator',
 }
 
 # we use our own modular crypt format sha256 hasher for maximum compatibility

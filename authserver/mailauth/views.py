@@ -8,35 +8,13 @@ from oauth2_provider.forms import AllowForm
 from oauth2_provider.models import get_application_model
 from oauth2_provider.views.base import AuthorizationView
 
-from mailauth.models import MNApplication, MNUser, MNApplicationPermission
+from mailauth.models import MNApplication
+from mailauth.permissions import find_missing_permissions
 
 
 class ScopeValidationAuthView(AuthorizationView):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-
-    def _find_missing_permissions(self, app: MNApplication, user: MNUser) -> List[MNApplicationPermission]:
-        """
-        returns a list of ``Permission`` objects that the user doesn't have, but that the
-        app requires. Consequently, if this returns an empty list, the user is authorized
-        to connect to the app.
-        :param app: the application in question
-        :param user: the user object of this request
-        :return: a list of missing permissions or an empty list if the user has all necessary permissions
-        """
-        reqs = list(app.required_permissions.all())
-
-        user_permissions = set([perm.scope_name for perm in list(user.app_permissions.all())])
-        for group in user.app_groups.all():
-            for perm in list(group.group_permissions.all()):
-                user_permissions.add(perm.scope_name)
-
-        missing_permissions = []
-        for req in reqs:
-            if req.scope_name not in user_permissions:
-                missing_permissions.append(req)
-
-        return missing_permissions
 
     def form_valid(self, form: AllowForm):
         """
@@ -44,7 +22,7 @@ class ScopeValidationAuthView(AuthorizationView):
         if they doesn't have the permissions to do so.
         """
         app = get_application_model().get(client_id=form.cleaned_data.get('client_id'))
-        missing_permissions = self._find_missing_permissions(app, self.request.user)
+        missing_permissions = find_missing_permissions(app, self.request.user)
         if missing_permissions:
             form.cleaned_data['allow'] = False
 
@@ -56,7 +34,7 @@ class ScopeValidationAuthView(AuthorizationView):
 
         app = self.oauth2_data['application']  # type: MNApplication
 
-        missing_permissions = self._find_missing_permissions(app, request.user)
+        missing_permissions = find_missing_permissions(app, request.user)
 
         if missing_permissions:
             return render(
