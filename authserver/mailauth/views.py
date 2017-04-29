@@ -1,4 +1,5 @@
 # -* encoding: utf-8 *-
+import logging
 from typing import Any, List
 
 from django.http.request import HttpRequest
@@ -10,6 +11,9 @@ from oauth2_provider.views.base import AuthorizationView
 
 from mailauth.models import MNApplication
 from mailauth.permissions import find_missing_permissions
+
+
+_log = logging.getLogger(__name__)
 
 
 class ScopeValidationAuthView(AuthorizationView):
@@ -29,12 +33,16 @@ class ScopeValidationAuthView(AuthorizationView):
         return super().form_valid(form)
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        _log.debug("get()")
         # super.get will initialize self.oauth2_data and now we can do additional validation
         resp = super().get(request, *args, **kwargs)
 
         app = self.oauth2_data['application']  # type: MNApplication
 
         missing_permissions = find_missing_permissions(app, request.user)
+
+        _log.debug("missing_permissions: %s (%s)" %
+                   (",".join([m.scope_name for m missing_permissions]), bool(missing_permissions)))
 
         if missing_permissions:
             return render(

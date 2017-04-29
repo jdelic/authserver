@@ -1,7 +1,11 @@
 # -* encoding: utf-8 *-
+import logging
 from typing import List
 
 from mailauth.models import MNApplication, MNUser, MNApplicationPermission
+
+
+_log = logging.getLogger(__name__)
 
 
 def find_missing_permissions(app: MNApplication, user: MNUser) -> List[MNApplicationPermission]:
@@ -19,6 +23,9 @@ def find_missing_permissions(app: MNApplication, user: MNUser) -> List[MNApplica
     for group in user.app_groups.all():
         for perm in list(group.group_permissions.all()):
             user_permissions.add(perm.scope_name)
+
+    _log.debug("combined user permissions: %s; application permissions: %s" %
+               (",".join(user_permissions), ",".join([req.scope_name for req in reqs])))
 
     missing_permissions = []
     for req in reqs:
