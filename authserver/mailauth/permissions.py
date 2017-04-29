@@ -1,4 +1,6 @@
 # -* encoding: utf-8 *-
+from typing import List
+
 from mailauth.models import MNApplication, MNUser, MNApplicationPermission
 
 
