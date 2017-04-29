@@ -6,7 +6,7 @@
             <form class="pure-form pure-form-aligned" id="authorizationForm" method="post">
                 <fieldset>
                     <legend><img src="{{company_logo}}"/> {{company_name}}</legend>
-                    <p>Unauthorized access</p>
+                    <h1>Unauthorized access</h1>
                     <p>This application requires the following permissions:</p>
                     <ul>
                         {% for perm in required_permissions %}
@@ -29,5 +29,6 @@
                     </div>
                 </fieldset>
             </form>
+        {% endif %}
     </div>
 {% endblock %}

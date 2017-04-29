@@ -3,7 +3,7 @@ from typing import Any, List
 
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse
-from django.shortcuts import render_to_response
+from django.shortcuts import render
 from oauth2_provider.forms import AllowForm
 from oauth2_provider.models import get_application_model
 from oauth2_provider.views.base import AuthorizationView
@@ -33,7 +33,7 @@ class ScopeValidationAuthView(AuthorizationView):
 
         missing_permissions = []
         for req in reqs:
-            if req not in user_permissions:
+            if req.scope_name not in user_permissions:
                 missing_permissions.append(req)
 
         return missing_permissions
@@ -54,12 +54,13 @@ class ScopeValidationAuthView(AuthorizationView):
         # super.get will initialize self.oauth2_data and now we can do additional validation
         resp = super().get(request, *args, **kwargs)
 
-        app = kwargs['application']  # type: MNApplication
+        app = self.oauth2_data['application']  # type: MNApplication
 
         missing_permissions = self._find_missing_permissions(app, request.user)
 
         if missing_permissions:
-            return render_to_response(
+            return render(
+                request,
                 "oauth2_provider/unauthorized.html",
                 context={
                     "required_permissions": list(app.required_permissions.all()),
