@@ -22,7 +22,7 @@ urlpatterns = [
     url(r"^cas/", include('mama_cas.urls')),
 
     # manually assign oauth2 views instead of importing them since we override the authorize view
-    url(r'^o2/authorize/$', views.ScopeValidationAuthView, name="authorize"),
+    url(r'^o2/authorize/$', views.ScopeValidationAuthView.as_view(), name="authorize"),
     url(r'^o2/token/$', oauth2_views.TokenView.as_view(), name="token"),
     url(r'^o2/revoke_token/$', oauth2_views.RevokeTokenView.as_view(), name="revoke-token"),
 ]
