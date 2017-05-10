@@ -19,6 +19,10 @@ class Migration(migrations.Migration):
         ('auth', '0008_alter_user_username_max_length'),
     ]
 
+    run_before = [
+        ('oauth2_provider', '0001_initial'),
+    ]
+
     operations = [
         migrations.CreateModel(
             name='MNUser',
