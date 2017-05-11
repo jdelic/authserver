@@ -1,4 +1,4 @@
-12factor-vault==0.1.12
+12factor-vault==0.1.14
 Django==1.11.1
 django-cors-headers==2.0.2
 django-mama-cas==2.2.0
