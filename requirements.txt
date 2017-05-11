@@ -1,5 +1,5 @@
 12factor-vault==0.1.12
-Django==1.11.0
+Django==1.11.1
 django-cors-headers==2.0.2
 django-mama-cas==2.2.0
 django-oauth-toolkit==0.12.0
@@ -11,7 +11,7 @@ passlib==1.7.1
 psycopg2==2.7.1
 pycryptodome==3.4.5
 python-consul==0.7.0
-requests==2.13.0
+requests==2.14.2
 sqlparse==0.2.3
 typing==3.6.1
 whitenoise==3.3.0
@@ -21,9 +21,9 @@ mn-dkimpy==0.6.1.dev1
 python-daemon==2.1.2
 
 # vendored dependencies from django12factor
-dj-database-url==0.4.1
-dj-email-url==0.0.8
-django-cache-url==1.2.0
+dj-database-url==0.4.2
+dj-email-url==0.0.10
+django-cache-url==2.0.0
 six==1.10.0
 
 # pytz is consciously unpinned, I trust this collection of timezones to not fuck up
