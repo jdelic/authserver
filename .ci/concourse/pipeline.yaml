@@ -9,7 +9,7 @@ resources:
     - name: authserver
       type: git
       source:
-          uri: git@bitbucket.org/jdelic/authserver
+          uri: git@bitbucket.org:jdelic/authserver.git
           private_key: {{bitbucket_access_key}}
 
     - name: bitbucket-notify
