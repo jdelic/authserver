@@ -10,7 +10,6 @@ resources:
       type: git
       source:
           uri: git@bitbucket.org/jdelic/authserver
-          branch: master
 
     - name: bitbucket-notify
       type: bitbucket-notify
