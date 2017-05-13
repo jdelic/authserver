@@ -1,0 +1,43 @@
+resource_types:
+    - name: "bitbucket-notify"
+        type: docker-image
+        source:
+            repository: ecometrica/concourse-resource-bitbucket
+
+
+resources:
+    - name: authserver
+        type: git
+        source:
+            uri: git@bitbucket.org/jdelic/authserver
+            branch: master
+
+    - name: bitbucket-notify
+        type: bitbucket-notify
+        source:
+            client_id:
+            secret:
+            repo: jdelic/authserver
+
+
+jobs:
+    - name: mypy
+        plan:
+            - get: authserver
+                trigger: true
+            - put: bitbucket-notify
+                params:
+                    state: PENDING
+                    commit: authserver
+            - task: unit
+                file: .ci/concourse/mypy.yaml
+                on_success:
+                    - put: bitbucket-notify
+                        params:
+                            state: SUCCESSFUL
+                            repo: authserver
+                on_success:
+                    - put: bitbucket-notify
+                        params:
+                            state: SUCCESSFUL
+                            repo: authserver

@@ -1,0 +1,18 @@
+platform: linux
+
+image_resource:
+    type: docker-image
+    source:
+        repository: debian
+        tag: 'stretch'
+
+inputs:
+    - name: authserver
+
+run:
+    path: /bin/bash
+    args:
+        - -c
+        - |
+            apt update && apt upgrade && apt install python3.5 python3-pip && pip3 install mypy-lang typing &&
+            MYPYPATH=authserver mypy -s --disallow-untyped-calls --disallow-untyped-defs authserver
