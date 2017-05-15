@@ -30,7 +30,7 @@ jobs:
                 state: INPROGRESS
                 repo: authserver
           - task: unit
-            file: .ci/concourse/mypy.yaml
+            file: authserver/.ci/concourse/mypy.yaml
             on_success:
                 put: bitbucket-notify
                 params:
