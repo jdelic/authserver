@@ -36,7 +36,7 @@ jobs:
                 params:
                     state: SUCCESSFUL
                     repo: jdelic/authserver
-            on_failed:
+            on_failure:
                 put: bitbucket-notify
                 params:
                     state: FAILED
