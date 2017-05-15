@@ -2,7 +2,7 @@ resource_types:
     - name: bitbucket-notify
       type: docker-image
       source:
-          repository: ecometrica/concourse-resource-bitbucket
+          repository: johannesrudolph/concourse-resource-bitbucket
 
 
 resources:
