@@ -20,7 +20,7 @@ class ScopeValidationAuthView(AuthorizationView):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
-    def form_valid(self, form: AllowForm):
+    def form_valid(self, form: AllowForm) -> HttpResponse:
         """
         use the base class' form logic, but always behave like users didn't authorize the app
         if they doesn't have the permissions to do so.

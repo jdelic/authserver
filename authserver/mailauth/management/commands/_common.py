@@ -2,10 +2,11 @@
 import argparse
 import json
 import os
-from typing import TypeVar
+from typing import TypeVar, Any
 from urllib.parse import urlparse
 
 import consul
+import hvac
 from consul.base import ConsulException
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -39,7 +40,7 @@ def _add_publishing_args(parser: argparse.ArgumentParser) -> None:
                              "environment if it exists.")
 
 
-def _handle_client_registration(client: OT, mgr: CMDT, **options) -> None:
+def _handle_client_registration(client: OT, mgr: CMDT, **options: Any) -> bool:
     credentials = {
         "name": client.name,
         "client_id": client.client_id,
@@ -85,3 +86,5 @@ def _handle_client_registration(client: OT, mgr: CMDT, **options) -> None:
             return False
 
         mgr.stderr.write(mgr.style.SUCCESS("INFO: Client credentials published to Vault"))
+
+    return True
