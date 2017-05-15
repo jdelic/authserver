@@ -22,7 +22,7 @@ resources:
 
 
 jobs:
-    - name: check-mypy
+    - name: static-tests
       plan:
           - get: authserver
             trigger: true
@@ -30,15 +30,22 @@ jobs:
             params:
                 state: INPROGRESS
                 repo: authserver
-          - task: mypy
-            file: authserver/.ci/concourse/mypy.yaml
-            on_success:
-                put: bitbucket-notify
-                params:
-                    state: SUCCESSFUL
-                    repo: authserver
+          - task: prepare-mypy
+            file: authserver/.ci/concourse/prepare-mypy.yaml
             on_failure:
                 put: bitbucket-notify
                 params:
                     state: FAILED
+                    repo: authserver
+          - task: run-mypy
+            file: authserver/.ci/concourse/mypy.yaml
+            on_failure:
+                put: bitbucket-notify
+                params:
+                    state: FAILED
+                    repo: authserver
+            on_success:
+                put: bitbucket-notify
+                params:
+                    state: SUCCESSFUL
                     repo: authserver
