@@ -12,14 +12,16 @@ inputs:
     - name: authserver
 
 
-params:
-    MYPYPATH: authserver/authserver
-
-
 run:
-    path: /usr/local/bin/mypy
+    path: /bin/bash
     args:
-        - -s
-        - --disallow-untyped-calls
-        - --disallow-untyped-defs
-        - authserver
+        - -c
+        - |
+            apt-get -q update &&
+            apt-get -q -y upgrade &&
+            apt-get --no-install-recommends -q -y -o DPkg::Options::=--force-confold \
+                -o DPkg::Options::=--force-confdef install \
+                python3.5 python3-pip python3-setuptools python3-wheel &&
+            pip3 install -U mypy-lang typing;
+            cd authserver;
+            /usr/local/bin/mypy -s --disallow-untyped-calls --disallow-untyped-defs authserver

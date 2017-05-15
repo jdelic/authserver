@@ -30,13 +30,6 @@ jobs:
             params:
                 state: INPROGRESS
                 repo: authserver
-          - task: prepare-mypy
-            file: authserver/.ci/concourse/prepare-mypy.yaml
-            on_failure:
-                put: bitbucket-notify
-                params:
-                    state: FAILED
-                    repo: authserver
           - task: run-mypy
             file: authserver/.ci/concourse/mypy.yaml
             passed: [prepare-mypy]
