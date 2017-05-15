@@ -22,7 +22,7 @@ resources:
 
 
 jobs:
-    - name: static-tests
+    - name: authserver-tests
       plan:
           - get: authserver
             trigger: true
