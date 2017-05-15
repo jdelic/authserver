@@ -22,7 +22,7 @@ resources:
 
 
 jobs:
-    - name: mypy
+    - name: check-mypy
       plan:
           - get: authserver
             trigger: true
@@ -30,7 +30,7 @@ jobs:
             params:
                 state: INPROGRESS
                 repo: authserver
-          - task: unit
+          - task: mypy
             file: authserver/.ci/concourse/mypy.yaml
             on_success:
                 put: bitbucket-notify

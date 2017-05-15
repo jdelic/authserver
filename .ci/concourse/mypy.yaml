@@ -20,4 +20,4 @@ run:
                 -o DPkg::Options::=--force-confdef install \
                 python3.5 python3-pip python3-setuptools python3-wheel &&
             pip3 install -U mypy-lang typing &&
-            MYPYPATH=authserver /usr/loca/bin/mypy -s --disallow-untyped-calls --disallow-untyped-defs authserver
+            MYPYPATH=authserver /usr/local/bin/mypy -s --disallow-untyped-calls --disallow-untyped-defs authserver
