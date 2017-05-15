@@ -1,6 +1,7 @@
 # -* encoding: utf-8 *-
 import functools
 from typing import Tuple, Type, Any
+from typing import Union
 
 import django.contrib.auth.admin as auth_admin
 from Crypto.PublicKey import RSA
@@ -10,6 +11,9 @@ from django.db.models.fields import Field as _ModelField
 from django.forms.fields import Field as _FormField
 from django.http.request import HttpRequest
 from django.utils.html import format_html
+from typing import Tuple
+
+from typing import Dict
 
 from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm
 from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroups, MNApplication
@@ -99,5 +103,5 @@ class MNGroupAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {'fields': ('name',)}),
         ("Application permissions", {'fields': ('group_permissions',)}),
-    )
+    )  # type: Tuple[Tuple[Union[str, None], Dict[str, Tuple[str, ...]]], ...]
     filter_horizontal = ('group_permissions',)
