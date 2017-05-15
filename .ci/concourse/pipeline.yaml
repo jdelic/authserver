@@ -27,7 +27,7 @@ jobs:
             trigger: true
           - put: bitbucket-notify
             params:
-                state: PENDING
+                state: INPROGRESS
                 repo: jdelic/authserver
           - task: unit
             file: .ci/concourse/mypy.yaml
@@ -36,8 +36,8 @@ jobs:
                 params:
                     state: SUCCESSFUL
                     repo: jdelic/authserver
-            on_success:
+            on_failed:
                 put: bitbucket-notify
                 params:
-                    state: SUCCESSFUL
+                    state: FAILED
                     repo: jdelic/authserver
