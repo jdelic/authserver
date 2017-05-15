@@ -39,6 +39,7 @@ jobs:
                     repo: authserver
           - task: run-mypy
             file: authserver/.ci/concourse/mypy.yaml
+            passed: [prepare-mypy]
             on_failure:
                 put: bitbucket-notify
                 params:
