@@ -3,7 +3,6 @@ resource_types:
       type: docker-image
       source:
           repository: ecometrica/concourse-resource-bitbucket
-          branch: feature/concourse
 
 
 resources:
@@ -12,6 +11,7 @@ resources:
       source:
           uri: git@bitbucket.org:jdelic/authserver.git
           private_key: {{bitbucket_access_key}}
+          branch: feature/concourse
 
     - name: bitbucket-notify
       type: bitbucket-notify
