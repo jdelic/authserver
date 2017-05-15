@@ -16,6 +16,8 @@ run:
         - |
             apt-get -q update &&
             apt-get -q -y upgrade &&
-            apt-get --no-install-recommends -q -y -o DPkg::Options::=--force-confold -o DPkg::Options::=--force-confdef install python3.5 python3-pip &&
+            apt-get --no-install-recommends -q -y -o DPkg::Options::=--force-confold \
+                -o DPkg::Options::=--force-confdef install \
+                python3.5 python3-pip python-setuptools &&
             pip3 install mypy-lang typing &&
             MYPYPATH=authserver mypy -s --disallow-untyped-calls --disallow-untyped-defs authserver
