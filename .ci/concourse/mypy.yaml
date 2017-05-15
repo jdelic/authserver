@@ -1,13 +1,20 @@
 platform: linux
 
+
 image_resource:
     type: docker-image
     source:
         repository: debian
         tag: 'stretch-slim'
 
+
 inputs:
     - name: authserver
+
+
+params:
+    MYPYPATH: authserver/authserver
+
 
 run:
     path: /usr/local/bin/mypy
@@ -16,5 +23,3 @@ run:
         - --disallow-untyped-calls
         - --disallow-untyped-defs
         - authserver
-    params:
-        MYPYPATH: authserver/authserver
