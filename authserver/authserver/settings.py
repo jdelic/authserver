@@ -100,7 +100,8 @@ if DATABASES["default"]["ENGINE"] == 'django.db.backends.postgresql' or \
         DATABASES["default"]["OPTIONS"]["sslmode"] = "verify-full"
         DATABASES["default"]["OPTIONS"]["sslrootcert"] = os.getenv("POSTGRESQL_CA")
 
-    if os.getenv("DB_SSLCERT", None):
+    if os.getenv("DB_SSLCERT", None) and not (VaultAuth12Factor.has_envconfig() and
+                                                  os.getenv("VAULT_DATABASE_PATH", None)):
         DATABASES["default"]["OPTIONS"]["sslcert"] = os.getenv("DB_SSLCERT")
         DATABASES["default"]["OPTIONS"]["sslkey"] = os.getenv("DB_SSLKEY")
 
