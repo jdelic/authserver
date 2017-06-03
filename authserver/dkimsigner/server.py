@@ -50,7 +50,7 @@ class DKIMSignerServer(SMTPServer):
             _log.debug("Signed output:\n%s", data)
 
         # now send the mail back to be processed
-        with smtplib.SMTP(_args.output_ip, _args.output_port) as smtp:
+        with smtplib.SMTP(_args.output_ip, _args.output_port) as smtp:  # type: ignore
             smtp.sendmail(mailfrom, rcpttos, data)
 
         return None
@@ -134,7 +134,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     import weakref
-    logging._handlers = weakref.WeakValueDictionary()
+    logging._handlers = weakref.WeakValueDictionary()  # type: ignore
     logging.basicConfig(level=logging.DEBUG)
     _log.info("DKIM signer starting")
     main()

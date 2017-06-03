@@ -5,6 +5,7 @@ Description=maurus.net dkimsigner
 Type=simple
 User=authserver
 Group=authserver
+SyslogIdentifier=dkimsigner
 # $$ to quote envvars so systemd doesn't expand them first
 ExecStart=/usr/local/authserver/bin/envdir /etc/appconfig/dkimsigner/env \
     /bin/bash -c '/usr/local/authserver/bin/dkimsigner -p /run/authserver/dkimsigner.pid \

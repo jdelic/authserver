@@ -4,8 +4,13 @@ from django.conf.urls import url, include
 from django.contrib import admin
 from django.contrib.auth import views as authviews
 
+from oauth2_provider import views as oauth2_views
+from authserver import base_views
+from mailauth import views
 
 urlpatterns = [
+    url(r"^health/$", base_views.health),
+    url(r"^$", base_views.nothing),
     url(r"^action/login/$", authviews.login, name="authserver-login"),
     url(r"^action/logout/$", authviews.logout),
     url(r"^action/password_change/$", authviews.password_change),
@@ -16,10 +21,12 @@ urlpatterns = [
         authviews.password_reset_confirm),
     url(r"^action/reset/done/", authviews.password_reset_complete),
     url(r"^admin/", admin.site.urls),
-    url(r"^o2/", include('oauth2_provider.urls', namespace="oauth2_provider")),
     url(r"^cas/", include('mama_cas.urls')),
+
+    # manually assign oauth2 views instead of importing them since we override the authorize view
+    url(r'^o2/authorize/$', views.ScopeValidationAuthView.as_view(), name="authorize"),
+    url(r'^o2/token/$', oauth2_views.TokenView.as_view(), name="token"),
+    url(r'^o2/revoke_token/$', oauth2_views.RevokeTokenView.as_view(), name="revoke-token"),
+    
     url(r"^api/", include('api', namespace="api")),
 ]
-
-# TODO: remove once https://github.com/evonove/django-oauth-toolkit/issues/196 is fixed
-urlpatterns = [u for u in urlpatterns if "o2/^applications" not in u._regex]

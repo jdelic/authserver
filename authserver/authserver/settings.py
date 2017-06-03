@@ -60,6 +60,8 @@ LOGIN_REDIRECT_URL = "/"
 
 DEBUG = False  # overridden by factorise() if defined
 
+from authserver.gunicorn_conf import LOGGING
+
 import authserver.vendor.django12factor as django12factor
 globals().update(django12factor.factorise())
 
@@ -68,7 +70,7 @@ if DEBUG:
 
 if VaultAuth12Factor.has_envconfig() and os.getenv("VAULT_DATABASE_PATH"):
     VAULT = VaultAuth12Factor.fromenv()
-    CREDS = VaultCredentialProvider("https://vault.local:8200/", VAULT,
+    CREDS = VaultCredentialProvider(os.getenv("VAULT_ADDR", "https://vault.local:8200/"), VAULT,
                                     os.getenv("VAULT_DATABASE_PATH"),
                                     os.getenv("VAULT_CA", None), True,
                                     DEBUG)
@@ -98,7 +100,8 @@ if DATABASES["default"]["ENGINE"] == 'django.db.backends.postgresql' or \
         DATABASES["default"]["OPTIONS"]["sslmode"] = "verify-full"
         DATABASES["default"]["OPTIONS"]["sslrootcert"] = os.getenv("POSTGRESQL_CA")
 
-    if os.getenv("DB_SSLCERT", None):
+    if os.getenv("DB_SSLCERT", None) and not (VaultAuth12Factor.has_envconfig() and
+                                                  os.getenv("VAULT_DATABASE_PATH", None)):
         DATABASES["default"]["OPTIONS"]["sslcert"] = os.getenv("DB_SSLCERT")
         DATABASES["default"]["OPTIONS"]["sslkey"] = os.getenv("DB_SSLKEY")
 
@@ -112,7 +115,17 @@ else:
 AUTH_USER_MODEL = 'mailauth.MNUser'
 
 # Validate email addresses against our special DB structure
-AUTHENTICATION_BACKENDS = ['mailauth.auth.MNUserAuthenticationBackend']
+AUTHENTICATION_BACKENDS = [
+    'mailauth.auth.MNUserAuthenticationBackend',
+]
+
+# the one exception to the OAUTH2_PROVIDER dict, because this uses Django's 'swappable' builtin
+OAUTH2_PROVIDER_APPLICATION_MODEL = 'mailauth.MNApplication'
+
+OAUTH2_PROVIDER = {
+    #'SCOPES_BACKEND_CLASS': 'mailauth.scopes.MNAuthScopes',
+    'OAUTH2_VALIDATOR_CLASS': 'mailauth.oauth2.ClientPermissionValidator',
+}
 
 # we use our own modular crypt format sha256 hasher for maximum compatibility
 # with Dovecot, OpenSMTPD etc.

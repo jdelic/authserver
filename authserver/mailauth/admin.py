@@ -1,6 +1,7 @@
 # -* encoding: utf-8 *-
 import functools
-from typing import Tuple, Type
+from typing import Tuple, Type, Any
+from typing import Union
 
 import django.contrib.auth.admin as auth_admin
 from Crypto.PublicKey import RSA
@@ -10,9 +11,14 @@ from django.db.models.fields import Field as _ModelField
 from django.forms.fields import Field as _FormField
 from django.http.request import HttpRequest
 from django.utils.html import format_html
+from typing import Tuple
+
+from typing import Dict
 
 from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm
-from mailauth.models import MNUser, Domain, EmailAlias
+from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroups, MNApplication
+
+admin.site.unregister(auth_admin.Group)
 
 
 @admin.register(MNUser)
@@ -23,6 +29,7 @@ class MNUserAdmin(auth_admin.UserAdmin):
         ("Personal info", {'fields': ('fullname', 'delivery_mailbox', 'pgp_key_id', 'yubikey_serial', )}),
         ("Permissions", {'fields': ('is_active', 'is_staff', 'is_superuser',
                                     'groups', 'user_permissions')}),
+        ("Application permissions", {'fields': ('app_permissions', 'app_groups',)}),
         ("Important dates", {'fields': ('last_login',)}),
     )  # type: Tuple
     add_fieldsets = (
@@ -38,7 +45,7 @@ class MNUserAdmin(auth_admin.UserAdmin):
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups')
     search_fields = ('identifier', 'fullname')
     ordering = ('identifier',)
-    filter_horizontal = ('groups', 'user_permissions',)
+    filter_horizontal = ('groups', 'user_permissions', 'app_permissions', 'app_groups',)
 
 
 @admin.register(Domain)
@@ -46,9 +53,9 @@ class DomainAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     form = DomainForm
 
-    def get_form(self, req: HttpRequest, obj=None, **kwargs) -> type:
+    def get_form(self, req: HttpRequest, obj: Domain=None, **kwargs: Any) -> type:
         if req.GET.get("_prefill_key", "0") == "1":
-            def formfield_callback(field: _ModelField, request: HttpRequest=None, **kwargs) -> Type[_FormField]:
+            def formfield_callback(field: _ModelField, request: HttpRequest=None, **kwargs: Any) -> Type[_FormField]:
                 f = self.formfield_for_dbfield(field, request=request, **kwargs)  # type: _FormField
                 # f can be None if the dbfield does not get a FormField (like hidden fields
                 # or auto increment IDs). Only the dbfield has a .name attribute.
@@ -83,3 +90,18 @@ class EmailAliasAdmin(admin.ModelAdmin):
     get_mailalias.short_description = "Mail alias"  # type: ignore  (mypy#708)
 
     list_display = ('get_mailalias', 'get_user',)
+
+
+@admin.register(MNApplicationPermission)
+class MNApplicationPermissionAdmin(admin.ModelAdmin):
+    search_fields = ('name',)
+
+
+@admin.register(MNGroups)
+class MNGroupAdmin(admin.ModelAdmin):
+    search_fields = ('name',)
+    fieldsets = (
+        (None, {'fields': ('name',)}),
+        ("Application permissions", {'fields': ('group_permissions',)}),
+    )  # type: Tuple[Tuple[Union[str, None], Dict[str, Tuple[str, ...]]], ...]
+    filter_horizontal = ('group_permissions',)

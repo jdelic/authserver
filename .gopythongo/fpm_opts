@@ -7,6 +7,7 @@
 -d python3-pip
 -d python3-virtualenv
 -d adduser
+-d cron-daemon
 --before-remove .gopythongo/pre_rm.sh
 --after-install .gopythongo/post_install.sh
 --after-remove .gopythongo/post_rm.sh
@@ -27,4 +28,4 @@
 .gopythongo/authserver.tmpfilesd.conf=/usr/lib/tmpfiles.d/authserver.conf
 .gopythongo/etc/systemd/authserver.service=/lib/systemd/system/authserver.service
 .gopythongo/etc/systemd/dkimsigner.service=/lib/systemd/system/dkimsigner.service
-.gopythongo/etc/cron/authserver_clean_tokens.sh=/etc/cron.daily/authserver_clean_tokens.sh
+.gopythongo/etc/cron.daily/authserver_hygiene.sh=/etc/cron.daily/authserver_hygiene.sh

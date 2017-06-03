@@ -1,0 +1,38 @@
+{% extends "oauth2_provider/base.html" %}
+
+{% block body %}
+    <div class="centered">
+        {% if not error %}
+            <form class="pure-form pure-form-aligned" id="authorizationForm" method="post">
+                <fieldset>
+                    {% csrf_token %}
+                    <legend><img src="{{company_logo}}"/> {{company_name}}</legend>
+                    <h1>You can't authorize this application.</h1>
+                    <p>You are logged in as: <b>{{username}}</b>.</p>
+                    <p>
+                        You are missing the necessary permissions. To authorize this application,
+                        you require the following permissions:</p>
+                    <ul>
+                        {% for perm in required_permissions %}
+                            <li>{{ perm.name }}</li>
+                        {% endfor %}
+                    </ul>
+
+                    <p>Of those, you are missing the following permissions:</p>
+                    <ul>
+                        {% for missing in missing_permissions %}
+                            <li>{{ missing.name }}</li>
+                        {% endfor %}
+                    </ul>
+
+                    <p>Please contact your administrator.</p>
+                    <div class="control-group">
+                        <div class="controls">
+                            <input type="submit" class="pure-button" value="Cancel"/>
+                        </div>
+                    </div>
+                </fieldset>
+            </form>
+        {% endif %}
+    </div>
+{% endblock %}

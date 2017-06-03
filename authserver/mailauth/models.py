@@ -6,13 +6,15 @@ from django.conf import settings
 from django.db import models
 from typing import Any
 
+from oauth2_provider import models as oauth2_models
+
 #
 # The data model here is:
 #     - the org owns D domains
 #     - a user account has 1:N email aliases
 #     - 1 email alias belongs to 1 domain
 #     - a user will be able to authenticate to the app using any of his aliases and his password
-#     - 'identifier' is meaningless for authentication
+#     - the user 'identifier' is meaningless for authentication
 #
 
 
@@ -64,6 +66,38 @@ class EmailAlias(models.Model):
         return "%s@%s (%s)" % (self.mailprefix, self.domain, self.user.identifier)
 
 
+class MNApplicationPermission(models.Model):
+    class Meta:
+        verbose_name = "application permissions"
+        verbose_name_plural = "Application permissions"
+
+    name = models.CharField("Human readable name", max_length=255, blank=True, null=False)
+    scope_name = models.CharField("OAuth2 scope string", max_length=255, blank=False, null=True, unique=True)
+
+    def __str__(self) -> str:
+        return "%s (%s)" % (self.name, self.scope_name)
+
+
+class MNGroups(models.Model):
+    class Meta:
+        verbose_name = "OAuth2/CAS Groups"
+        verbose_name_plural = "OAuth2/CAS Groups"
+
+    name = models.CharField("Group name", max_length=255)
+
+    group_permissions = models.ManyToManyField(
+        MNApplicationPermission,
+        verbose_name="Application permissions",
+        blank=True,
+        help_text="Permissions for OAuth2/CAS applications",
+        related_name='group_set',
+        related_query_name='group',
+    )
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class MNUserManager(base_user.BaseUserManager):
     # serializes Manager into migrations. I set this here because it's set on the default UserManager
     use_in_migrations = True
@@ -92,6 +126,9 @@ class MNUserManager(base_user.BaseUserManager):
 
 
 class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
+    class Meta:
+        verbose_name_plural = "User accounts"
+
     uuid = models.UUIDField("Shareable ID", default=uuid.uuid4, editable=False, primary_key=True)
     identifier = models.CharField("User ID", max_length=255, unique=True, db_index=True)
     fullname = models.CharField("Full name", max_length=255)
@@ -116,6 +153,23 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
         default=True,
         help_text="Designates whether this user should be treated as active. "
                   "Unselect this instead of deleting accounts.",
+    )
+
+    app_permissions = models.ManyToManyField(
+        MNApplicationPermission,
+        verbose_name="OAuth2/CAS Application permissions",
+        blank=True,
+        help_text="Permissions for networkapplications",
+        related_name='user_set',
+        related_query_name='user',
+    )
+
+    app_groups = models.ManyToManyField(
+        MNGroups,
+        verbose_name="OAuth2/CAS Groups",
+        blank=True,
+        related_name="user_set",
+        related_query_name='user',
     )
 
     objects = MNUserManager()
@@ -154,3 +208,25 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
 
     def get_short_name(self) -> str:
         return self.identifier
+
+
+class MNApplication(oauth2_models.AbstractApplication):
+    """
+    Add permissions to applications. They are permissions that applications are *allowed to request
+    as scopes*.
+    """
+
+    class Meta:
+        verbose_name_plural = "OAuth2 Applications"
+
+    required_permissions = models.ManyToManyField(
+        MNApplicationPermission,
+        verbose_name="required permissions",
+        blank=True,
+        help_text="Permissions required for this application",
+        related_name='application_set',
+        related_query_name='application',
+    )
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
