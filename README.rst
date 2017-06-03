@@ -87,20 +87,6 @@ DATABASE_URL          When client SSL certificates or usernames and passwords
 ====================  ========================================================
 
 
-GoPythonGo Tools configuration
-------------------------------
-
-Some recommended build server config:
-
-.. code-block:: shell
-
-    export VGC_XSIGN_CACERT=postgresql.crt=/etc/concourse/cacerts/env-build-ca.crt,vault.crt=/etc/concourse/cacerts/cas-build-ca.crt
-    export VAULTWRAPPER_READ_PATH=secret/gpg/packaging_passphrase
-    export VGC_OVERWRITE=True
-    export GNUPGHOME=/etc/gpg-managed-keyring/
-    /opt/gopythongo/bin/gopythongo -v /usr/local/authserver /path/to/source
-
-
 Smartstack services
 -------------------
 
@@ -183,9 +169,11 @@ and create a cross-signature configuration for the other CA using the
 
 .. code-block:: shell
 
-    export VGC_XSIGN_CACERT=postgresql.crt=/path/to/env-ca.crt,vault.crt=/path/to/app-ca.crt
-    export VGC_OVERWRITE=true
-    /opt/gopythongo/bin/gopythongo -v /usr/local/authserver /usr/local/src/authserver
+    export VGC_XSIGN_CACERT=postgresql.crt=/etc/concourse/cacerts/env-build-ca.crt,vault.crt=/etc/concourse/cacerts/cas-build-ca.crt
+    export VAULTWRAPPER_READ_PATH=secret/gpg/packaging_passphrase
+    export VGC_OVERWRITE=True
+    export GNUPGHOME=/etc/gpg-managed-keyring/
+    /opt/gopythongo/bin/gopythongo -v /usr/local/authserver /path/to/source
 
 
 TODO
