@@ -26,8 +26,9 @@ configuration loads its configuration from a
 `appconfig folder <https://github.com/jdelic/saltshaker/blob/master/ETC_APPCONFIG.md>`__.
 
 Canonical reserved configuration folders for this app:
-  * **/etc/appconfig/authserver**
-  * **/etc/appconfig/dkimsigner**
+ 
+* **/etc/appconfig/authserver**
+* **/etc/appconfig/dkimsigner**
 
 Run ``django-admin.py`` like this:
 
@@ -85,20 +86,6 @@ DATABASE_URL          When client SSL certificates or usernames and passwords
                       then this URL (parsed by dj-database-url) is used to
                       connect.
 ====================  ========================================================
-
-
-GoPythonGo Tools configuration
-------------------------------
-
-Some recommended build server config:
-
-.. code-block:: shell
-
-    export VGC_XSIGN_CACERT=postgresql.crt=/etc/concourse/cacerts/env-build-ca.crt,vault.crt=/etc/concourse/cacerts/cas-build-ca.crt
-    export VAULTWRAPPER_READ_PATH=secret/gpg/packaging_passphrase
-    export VGC_OVERWRITE=True
-    export GNUPGHOME=/etc/gpg-managed-keyring/
-    /opt/gopythongo/bin/gopythongo -v /usr/local/authserver /path/to/source
 
 
 Smartstack services
@@ -161,8 +148,8 @@ N   Function Name                        Description
 Future extensions
 -----------------
 
- * add Google Authenticator support via ``django-otp``
- * fully implement CAS
+* add Google Authenticator support via ``django-otp``
+* fully implement CAS
 
 
 Building
@@ -183,15 +170,17 @@ and create a cross-signature configuration for the other CA using the
 
 .. code-block:: shell
 
-    export VGC_XSIGN_CACERT=postgresql.crt=/path/to/env-ca.crt,vault.crt=/path/to/app-ca.crt
-    export VGC_OVERWRITE=true
-    /opt/gopythongo/bin/gopythongo -v /usr/local/authserver /usr/local/src/authserver
+    export VGC_XSIGN_CACERT=postgresql.crt=/etc/concourse/cacerts/env-build-ca.crt,vault.crt=/etc/concourse/cacerts/cas-build-ca.crt
+    export VAULTWRAPPER_READ_PATH=secret/gpg/packaging_passphrase
+    export VGC_OVERWRITE=True
+    export GNUPGHOME=/etc/gpg-managed-keyring/
+    /opt/gopythongo/bin/gopythongo -v /usr/local/authserver /path/to/source
 
 
 TODO
 ====
 
- * refactor Vault fullaccess role into actually granting access to new tables
+* refactor Vault fullaccess role into actually granting access to new tables
 
 
 Licensing
