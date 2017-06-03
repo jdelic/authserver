@@ -1,7 +1,7 @@
 12factor-vault==0.1.14
-Django==1.11.1
-django-cors-headers==2.0.2
-django-mama-cas==2.2.0
+Django==1.11.2
+django-cors-headers==2.1.0
+django-mama-cas==2.3.0
 django-oauth-toolkit==0.12.0
 django-postgresql-setrole==1.0.8
 envdir==0.7
@@ -9,9 +9,9 @@ gunicorn==19.7.1
 hvac==0.2.17
 passlib==1.7.1
 psycopg2==2.7.1
-pycryptodome==3.4.5
+pycryptodome==3.4.6
 python-consul==0.7.0
-requests==2.14.2
+requests==2.17.3
 sqlparse==0.2.3
 typing==3.6.1
 whitenoise==3.3.0
