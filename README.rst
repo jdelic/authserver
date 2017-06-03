@@ -26,8 +26,9 @@ configuration loads its configuration from a
 `appconfig folder <https://github.com/jdelic/saltshaker/blob/master/ETC_APPCONFIG.md>`__.
 
 Canonical reserved configuration folders for this app:
-  * **/etc/appconfig/authserver**
-  * **/etc/appconfig/dkimsigner**
+ 
+* **/etc/appconfig/authserver**
+* **/etc/appconfig/dkimsigner**
 
 Run ``django-admin.py`` like this:
 
@@ -147,8 +148,8 @@ N   Function Name                        Description
 Future extensions
 -----------------
 
- * add Google Authenticator support via ``django-otp``
- * fully implement CAS
+* add Google Authenticator support via ``django-otp``
+* fully implement CAS
 
 
 Building
@@ -179,7 +180,7 @@ and create a cross-signature configuration for the other CA using the
 TODO
 ====
 
- * refactor Vault fullaccess role into actually granting access to new tables
+* refactor Vault fullaccess role into actually granting access to new tables
 
 
 Licensing
