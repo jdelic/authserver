@@ -1,24 +1,26 @@
 resource_types:
-    - name: bitbucket-notify
+    - name: github-status
       type: docker-image
       source:
-          repository: johannesrudolph/concourse-resource-bitbucket
+          repository: dpb587/github-status-resource
+          tag: master
 
 
 resources:
     - name: authserver
       type: git
       source:
-          uri: git@bitbucket.org:jdelic/authserver.git
-          private_key: {{bitbucket_access_key}}
+          uri: git@github.com:jdelic/authserver.git
+          private_key: {{github_access_key}}
           branch: feature/concourse
 
-    - name: bitbucket-notify
-      type: bitbucket-notify
+    - name: github-status
+      type: github-status
       source:
-          client_id: {{bitbucket_client_id}}
-          secret: {{bitbucket_client_secret}}
-          repo: jdelic/authserver
+          access_token: {{github_access_token}}
+          repository: jdelic/authserver
+          context: ci/concourse
+          branch: feature/concourse
 
 
 jobs:
@@ -26,19 +28,19 @@ jobs:
       plan:
           - get: authserver
             trigger: true
-          - put: bitbucket-notify
+          - put: github-status
             params:
-                state: INPROGRESS
-                repo: authserver
+                state: pending
+                commit: authserver
           - task: run-mypy
             file: authserver/.ci/concourse/mypy.yaml
             on_failure:
-                put: bitbucket-notify
+                put: github-status
                 params:
-                    state: FAILED
-                    repo: authserver
+                    state: failure
+                    commit: authserver
             on_success:
-                put: bitbucket-notify
+                put: github-status
                 params:
-                    state: SUCCESSFUL
-                    repo: authserver
+                    state: success
+                    commit: authserver
