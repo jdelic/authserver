@@ -82,12 +82,12 @@ class EmailAliasAdmin(admin.ModelAdmin):
             urlresolvers.reverse('admin:mailauth_mnuser_change', args=[obj.user.uuid]),
             obj.user.identifier,
         )
-    get_user.short_description = "User"  # type: ignore  (mypy#708)
-    get_user.admin_order_field = 'user__uuid'  # type: ignore  (mypy#708)
+    get_user.short_description = "User"  # type: ignore  # (mypy#708)
+    get_user.admin_order_field = 'user__uuid'  # type: ignore  # (mypy#708)
 
     def get_mailalias(self, obj: EmailAlias) -> str:
         return "%s@%s" % (obj.mailprefix, obj.domain.name)
-    get_mailalias.short_description = "Mail alias"  # type: ignore  (mypy#708)
+    get_mailalias.short_description = "Mail alias"  # type: ignore  # (mypy#708)
 
     list_display = ('get_mailalias', 'get_user',)
 
