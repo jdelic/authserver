@@ -1,6 +1,6 @@
 # -* encoding: utf-8 *-
 import logging
-from typing import Any, List
+from typing import Any
 
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse
