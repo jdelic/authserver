@@ -17,8 +17,8 @@ _log = logging.getLogger(__name__)
 
 
 class ScopeValidationAuthView(AuthorizationView):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
 
     def form_valid(self, form: AllowForm) -> HttpResponse:
         """
