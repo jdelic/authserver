@@ -33,7 +33,7 @@ class ScopeValidationAuthView(AuthorizationView):
         return super().form_valid(form)
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        _log.debug("get()")
+        _log.debug("ScopeValidationAuthView.get()")
         # super.get will initialize self.oauth2_data and now we can do additional validation
         resp = super().get(request, *args, **kwargs)
 
