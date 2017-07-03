@@ -9,6 +9,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 INSTALLED_APPS = [
     'mailauth.MailAuthApp',
+    'dockerauth.DockerAuthApp',
     'postgresql_setrole',
     'vault12factor',
     'oauth2_provider',
@@ -111,6 +112,8 @@ if DEBUG:
 else:
     CORS_ORIGIN_WHITELIST = os.getenv("CORS_ORIGIN_WHITELIST", "").split(',')
     CORS_ORIGIN_REGEX_WHITELIST = os.getenv("CORS_ORIGIN_REGEX_WHITELIST", "").split(',')
+
+DOCKERAUTH_ALLOW_UNCONFIGURED_REPOS = django12factor.getenv_bool("DOCKERAUTH_ALLOW_UNCONFIGURED_REPOS")
 
 AUTH_USER_MODEL = 'mailauth.MNUser'
 
