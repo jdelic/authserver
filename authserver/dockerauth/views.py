@@ -14,6 +14,7 @@ from django.http.request import HttpRequest
 from django.http.response import HttpResponse, HttpResponseNotFound, HttpResponseForbidden
 from django.views.generic.base import View
 from oauth2_provider.views.mixins import OAuthLibMixin
+from oauth2_provider.settings import oauth2_settings
 
 from dockerauth.models import DockerRepo
 from mailauth.models import MNApplication
@@ -70,6 +71,10 @@ def _parse_scope(scope: str) -> _TokenPermissions:
 
 
 class DockerAuthView(OAuthLibMixin, View):
+    server_class = oauth2_settings.OAUTH2_SERVER_CLASS
+    validator_class = oauth2_settings.OAUTH2_VALIDATOR_CLASS
+    oauthlib_backend_class = oauth2_settings.OAUTH2_BACKEND_CLASS
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
@@ -140,5 +145,7 @@ class DockerAuthView(OAuthLibMixin, View):
                 for k, v in headers.items():
                     response[k] = v
                 return response
+            else:
+                return HttpResponseForbidden("Authentication failed")
         else:
             return HttpResponseForbidden("No authentication credentials provided")
