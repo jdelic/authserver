@@ -2,17 +2,27 @@ maurus.networks Authentication server
 =====================================
 
 This is a Python Django based server application that provides single sign-on
-services for my own setup. It has OAuth2 and CAS endpoints and for applications
+services for my own setup. It has OAuth2 endpoints and for applications
 that don't support any of these a SQL stored procedure database abstraction.
-
-OAuth2 applications can use a SSL client certificate to authenticate for a
-non-standard HTTP API to register as an OAuth2 client and get their OAuth2
-credentials, cutting down on manual configuration.
 
 As a second application it provides *dkimsigner*, a daemon that speaks SMTP and
 receives mail, then forwards it to another SMTP port after signing it with a
 DKIM key from its database.
 
+It also provides Django ``manage.py`` commands for registering OAuth2 
+applications. Those are useful for creating configuration entries through
+configuration management systems.
+
+
+Planned features
+----------------
+* OAuth2 applications can use a SSL client certificate to authenticate for a
+  non-standard HTTP API to register as an OAuth2 client and get their OAuth2
+  credentials, cutting down on manual configuration.
+
+* CAS support through ``mama-cas``
+
+* Support for the Docker token authentication "protocol"
 
 Installation
 ------------
