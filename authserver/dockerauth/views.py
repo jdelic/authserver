@@ -3,9 +3,10 @@
 # Support for the Docker OAuth2 token authentication
 # The Docker client submits username and password through basic authentication,
 # but using a GET request. Using the actual OAuth2 spec would be *just* *too* *hard*.
-import base64
-import re
 import logging
+import base64
+import jwt
+
 from typing import NamedTuple, Dict, Any
 
 from django.conf import settings
@@ -13,8 +14,6 @@ from django.contrib.auth import authenticate
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse, HttpResponseNotFound, HttpResponseForbidden
 from django.views.generic.base import View
-from oauth2_provider.views.mixins import OAuthLibMixin
-from oauth2_provider.settings import oauth2_settings
 
 from dockerauth.models import DockerRepo
 from mailauth.models import MNApplication
@@ -70,22 +69,12 @@ def _parse_scope(scope: str) -> _TokenPermissions:
     )
 
 
-class DockerAuthView(OAuthLibMixin, View):
-    server_class = oauth2_settings.OAUTH2_SERVER_CLASS
-    validator_class = oauth2_settings.OAUTH2_VALIDATOR_CLASS
-    oauthlib_backend_class = oauth2_settings.OAUTH2_BACKEND_CLASS
-
+class DockerAuthView(View):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         tr = _tkr_parse(request.GET)
-
-        keys = sorted(filter(lambda k: re.match(r'(HTTP_|CONTENT_)', k), request.META))
-        keys = ['REMOTE_ADDR'] + keys
-        meta = ''.join("%s=%s\n" % (k, request.META[k]) for k in keys)
-
-        _log.info('"%s %s\n%s' % (request.method, request.build_absolute_uri(), meta))
 
         try:
             client = MNApplication.objects.get(client_id=tr.client_id)
@@ -139,11 +128,10 @@ class DockerAuthView(OAuthLibMixin, View):
             if authenticate(request, username=username, password=password) or \
                     (drepo.unauthenticated_pull and tp.pull) or \
                     (drepo.unauthenticated_push and tp.push):
-                url, headers, body, status = self.create_token_response(request)
-                response = HttpResponse(content=body, status=status)
 
-                for k, v in headers.items():
-                    response[k] = v
+
+
+                response = HttpResponse(content=jwtstr, status=200)
                 return response
             else:
                 return HttpResponseForbidden("Authentication failed")
