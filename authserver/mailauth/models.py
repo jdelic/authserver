@@ -78,7 +78,7 @@ class MNApplicationPermission(models.Model):
         return "%s (%s)" % (self.name, self.scope_name)
 
 
-class MNGroups(models.Model):
+class MNGroup(models.Model):
     class Meta:
         verbose_name = "OAuth2/CAS Groups"
         verbose_name_plural = "OAuth2/CAS Groups"
@@ -165,7 +165,7 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
     )
 
     app_groups = models.ManyToManyField(
-        MNGroups,
+        MNGroup,
         verbose_name="OAuth2/CAS Groups",
         blank=True,
         related_name="user_set",

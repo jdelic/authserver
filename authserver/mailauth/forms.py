@@ -3,12 +3,13 @@
 # The forms in here are hooked up to Django admin via mailauth.admin
 #
 import re
-from typing import Any, Dict
+from typing import Any, Dict, TypeVar
 
 import django.contrib.auth.forms as auth_forms
 from Crypto.PublicKey import RSA
 from django.contrib.admin import widgets
 from django.forms.models import ModelForm, ALL_FIELDS
+from django.forms.renderers import BaseRenderer
 from django.utils.html import format_html
 
 from mailauth.models import MNUser, Domain
@@ -35,7 +36,7 @@ class DomainKeyWidget(widgets.AdminTextareaWidget):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
-    def render(self, name: str, value: str, attrs: Dict[str, str]=None) -> str:
+    def render(self, name: str, value: str, attrs: Dict[str, str]=None, renderer: BaseRenderer=None) -> str:
         ret = super().render(name, value, attrs)
         if value and value.startswith("-----BEGIN RSA PRIVATE KEY"):
             key = RSA.importKey(value)

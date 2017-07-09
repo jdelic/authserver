@@ -7,6 +7,7 @@ from authserver import base_views
 from mailauth import views as mail_views
 from dockerauth import views as docker_views
 
+
 urlpatterns = [
     url(r"^health/$", base_views.health),
     url(r"^$", base_views.nothing),
