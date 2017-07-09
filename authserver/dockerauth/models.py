@@ -59,7 +59,21 @@ class DockerPermissionBase(models.Model):
     )
 
     def has_access(self, user: MNUser, scope: TokenPermissions) -> bool:
-        raise NotImplementedError("Subclasses of DockerPermissionBase must implement has_access")
+        if _permissions_fulfilled(self.unauthenticated_pull, self.unauthenticated_push, scope):
+            return True
+
+        if _permissions_fulfilled(
+                self.user_pull_access.filter(id=user.id).count() > 0,
+                self.user_push_access.filter(id=user.id).count() > 0,
+                scope):
+            return True
+
+        # is there a group that contains `user` that has pull/push access
+        if _permissions_fulfilled(
+                self.group_pull_access.filter(user_set__id=user.id).count() > 0,
+                self.group_push_access.filter(user_set__id=user.id).count() > 0,
+                scope):
+            return True
 
 
 class DockerRegistry(DockerPermissionBase):
@@ -77,23 +91,6 @@ class DockerRegistry(DockerPermissionBase):
         default=generate_jwt_secret_key
     )
 
-    def has_access(self, user: MNUser, scope: TokenPermissions) -> bool:
-        # check if the user or his group have full access to the registry
-        can_pull = False
-        can_push = False
-
-        # check registry level access
-        if _permissions_fulfilled(self.unauthenticated_pull, self.unauthenticated_push, scope):
-            return True
-
-        if _permissions_fulfilled(
-                self.user_pull_access.filter(id=user.id).count() > 0,
-                self.user_push_access.filter(id=user.id).count() > 0,
-                scope):
-            return True
-
-        # TODO: check repo level access
-
 
 class DockerRepo(DockerPermissionBase):
     name = models.CharField(
@@ -106,4 +103,3 @@ class DockerRepo(DockerPermissionBase):
         related_name="repos",
     )
 
-    # TODO: implement has_access

@@ -93,9 +93,7 @@ class DockerAuthView(View):
                 return HttpResponseForbidden("Invalid basic auth string")
 
             user = authenticate(request, username=username, password=password)
-            if user or (drepo.unauthenticated_pull and tp.pull) or \
-                    (drepo.unauthenticated_push and tp.push):
-                if client.objects.has_access()
+            if user and (drepo.registry.has_access(user, tp) or drepo.has_access(user, tp)):
                 response = HttpResponse(content=jwtstr, status=200)
                 return response
             else:
