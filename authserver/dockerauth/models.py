@@ -12,9 +12,6 @@ def generate_jwt_secret_key() -> str:
 
 
 class DockerPermissionBaseManager(models.Manager):
-    def group_has_access(self, group: MNGroup, scope: TokenPermissions) -> bool:
-        pass
-
     def has_access(self, user: MNUser, scope: TokenPermissions) -> bool:
         pass
 
