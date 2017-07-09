@@ -158,6 +158,8 @@ USE_I18N = True
 USE_L10N = True
 USE_TZ = True
 
+USE_X_FORWARDED_HOST = django12factor.getenv_bool("USE_X_FORWARDED_HOST")
+
 # third-party access credentials
 SPAPI_DBUSERS = [s.strip() for s in os.getenv("SPAPI_DBUSERS", "").split(",")]
 
