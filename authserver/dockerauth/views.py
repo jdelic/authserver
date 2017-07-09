@@ -101,7 +101,7 @@ class DockerAuthView(View):
                     'exp': ts + datetime.timedelta(hours=1),
                     'nbf': ts - datetime.timedelta(seconds=1),
                     'iat': ts,
-                    'iss':
+                    'iss': "",
                 })
 
 

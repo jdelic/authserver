@@ -20,6 +20,7 @@ class JWTKeyWidget(widgets.AdminTextareaWidget):
         if value and value.startswith("-----BEGIN RSA PRIVATE KEY"):
             key = RSA.importKey(value)
             public_key = key.publickey().exportKey("PEM").decode('utf-8')
+            public_key = public_key.replace("RSA PUBLIC KEY", "PUBLIC KEY")
             ret += format_html("<pre>{public_key}</pre>", public_key=public_key)
         else:
             ret += format_html("<pre>ERROR: Unparsable private key (not a PEM object)</pre>")
