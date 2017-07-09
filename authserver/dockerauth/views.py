@@ -3,6 +3,10 @@
 # Support for the Docker OAuth2 token authentication
 # The Docker client submits username and password through basic authentication,
 # but using a GET request. Using the actual OAuth2 spec would be *just* *too* *hard*.
+#
+# Much of this implementation is based around
+#     https://umbrella.cisco.com/blog/blog/2016/02/23/implementing-oauth-for-registry-v2/
+
 import datetime
 import logging
 import base64
@@ -101,9 +105,11 @@ class DockerAuthView(View):
                     'exp': ts + datetime.timedelta(hours=1),
                     'nbf': ts - datetime.timedelta(seconds=1),
                     'iat': ts,
-                    'iss': "",
+                    'iss': request.get_host(),
+                    'aud': tr.service,
                 })
-
+                # TODO: add access claim as described in
+                # https://umbrella.cisco.com/blog/blog/2016/02/23/implementing-oauth-for-registry-v2/
 
                 response = HttpResponse(content=jwtstr, status=200)
                 return response
