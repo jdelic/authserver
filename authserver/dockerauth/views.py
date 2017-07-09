@@ -15,7 +15,7 @@ from django.http.request import HttpRequest
 from django.http.response import HttpResponse, HttpResponseNotFound, HttpResponseForbidden
 from django.views.generic.base import View
 
-from dockerauth.models import DockerRepo
+from dockerauth.models import DockerRepo, DockerRegistry
 from dockerauth.permissions import TokenPermissions
 from mailauth.models import MNApplication
 
@@ -47,12 +47,9 @@ class DockerAuthView(View):
         tr = _tkr_parse(request.GET)
 
         try:
-            client = MNApplication.objects.get(client_id=tr.client_id)
-        except MNApplication.DoesNotExist:
-            return HttpResponseNotFound("No such client")
-
-        if client.authorization_grant_type != MNApplication.GRANT_PASSWORD:
-            return HttpResponseForbidden("Client must be authorized for resource-owner password mode of operation")
+            client = DockerRegistry.objects.get(client_id=tr.client_id)
+        except DockerRegistry.DoesNotExist:
+            return HttpResponseNotFound("No such registry/client")
 
         if tr.scope:
             tp = TokenPermissions.parse_scope(tr.scope)
@@ -65,7 +62,7 @@ class DockerAuthView(View):
             )
 
         try:
-            drepo = DockerRepo.objects.get(name=tp.path)
+            drepo = DockerRepo.objects.get(name=tp.path, registry_id=client.id)
         except DockerRepo.DoesNotExist:
             if settings.DOCKERAUTH_ALLOW_UNCONFIGURED_REPOS:
                 drepo = DockerRepo()
@@ -95,12 +92,10 @@ class DockerAuthView(View):
             except ValueError:
                 return HttpResponseForbidden("Invalid basic auth string")
 
-            if authenticate(request, username=username, password=password) or \
-                    (drepo.unauthenticated_pull and tp.pull) or \
+            user = authenticate(request, username=username, password=password)
+            if user or (drepo.unauthenticated_pull and tp.pull) or \
                     (drepo.unauthenticated_push and tp.push):
-
-
-
+                if client.objects.has_access()
                 response = HttpResponse(content=jwtstr, status=200)
                 return response
             else:

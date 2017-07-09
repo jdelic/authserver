@@ -11,9 +11,14 @@ def generate_jwt_secret_key() -> str:
     pass
 
 
-class DockerPermissionBaseManager(models.Manager):
-    def has_access(self, user: MNUser, scope: TokenPermissions) -> bool:
-        user_permissions = set()
+def _permissions_fulfilled(pull: bool, push: bool, scope: TokenPermissions) -> bool:
+    if scope.push and scope.pull:
+        return push and pull
+    elif scope.push:
+        return push
+    elif scope.pull:
+        return pull
+    return False  # if neither push nor pull is necessary, this makes no sense
 
 
 class DockerPermissionBase(models.Model):
@@ -53,6 +58,9 @@ class DockerPermissionBase(models.Model):
         related_name='%(class)s_push_access',
     )
 
+    def has_access(self, user: MNUser, scope: TokenPermissions) -> bool:
+        raise NotImplementedError("Subclasses of DockerPermissionBase must implement has_access")
+
 
 class DockerRegistry(DockerPermissionBase):
     name = models.CharField(
@@ -69,7 +77,22 @@ class DockerRegistry(DockerPermissionBase):
         default=generate_jwt_secret_key
     )
 
-    objects = DockerPermissionBaseManager()
+    def has_access(self, user: MNUser, scope: TokenPermissions) -> bool:
+        # check if the user or his group have full access to the registry
+        can_pull = False
+        can_push = False
+
+        # check registry level access
+        if _permissions_fulfilled(self.unauthenticated_pull, self.unauthenticated_push, scope):
+            return True
+
+        if _permissions_fulfilled(
+                self.user_pull_access.filter(id=user.id).count() > 0,
+                self.user_push_access.filter(id=user.id).count() > 0,
+                scope):
+            return True
+
+        # TODO: check repo level access
 
 
 class DockerRepo(DockerPermissionBase):
@@ -83,4 +106,4 @@ class DockerRepo(DockerPermissionBase):
         related_name="repos",
     )
 
-    objects = DockerPermissionBaseManager()
+    # TODO: implement has_access
