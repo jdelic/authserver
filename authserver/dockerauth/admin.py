@@ -30,8 +30,8 @@ class JWTKeyWidget(widgets.AdminTextareaWidget):
 class DockerRegistryForm(ModelForm):
     class Meta:
         model = DockerRegistry
-    widgets = {'dkimkey': JWTKeyWidget()}
-    fields = ALL_FIELDS
+        widgets = {'dkimkey': JWTKeyWidget()}
+        fields = ALL_FIELDS
 
 
 class DockerPermissionAdminMixin:

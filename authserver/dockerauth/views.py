@@ -16,7 +16,7 @@ from django.http.response import HttpResponse, HttpResponseNotFound, HttpRespons
 from django.views.generic.base import View
 
 from dockerauth.models import DockerRepo
-from dockerauth.utils import TokenPermissions
+from dockerauth.permissions import TokenPermissions
 from mailauth.models import MNApplication
 
 _TokenRequest = NamedTuple('_TokenRequest', [

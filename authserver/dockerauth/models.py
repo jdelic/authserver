@@ -3,7 +3,7 @@ from django.db import models
 
 from oauth2_provider.generators import generate_client_id
 
-from dockerauth.utils import TokenPermissions
+from dockerauth.permissions import TokenPermissions
 from mailauth.models import MNUser, MNGroup
 
 
@@ -13,7 +13,7 @@ def generate_jwt_secret_key() -> str:
 
 class DockerPermissionBaseManager(models.Manager):
     def has_access(self, user: MNUser, scope: TokenPermissions) -> bool:
-        pass
+        user_permissions = set()
 
 
 class DockerPermissionBase(models.Model):

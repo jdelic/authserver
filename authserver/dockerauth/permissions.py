@@ -1,6 +1,5 @@
 # -* encoding: utf-8 *-
-from typing import NamedTuple
-
+from typing import NamedTuple, Any
 
 _TokenPermissionsBase = NamedTuple('_TokenPermissions', [
     ("type", str),
