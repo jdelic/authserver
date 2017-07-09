@@ -3,12 +3,14 @@
 # Support for the Docker OAuth2 token authentication
 # The Docker client submits username and password through basic authentication,
 # but using a GET request. Using the actual OAuth2 spec would be *just* *too* *hard*.
+import datetime
 import logging
 import base64
 import jwt
 
 from typing import NamedTuple, Dict, Any
 
+import pytz
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.http.request import HttpRequest
@@ -94,6 +96,15 @@ class DockerAuthView(View):
 
             user = authenticate(request, username=username, password=password)
             if user and (drepo.registry.has_access(user, tp) or drepo.has_access(user, tp)):
+                ts = datetime.datetime.now(tz=pytz.UTC)
+                jwtstr = jwt.encode({
+                    'exp': ts + datetime.timedelta(hours=1),
+                    'nbf': ts - datetime.timedelta(seconds=1),
+                    'iat': ts,
+                    'iss':
+                })
+
+
                 response = HttpResponse(content=jwtstr, status=200)
                 return response
             else:

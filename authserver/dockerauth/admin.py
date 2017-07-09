@@ -30,7 +30,7 @@ class JWTKeyWidget(widgets.AdminTextareaWidget):
 class DockerRegistryForm(ModelForm):
     class Meta:
         model = DockerRegistry
-        widgets = {'dkimkey': JWTKeyWidget()}
+        widgets = {'sign_key': JWTKeyWidget()}
         fields = ALL_FIELDS
 
 
@@ -40,9 +40,21 @@ class DockerPermissionAdminMixin:
 
 @admin.register(DockerRepo)
 class DockerRepoAdmin(DockerPermissionAdminMixin, admin.ModelAdmin):
-    pass
+    search_fields = ('name', 'registry__name', 'registry__client_id',)
+    fields = ('name', 'registry', 'unauthenticated_pull', 'unauthenticated_push',
+              'user_pull_access', 'user_push_access', 'group_pull_access', 'group_push_access',)
+
+    def get_registry_path(self, obj: DockerRepo) -> str:
+        return "%s:%s" % (obj.registry.name, obj.name,)
+    get_registry_path.short_description = "Scope"
+
+    list_display = ('get_registry_path',)
 
 
 @admin.register(DockerRegistry)
 class DockerRegistryAdmin(DockerPermissionAdminMixin, admin.ModelAdmin):
+    search_fields = ('name', 'client_id',)
+    fields = ('name', 'client_id', 'sign_key', 'unauthenticated_pull', 'unauthenticated_push',
+              'user_pull_access', 'user_push_access', 'group_pull_access', 'group_push_access',)
     form = DockerRegistryForm
+    list_display = ('name', 'client_id',)

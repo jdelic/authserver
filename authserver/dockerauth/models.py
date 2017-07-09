@@ -1,4 +1,5 @@
 # -* encoding: utf-8 *-
+from Crypto.PublicKey import RSA
 from django.db import models
 
 from oauth2_provider.generators import generate_client_id
@@ -8,7 +9,7 @@ from mailauth.models import MNUser, MNGroup
 
 
 def generate_jwt_secret_key() -> str:
-    pass
+    return RSA.generate(2048).exportKey("PEM").decode("utf-8")
 
 
 def _permissions_fulfilled(pull: bool, push: bool, scope: TokenPermissions) -> bool:
@@ -77,6 +78,10 @@ class DockerPermissionBase(models.Model):
 
 
 class DockerRegistry(DockerPermissionBase):
+    class Meta:
+        verbose_name = "Docker Registry"
+        verbose_name_plural = "Docker Registries"
+
     name = models.CharField(
         "Name", max_length=255, null=False, blank=False,
         help_text="Human readable name"
@@ -91,8 +96,15 @@ class DockerRegistry(DockerPermissionBase):
         default=generate_jwt_secret_key
     )
 
+    def __str__(self) -> str:
+        return self.name
+
 
 class DockerRepo(DockerPermissionBase):
+    class Meta:
+        verbose_name = "Docker Repository"
+        verbose_name_plural = "Docker Repositories"
+
     name = models.CharField(
         "Name", max_length=255, null=False, blank=False,
         help_text="Format should be 'orgname/appname'"
@@ -103,3 +115,5 @@ class DockerRepo(DockerPermissionBase):
         related_name="repos",
     )
 
+    def __str__(self) -> str:
+        return "%s:%s" % (self.registry.name, self.name,)

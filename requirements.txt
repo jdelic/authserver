@@ -1,4 +1,6 @@
 12factor-vault==0.1.14
+# cryptography is a dependency of pyjwt
+cryptography==1.9
 Django==1.11.3
 django-cors-headers==2.1.0
 django-mama-cas==2.3.0
