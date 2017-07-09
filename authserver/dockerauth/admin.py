@@ -1,9 +1,10 @@
 # -* encoding: utf-8 *-
-from typing import Dict
+from typing import Dict, Any
 
 from Crypto.PublicKey import RSA
 from django.contrib import admin
 from django.contrib.admin import widgets
+from django.forms.models import ModelForm, ALL_FIELDS
 from django.forms.renderers import BaseRenderer
 from django.utils.html import format_html
 
@@ -20,7 +21,17 @@ class JWTKeyWidget(widgets.AdminTextareaWidget):
             key = RSA.importKey(value)
             public_key = key.publickey().exportKey("PEM").decode('utf-8')
             ret += format_html("<pre>{public_key}</pre>", public_key=public_key)
-            return format_html("<div style=\"float: left\">{}</div>", ret)
+        else:
+            ret += format_html("<pre>ERROR: Unparsable private key (not a PEM object)</pre>")
+
+        return format_html("<div style=\"float: left\">{}</div>", ret)
+
+
+class DockerRegistryForm(ModelForm):
+    class Meta:
+        model = DockerRegistry
+    widgets = {'dkimkey': JWTKeyWidget()}
+    fields = ALL_FIELDS
 
 
 class DockerPermissionAdminMixin:
@@ -34,4 +45,4 @@ class DockerRepoAdmin(DockerPermissionAdminMixin, admin.ModelAdmin):
 
 @admin.register(DockerRegistry)
 class DockerRegistryAdmin(DockerPermissionAdminMixin, admin.ModelAdmin):
-    pass
+    form = DockerRegistryForm
