@@ -1,9 +1,9 @@
 # -* encoding: utf-8 *-
-from typing import Sequence
-
 from django.db import models
 
 from oauth2_provider.generators import generate_client_id
+
+from dockerauth.utils import TokenPermissions
 from mailauth.models import MNUser, MNGroup
 
 
@@ -12,10 +12,10 @@ def generate_jwt_secret_key() -> str:
 
 
 class DockerPermissionBaseManager(models.Manager):
-    def group_has_access(self, group: MNGroup, scopes: Sequence[str]) -> bool:
+    def group_has_access(self, group: MNGroup, scope: TokenPermissions) -> bool:
         pass
 
-    def has_access(self, user: MNUser, scopes: Sequence[str]) -> bool:
+    def has_access(self, user: MNUser, scope: TokenPermissions) -> bool:
         pass
 
 

@@ -16,6 +16,7 @@ from django.http.response import HttpResponse, HttpResponseNotFound, HttpRespons
 from django.views.generic.base import View
 
 from dockerauth.models import DockerRepo
+from dockerauth.utils import TokenPermissions
 from mailauth.models import MNApplication
 
 _TokenRequest = NamedTuple('_TokenRequest', [
@@ -23,14 +24,6 @@ _TokenRequest = NamedTuple('_TokenRequest', [
     ('offline_token', bool),
     ('client_id', str),
     ('scope', str),
-])
-
-
-_TokenPermissions = NamedTuple('_TokenPermissions', [
-    ("type", str),
-    ("path", str),
-    ("pull", bool),
-    ("push", bool),
 ])
 
 
@@ -43,29 +36,6 @@ def _tkr_parse(params: Dict[str, str]) -> _TokenRequest:
         offline_token=params.get("offline_token", "false") == "true",
         client_id=params.get("client_id", None),
         scope=params.get("scope", None)
-    )
-
-
-def _parse_scope(scope: str) -> _TokenPermissions:
-    """
-    :raises: ValueError when scope has the wrong type
-    :param scope:
-    :return: a repository permission object
-    """
-    typ, path, perms = scope.split(":", 2)
-
-    if typ != "repository":
-        raise ValueError("The requested permission scope is not of type repository - %s" % scope)
-
-    for p in perms.split(","):
-        if p not in ["pull", "push"]:
-            raise ValueError("Client requested unknown permissions (not push or pull) - %s" % scope)
-
-    return _TokenPermissions(
-        type=typ,
-        path=path,
-        pull="pull" in perms,
-        push="push" in perms,
     )
 
 
@@ -85,9 +55,9 @@ class DockerAuthView(View):
             return HttpResponseForbidden("Client must be authorized for resource-owner password mode of operation")
 
         if tr.scope:
-            tp = _parse_scope(tr.scope)
+            tp = TokenPermissions.parse_scope(tr.scope)
         else:
-            tp = _TokenPermissions(
+            tp = TokenPermissions(
                 type="login",
                 path="",
                 pull=False,
