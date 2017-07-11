@@ -23,7 +23,7 @@ from django.views.generic.base import View
 
 from dockerauth.models import DockerRepo, DockerRegistry
 from dockerauth.permissions import TokenPermissions
-from mailauth.models import MNApplication
+
 
 _TokenRequest = NamedTuple('_TokenRequest', [
     ('service', str),
@@ -101,15 +101,20 @@ class DockerAuthView(View):
             user = authenticate(request, username=username, password=password)
             if user and (drepo.registry.has_access(user, tp) or drepo.has_access(user, tp)):
                 ts = datetime.datetime.now(tz=pytz.UTC)
+                # TODO: figure out if we need to support more than one access scope
+                # https://umbrella.cisco.com/blog/blog/2016/02/23/implementing-oauth-for-registry-v2/
                 jwtstr = jwt.encode({
                     'exp': ts + datetime.timedelta(hours=1),
                     'nbf': ts - datetime.timedelta(seconds=1),
                     'iat': ts,
                     'iss': request.get_host(),
                     'aud': tr.service,
+                    'access': [{
+                        "type": tp.type,
+                        "name": tp.path,
+                        "actions": [] + ["push"] if tp.push else [] + ["pull"] if tp.pull else []
+                    }]
                 })
-                # TODO: add access claim as described in
-                # https://umbrella.cisco.com/blog/blog/2016/02/23/implementing-oauth-for-registry-v2/
 
                 response = HttpResponse(content=jwtstr, status=200)
                 return response
