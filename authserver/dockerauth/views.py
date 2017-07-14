@@ -21,7 +21,9 @@ from Crypto.PublicKey import RSA
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.http.request import HttpRequest
-from django.http.response import HttpResponse, HttpResponseNotFound, HttpResponseForbidden
+from django.http.response import HttpResponse, HttpResponseNotFound, HttpResponseForbidden, HttpResponseNotAllowed
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 
 from dockerauth.models import DockerRepo, DockerRegistry
@@ -56,10 +58,10 @@ class DockerAuthView(View):
         tr = _tkr_parse(request.GET)
 
         try:
-            _log.debug("client_id: %s", tr.client_id)
-            client = DockerRegistry.objects.get(client_id=tr.client_id)
+            _log.debug("client: %s", str(tr))
+            client = DockerRegistry.objects.get(client_id=tr.service)
         except DockerRegistry.DoesNotExist:
-            return HttpResponseNotFound("No such registry/client")
+            return HttpResponseNotFound("No such registry/client (%s)" % str(tr))
 
         if tr.scope:
             tp = TokenPermissions.parse_scope(tr.scope)
@@ -89,11 +91,10 @@ class DockerAuthView(View):
             else:
                 return HttpResponseNotFound("No such repo '%s'" % tp.path)
 
-        if not tr.offline_token:
-            return HttpResponseForbidden("authserver only supports authentication for docker 1.11 or higher")
-
         if "HTTP_AUTHORIZATION" in request.META:
             basic, b64str = request.META["HTTP_AUTHORIZATION"].split(" ", 1)
+
+            _log.debug("HTTP_AUTHORIZATION: %s %s", basic, b64str)
 
             if basic != "Basic":
                 return HttpResponseForbidden("Unsupported auth type (must be Basic)")
@@ -119,12 +120,13 @@ class DockerAuthView(View):
                     'iat': int(ts.timestamp()),
                     'iss': request.get_host(),
                     'aud': tr.service,
+                    'sub': str(user.pk),
                     'access': [{
                         "type": tp.type,
                         "name": tp.path,
-                        "actions": [] + ["push"] if tp.push else [] +
-                                        ["pull"] if tp.pull else [] +
-                                        ["login"] if tp.type == "login" else []
+                        "actions": [] + (["push"] if tp.push else []) +
+                                        (["pull"] if tp.pull else []) +
+                                        (["login"] if tp.type == "login" else [])
                     }]
                 }
 
@@ -152,10 +154,24 @@ class DockerAuthView(View):
                 _log.debug("JWT response: %s", jwtstr)
 
                 response = HttpResponse(content=json.dumps({
-                    "token": jwtstr
+                    "token": jwtstr,
                 }), status=200, content_type="application/json")
                 return response
             else:
                 return HttpResponseForbidden("Authentication failed")
         else:
-            return HttpResponseForbidden("No authentication credentials provided")
+            return HttpResponse("Unauthorized", status=401)
+
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        # POST received:
+        # <QueryDict: {
+        #       'client_id': ['docker'],
+        #       'refresh_token': ['boink'],
+        #       'service': ['registry.maurusnet.test'],
+        #       'scope': ['repository:dev/destalinator:push,pull'],
+        #       'grant_type': ['refresh_token']}>
+        return HttpResponseForbidden("POST not supported")
+
+    @method_decorator(csrf_exempt)
+    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        return super().dispatch(request, *args, **kwargs)
