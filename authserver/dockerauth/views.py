@@ -11,11 +11,13 @@ import datetime
 import json
 import logging
 import base64
-import jwt
 
 from typing import NamedTuple, Dict, Any
 
 import pytz
+import jwt
+from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.http.request import HttpRequest
@@ -107,11 +109,14 @@ class DockerAuthView(View):
             if user and drepo.registry.has_access(user, tp) or drepo.has_access(user, tp):
                 ts = datetime.datetime.now(tz=pytz.UTC)
                 # TODO: figure out if we need to support more than one access scope
+                # This implementation is based around this article, that, among other things,
+                # describes the "kid" field required by Docker. The JWK implementation provided
+                # by jwcrypto doesn't seem to work.
                 # https://umbrella.cisco.com/blog/blog/2016/02/23/implementing-oauth-for-registry-v2/
                 jwtobj = {
-                    'exp': ts + datetime.timedelta(hours=1),
-                    'nbf': ts - datetime.timedelta(seconds=1),
-                    'iat': ts,
+                    'exp': int((ts + datetime.timedelta(hours=1)).timestamp()),
+                    'nbf': int((ts - datetime.timedelta(seconds=1)).timestamp()),
+                    'iat': int(ts.timestamp()),
                     'iss': request.get_host(),
                     'aud': tr.service,
                     'access': [{
@@ -125,12 +130,29 @@ class DockerAuthView(View):
 
                 _log.debug("Encoding JWT response: %s", jwtobj)
 
-                jwtstr = jwt.encode(jwtobj, key=drepo.registry.sign_key, algorithm="RS256")
+                fp = base64.b32encode(
+                    SHA256.new(
+                        data=RSA.import_key(drepo.registry.sign_key).publickey().exportKey(format="DER")
+                    ).digest()[0:30]  # shorten to 240 bit presumably so no padding is necessary
+                ).decode('utf-8')
+
+                kid = ":".join([fp[i:i + 4] for i in range(0, len(fp), 4)])
+
+                jwtstr = jwt.encode(
+                    jwtobj,
+                    headers={
+                        "typ": "JWT",
+                        "alg": "RS256",
+                        "kid": kid,
+                    },
+                    key=drepo.registry.sign_key,
+                    algorithm="RS256",
+                ).decode('utf-8')
 
                 _log.debug("JWT response: %s", jwtstr)
 
                 response = HttpResponse(content=json.dumps({
-                    "token": jwtstr.decode('utf-8')
+                    "token": jwtstr
                 }), status=200, content_type="application/json")
                 return response
             else:
