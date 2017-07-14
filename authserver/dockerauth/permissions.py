@@ -1,7 +1,12 @@
 # -* encoding: utf-8 *-
+import logging
 from typing import NamedTuple, Any
 
-_TokenPermissionsBase = NamedTuple('_TokenPermissions', [
+
+_log = logging.getLogger(__name__)
+
+
+_TokenPermissionsBase = NamedTuple('_TokenPermissionsBase', [
     ("type", str),
     ("path", str),
     ("pull", bool),
@@ -10,9 +15,6 @@ _TokenPermissionsBase = NamedTuple('_TokenPermissions', [
 
 
 class TokenPermissions(_TokenPermissionsBase):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-
     @staticmethod
     def parse_scope(scope: str) -> 'TokenPermissions':
         """
@@ -20,6 +22,7 @@ class TokenPermissions(_TokenPermissionsBase):
         :param scope:
         :return: a repository permission object
         """
+        _log.debug("Parsing Docker login scope str: %s", scope)
         typ, path, perms = scope.split(":", 2)
 
         if typ != "repository":

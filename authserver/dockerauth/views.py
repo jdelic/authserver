@@ -8,6 +8,7 @@
 #     https://umbrella.cisco.com/blog/blog/2016/02/23/implementing-oauth-for-registry-v2/
 
 import datetime
+import json
 import logging
 import base64
 import jwt
@@ -53,6 +54,7 @@ class DockerAuthView(View):
         tr = _tkr_parse(request.GET)
 
         try:
+            _log.debug("client_id: %s", tr.client_id)
             client = DockerRegistry.objects.get(client_id=tr.client_id)
         except DockerRegistry.DoesNotExist:
             return HttpResponseNotFound("No such registry/client")
@@ -73,11 +75,13 @@ class DockerAuthView(View):
             if settings.DOCKERAUTH_ALLOW_UNCONFIGURED_REPOS:
                 drepo = DockerRepo()
                 drepo.name = tp.path
+                drepo.registry = client
                 drepo.unauthenticated_read = True
                 drepo.unauthenticated_write = True
             elif tp.type == "login":
                 drepo = DockerRepo()
                 drepo.name = tp.path
+                drepo.registry = client
                 drepo.unauthenticated_read = False
                 drepo.unauthenticated_write = False
             else:
@@ -99,11 +103,12 @@ class DockerAuthView(View):
                 return HttpResponseForbidden("Invalid basic auth string")
 
             user = authenticate(request, username=username, password=password)
-            if user and (drepo.registry.has_access(user, tp) or drepo.has_access(user, tp)):
+            _log.debug("Registry access: %s", drepo.registry.has_access(user, tp))
+            if user and drepo.registry.has_access(user, tp) or drepo.has_access(user, tp):
                 ts = datetime.datetime.now(tz=pytz.UTC)
                 # TODO: figure out if we need to support more than one access scope
                 # https://umbrella.cisco.com/blog/blog/2016/02/23/implementing-oauth-for-registry-v2/
-                jwtstr = jwt.encode({
+                jwtobj = {
                     'exp': ts + datetime.timedelta(hours=1),
                     'nbf': ts - datetime.timedelta(seconds=1),
                     'iat': ts,
@@ -112,11 +117,21 @@ class DockerAuthView(View):
                     'access': [{
                         "type": tp.type,
                         "name": tp.path,
-                        "actions": [] + ["push"] if tp.push else [] + ["pull"] if tp.pull else []
+                        "actions": [] + ["push"] if tp.push else [] +
+                                        ["pull"] if tp.pull else [] +
+                                        ["login"] if tp.type == "login" else []
                     }]
-                })
+                }
 
-                response = HttpResponse(content=jwtstr, status=200)
+                _log.debug("Encoding JWT response: %s", jwtobj)
+
+                jwtstr = jwt.encode(jwtobj, key=drepo.registry.sign_key, algorithm="RS256")
+
+                _log.debug("JWT response: %s", jwtstr)
+
+                response = HttpResponse(content=json.dumps({
+                    "token": jwtstr.decode('utf-8')
+                }), status=200, content_type="application/json")
                 return response
             else:
                 return HttpResponseForbidden("Authentication failed")

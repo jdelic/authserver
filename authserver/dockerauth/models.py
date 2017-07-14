@@ -1,4 +1,6 @@
 # -* encoding: utf-8 *-
+import logging
+
 from Crypto.PublicKey import RSA
 from django.db import models
 
@@ -13,13 +15,19 @@ def generate_jwt_secret_key() -> str:
 
 
 def _permissions_fulfilled(pull: bool, push: bool, scope: TokenPermissions) -> bool:
+    _log.debug("permissions: scope: %s %s    user: %s %s", scope.pull, scope.push, pull, push)
     if scope.push and scope.pull:
         return push and pull
     elif scope.push:
         return push
     elif scope.pull:
         return pull
+    elif scope.type == "login":  # pure login checks don't request permissions
+        return True
     return False  # if neither push nor pull is necessary, this makes no sense
+
+
+_log = logging.getLogger(__name__)
 
 
 class DockerPermissionBase(models.Model):
@@ -60,21 +68,26 @@ class DockerPermissionBase(models.Model):
     )
 
     def has_access(self, user: MNUser, scope: TokenPermissions) -> bool:
+        _log.debug("checking access for user: %s (%s)", user.pk, user.get_username())
+        _log.debug("checking for unauthenticated access")
         if _permissions_fulfilled(self.unauthenticated_pull, self.unauthenticated_push, scope):
             return True
 
+        _log.debug("checking for user access")
         if _permissions_fulfilled(
-                self.user_pull_access.filter(id=user.id).count() > 0,
-                self.user_push_access.filter(id=user.id).count() > 0,
+                self.user_pull_access.filter(pk=user.pk).count() > 0,
+                self.user_push_access.filter(pk=user.pk).count() > 0,
                 scope):
             return True
 
         # is there a group that contains `user` that has pull/push access
+        _log.debug("checking for group access")
         if _permissions_fulfilled(
-                self.group_pull_access.filter(user_set__id=user.id).count() > 0,
-                self.group_push_access.filter(user_set__id=user.id).count() > 0,
+                self.group_pull_access.filter(user=user).count() > 0,
+                self.group_push_access.filter(user=user).count() > 0,
                 scope):
             return True
+        return False
 
 
 class DockerRegistry(DockerPermissionBase):
