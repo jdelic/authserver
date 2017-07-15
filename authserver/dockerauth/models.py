@@ -109,6 +109,15 @@ class DockerRegistry(DockerPermissionBase):
         default=generate_jwt_secret_key
     )
 
+    def private_key_pem(self) -> str:
+        return self.sign_key
+
+    def public_key_pem(self) -> str:
+        key = RSA.importKey(self.sign_key)
+        public_key = key.publickey().exportKey("PEM").decode('utf-8')
+        public_key = public_key.replace("RSA PUBLIC KEY", "PUBLIC KEY")
+        return public_key
+
     def __str__(self) -> str:
         return self.name
 
