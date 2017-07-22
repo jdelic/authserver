@@ -14,13 +14,25 @@ from mailauth.models import MNUser
 
 
 class Command(BaseCommand):
-    def _add_permission_subparsers(self, subparser: _SubParsersAction, parser_class: Type[CommandParser]):
-        reg_group_parser = subparser.add_parser("group", help="Manage group permissions")
-        reg_group_sp = reg_group_parser.add_subparsers(title="Group access permissions", parser_class=parser_class,
-                                                       dest="accesssubcmd")
-        reg_user_parser = subparser.add_parser("user", help="Manage user permissions")
-        reg_user_sp = reg_user_parser.add_subparsers(title="User access permissions", parser_class=parser_class,
-                                                     dest="accesssubcmd")
+    def _add_permission_subparsers(self, subparser: _SubParsersAction, parser_class: Type[CommandParser]) -> None:
+        group_parser = subparser.add_parser("group", help="Manage group permissions")
+        group_sp = group_parser.add_subparsers(title="Manage group permissions", parser_class=parser_class,
+                                               dest="accesssubcmd")  # type: _SubParsersAction
+        user_parser = subparser.add_parser("user", help="Manage user permissions")
+        user_sp = user_parser.add_subparsers(title="Manage user permissions", parser_class=parser_class,
+                                             dest="accesssubcmd")  # type: _SubParsersAction
+
+        def create_allow_deny_cmds(localsubparser: _SubParsersAction, entity_name: str):
+            allow_p = localsubparser.add_parser("allow", help="Give a %s access" % entity_name)  # type: CommandParser
+            allow_p.add_argument("--name", dest="name", default=None,
+                                 help="Find %s by name." % entity_name)
+            deny_p = localsubparser.add_parser("deny", help="Deny a %s access" % entity_name)  # type: CommandParser
+            deny_p.add_argument("--name", dest="name", default=None,
+                              help="Find %s by name." % entity_name)
+            list_p = localsubparser.add_parser("list", help="List all %ss" % entity_name)  # type: CommandParser
+
+        create_allow_deny_cmds(group_sp, "group")
+        create_allow_deny_cmds(user_sp, "user")
 
     def add_arguments(self, parser: CommandParser) -> None:
         cmd = self
@@ -39,7 +51,7 @@ class Command(BaseCommand):
         repo_parser = subparsers.add_parser("repo", help="Manage Docker repositories in a registry")
 
         reg_subparser = registry_parser.add_subparsers(title="Registry management", parser_class=SubCommandParser,
-                                                       dest="subcommand")
+                                                       dest="subcommand")  # type: _SubParsersAction
         reg_add_parser = reg_subparser.add_parser("add", help="Add a Docker Registry")  # type: CommandParser
 
         reg_add_parser.add_argument("--client-id", dest="client_id", required=True,
@@ -83,7 +95,7 @@ class Command(BaseCommand):
         reg_show_parser.add_argument("--allow-multiple", dest="allow_multiple", action="store_true", default=False,
                                      help="Allow (and output) more than a single match.")
         self._add_permission_subparsers(reg_subparser, SubCommandParser)
-        #self._add_permission_subparsers(repo_subparser)
+        # self._add_permission_subparsers(repo_subparser)
 
     def _list_registries(self) -> None:
         registries = DockerRegistry.objects.all()
@@ -118,7 +130,7 @@ class Command(BaseCommand):
         if registries.count() > 1 and not allow_multiple:
             self.stderr.write("The specified criteria match more than one Docker registry. You can specify "
                               "--allow-multiple if you want to output them.")
-            return
+            sys.exit(1)
 
         for reg in registries:  # type: DockerRegistry
             self.stdout.write("Name: %s" % reg.name)
@@ -148,10 +160,10 @@ class Command(BaseCommand):
                       unauthenticated_push: bool=False) -> None:
         if DockerRegistry.objects.filter(name=name).count() > 0:
             self.stderr.write("A Docker registry with the same name exists! (%s)" % name)
-            return
+            sys.exit(1)
         elif DockerRegistry.objects.filter(client_id=client_id).count() > 0:
             self.stderr.write("A Docker registry with the same client id already exists! (%s)" % client_id)
-            return
+            sys.exit(1)
 
         if sign_key_file == "-":
             read_from = sys.stdin
@@ -161,14 +173,14 @@ class Command(BaseCommand):
             else:
                 self.stderr.write("The specified file for reading the private key for your new Docker registry "
                                   "does not exist. (%s)" % sign_key_file)
-                return
+                sys.exit(1)
 
         pemstr = read_from.read(25)
         if not pemstr.startswith("-----BEGIN RSA PRIVATE"):
             self.stderr.write("The specified PEM private key file does not start with a PEM marker (expected: "
                               "BEGIN RSA PRIVATE KEY). (%s)" % sign_key_file)
             read_from.close()
-            return
+            sys.exit(1)
 
         pemstr += read_from.read()
         read_from.close()
@@ -178,11 +190,11 @@ class Command(BaseCommand):
             passphrase = os.getenv(passphrase_env, None)
             if not passphrase:
                 self.stderr.write("Environment variable for private key passphrase (%s) is not set." % passphrase_env)
-                return
+                sys.exit(1)
         elif passphrase_file:
             if not os.path.exists(passphrase_file) or not os.access(passphrase_file, os.R_OK):
                 self.stderr.write("Passphrase file doesn't exist or can't be read. (%s)" % passphrase_file)
-                return
+                sys.exit(1)
             with open(passphrase_file, "rt", encoding="utf-8") as pf:
                 passphrase = pf.readline()
 
@@ -191,7 +203,7 @@ class Command(BaseCommand):
         except (ValueError, TypeError, IndexError) as e:
             self.stderr.write("PEM private key cannot be imported. Possibly because of a wrong passphrase.\n"
                               "Error message: %s" % str(e))
-            return
+            sys.exit(1)
 
         if DockerRegistry.objects.filter(sign_key=k.exportKey("PEM").decode("utf-8")).count() > 0:
             self.stderr.write(self.style.WARNING("WARNING: A Docker registry using the same secret key exists!"))
@@ -207,7 +219,7 @@ class Command(BaseCommand):
         except DatabaseError as e:
             self.stderr.write("Failed to create Docker registry in database.\n"
                               "Error message: %s" % str(e))
-            return
+            sys.exit(1)
 
         self.stderr.write(self.style.SUCCESS("Created Docker registry %s (client id=%s)" % (name, client_id)))
 
@@ -221,13 +233,13 @@ class Command(BaseCommand):
             elif options["subcommand"] == "show":
                 if not options["name"] and not options["client_id"]:
                     self.stderr.write("You have to provide at least ONE of --name or --client-id to this command.")
-                    return
+                    sys.exit(1)
                 self._show_registry(options["name"], options["client_id"], options["allow_partial"],
                                     options["case_insensitive"], options["allow_multiple"])
             elif options["subcommand"] == "add":
                 if options["passphrase_env"] and options["passphrase_file"]:
                     self.stderr.write("You can specify either --passphrase-env or --passphrase-file, not both.")
-                    return
+                    sys.exit(1)
                 self._add_registry(options["name"], options["client_id"], options["sign_key"],
                                    passphrase_env=options["passphrase_env"],
                                    passphrase_file=options["passphrase_file"],
@@ -236,5 +248,10 @@ class Command(BaseCommand):
             elif options["subcommand"] == "remove":
                 if not options["name"] and not options["client_id"]:
                     self.stderr.write("You have to provide at least ONE of --name or --client-id or both.")
-                    return
+                    sys.exit(1)
                 self._remove_registry(options["name"], options["client_id"], options["force"])
+        if "accesssubcmd" in options:
+            if options["accesssubcmd"] == "user":
+                pass
+            elif options["accesssubcmd"] == "group":
+                pass
