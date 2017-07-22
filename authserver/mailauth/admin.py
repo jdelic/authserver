@@ -1,6 +1,6 @@
 # -* encoding: utf-8 *-
 import functools
-from typing import Tuple, Type, Any
+from typing import Type, Any
 from typing import Union
 
 import django.contrib.auth.admin as auth_admin
@@ -15,8 +15,12 @@ from typing import Tuple
 
 from typing import Dict
 
+from oauth2_provider.admin import ApplicationAdmin
+from oauth2_provider.models import get_application_model
+
 from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm
-from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroups, MNApplication
+from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroup, MNApplication
+
 
 admin.site.unregister(auth_admin.Group)
 
@@ -97,7 +101,7 @@ class MNApplicationPermissionAdmin(admin.ModelAdmin):
     search_fields = ('name',)
 
 
-@admin.register(MNGroups)
+@admin.register(MNGroup)
 class MNGroupAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     fieldsets = (
@@ -105,3 +109,12 @@ class MNGroupAdmin(admin.ModelAdmin):
         ("Application permissions", {'fields': ('group_permissions',)}),
     )  # type: Tuple[Tuple[Union[str, None], Dict[str, Tuple[str, ...]]], ...]
     filter_horizontal = ('group_permissions',)
+
+
+class MNApplicationAdmin(ApplicationAdmin):
+    filter_horizontal = ('required_permissions',)
+
+
+if get_application_model() == MNApplication:
+    admin.site.unregister(MNApplication)
+    admin.site.register(MNApplication, MNApplicationAdmin)
