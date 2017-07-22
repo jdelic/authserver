@@ -14,8 +14,7 @@ applications. Those are useful for creating configuration entries through
 configuration management systems.
 
 Finally, it also includes an implementation of the
-`Docker Token Authentication protocol
- <https://docs.docker.com/registry/spec/auth/token/>`__ and can therefore be
+`Docker Token Authentication protocol <dockerauth_>`__ and can therefore be
 used to secure Docker registries for push and pull with SSO credentials. The
 included ``manage.py`` command: ``manage.py dockerauth registry add ...``
 allows script based setup.
@@ -208,3 +207,6 @@ source code is licensed.
 This program includes a copy of
 `django12factor <https://github.com/doismellburning/django12factor/>`__ which is
 licensed unser The MIT License (MIT) Copyright (c) 2013-2017 Kristian Glass.
+
+
+.. _dockerauth: https://docs.docker.com/registry/spec/auth/token/
