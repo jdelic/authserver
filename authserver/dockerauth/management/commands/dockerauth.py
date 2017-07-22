@@ -97,6 +97,9 @@ class Command(BaseCommand):
                                      help="Allow case insensitive matching.")
         reg_show_parser.add_argument("--allow-multiple", dest="allow_multiple", action="store_true", default=False,
                                      help="Allow (and output) more than a single match.")
+        reg_show_parser.add_argument("--output-private-key", dest="output_private_key", action="store_true",
+                                     default=False,
+                                     help="When set, the registry's private key will be written to stdout as well.")
         self._add_permission_subparsers(reg_subparser, SubCommandParser)
         # self._add_permission_subparsers(repo_subparser)
 
@@ -104,13 +107,14 @@ class Command(BaseCommand):
         registries = DockerRegistry.objects.all()
         if registries.count() > 0:
             for reg in DockerRegistry.objects.all():
-                self.stdout.write("%s %s" % (reg.name, reg.client_id))
+                self.stdout.write("\"%s\" %s" % (reg.name, reg.client_id))
             self.stdout.write("(%s found)" % registries.count())
         else:
             self.stdout.write("No Docker registries have been setup for Docker Token Auth. (0 found)")
 
     def _show_registry(self, name: str=None, client_id: str=None, allow_partial: bool=False,
-                       case_insensitive: bool=False, allow_multiple: bool=False) -> None:
+                       case_insensitive: bool=False, allow_multiple: bool=False,
+                       output_private_key: bool=False) -> None:
         name_query = "name__"
         clientid_query = "client_id__"
         if case_insensitive:
@@ -156,7 +160,9 @@ class Command(BaseCommand):
                 self.stdout.write("Groups with push access:")
                 for group in reg.group_push_access.all():  # type: MNGroup
                     self.stdout.write("    %s (%s)" % (group.name, group.pk))
-            self.stdout.write("Private key:\n%s\n\n" % reg.sign_key)
+            if output_private_key:
+                self.stdout.write("Private key:\n%s\n" % reg.sign_key)
+            self.stdout.write("\n")
 
     def _add_registry(self, name: str, client_id: str, sign_key_file: str, passphrase_env: str=None,
                       passphrase_file: str=None, unauthenticated_pull: bool=False,
@@ -268,7 +274,8 @@ class Command(BaseCommand):
                     self.stderr.write("You have to provide at least ONE of --name or --client-id to this command.")
                     sys.exit(1)
                 self._show_registry(options["name"], options["client_id"], options["allow_partial"],
-                                    options["case_insensitive"], options["allow_multiple"])
+                                    options["case_insensitive"], options["allow_multiple"],
+                                    options["output_private_key"])
             elif options["subcommand"] == "add":
                 if options["passphrase_env"] and options["passphrase_file"]:
                     self.stderr.write("You can specify either --passphrase-env or --passphrase-file, not both.")
