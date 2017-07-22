@@ -6,6 +6,7 @@ from typing import Type
 
 from Crypto.PublicKey import RSA
 from django.core.management.base import BaseCommand, CommandParser
+from django.db.models.query_utils import Q
 from django.db.utils import DatabaseError
 
 from dockerauth.models import DockerRegistry
@@ -15,11 +16,13 @@ from mailauth.models import MNUser
 
 class Command(BaseCommand):
     def _add_permission_subparsers(self, subparser: _SubParsersAction, parser_class: Type[CommandParser]) -> None:
-        group_parser = subparser.add_parser("group", help="Manage group permissions")
-        group_sp = group_parser.add_subparsers(title="Manage group permissions", parser_class=parser_class,
+        group_parser = subparser.add_parser("group", help="Manage group permissions (unimplemented)")
+        group_sp = group_parser.add_subparsers(title="Manage group permissions (unimplemented)",
+                                               parser_class=parser_class,
                                                dest="accesssubcmd")  # type: _SubParsersAction
-        user_parser = subparser.add_parser("user", help="Manage user permissions")
-        user_sp = user_parser.add_subparsers(title="Manage user permissions", parser_class=parser_class,
+        user_parser = subparser.add_parser("user", help="Manage user permissions (unimplemented)")
+        user_sp = user_parser.add_subparsers(title="Manage user permissions (unimplemented)",
+                                             parser_class=parser_class,
                                              dest="accesssubcmd")  # type: _SubParsersAction
 
         def create_allow_deny_cmds(localsubparser: _SubParsersAction, entity_name: str):
@@ -28,7 +31,7 @@ class Command(BaseCommand):
                                  help="Find %s by name." % entity_name)
             deny_p = localsubparser.add_parser("deny", help="Deny a %s access" % entity_name)  # type: CommandParser
             deny_p.add_argument("--name", dest="name", default=None,
-                              help="Find %s by name." % entity_name)
+                                help="Find %s by name." % entity_name)
             list_p = localsubparser.add_parser("list", help="List all %ss" % entity_name)  # type: CommandParser
 
         create_allow_deny_cmds(group_sp, "group")
@@ -48,7 +51,7 @@ class Command(BaseCommand):
         )  # type: _SubParsersAction
 
         registry_parser = subparsers.add_parser("registry", help="Manage Docker registries")
-        repo_parser = subparsers.add_parser("repo", help="Manage Docker repositories in a registry")
+        repo_parser = subparsers.add_parser("repo", help="Manage Docker repositories in a registry (unimplemented)")
 
         reg_subparser = registry_parser.add_subparsers(title="Registry management", parser_class=SubCommandParser,
                                                        dest="subcommand")  # type: _SubParsersAction
@@ -223,8 +226,38 @@ class Command(BaseCommand):
 
         self.stderr.write(self.style.SUCCESS("Created Docker registry %s (client id=%s)" % (name, client_id)))
 
+    def _ask_confirmation(self, question, default=None) -> bool:
+        result = input("%s " % question)
+        if not result and default is not None:
+            return default
+        while len(result) < 1 or result[0].lower() not in "yn":
+            result = input("Please answer yes or no: ")
+        return result[0].lower() == "y"
+
     def _remove_registry(self, name: str=None, client_id: str=None, force: bool=False) -> None:
-        pass
+        query = Q()
+        if name:
+            query |= Q(name__exact=name)
+        if client_id:
+            query |= Q(client_id__exact=client_id)
+
+        registry = DockerRegistry.objects.filter(query)
+        if registry.count() == 0:
+            self.stderr.write("No matching registry found for the given criteria.")
+            sys.exit(1)
+        elif registry.count() > 1:
+            self.stderr.write("Criteria matched more than a single registry.")
+            sys.exit(1)
+        else:
+            self.stdout.write("\nRegistry-----------\nName:      %s\nClient id: %s\n\n" %
+                              (registry[0].name, registry[0].client_id))
+            if force or self._ask_confirmation("Really delete the above registry? [yN]", default=False):
+                regname = registry[0].name
+                registry.delete()
+                self.stderr.write(self.style.SUCCESS("Removed docker registry \"%s\"." % regname))
+                return
+            else:
+                sys.exit(1)
 
     def handle(self, *args, **options) -> None:
         if options["type"] == "registry":
