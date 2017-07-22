@@ -9,9 +9,16 @@ As a second application it provides *dkimsigner*, a daemon that speaks SMTP and
 receives mail, then forwards it to another SMTP port after signing it with a
 DKIM key from its database.
 
-It also provides Django ``manage.py`` commands for registering OAuth2 
+It also provides Django ``manage.py`` commands for registering OAuth2
 applications. Those are useful for creating configuration entries through
 configuration management systems.
+
+Finally, it also includes an implementation of the
+`Docker Token Authentication protocol
+ <https://docs.docker.com/registry/spec/auth/token/>`__ and can therefore be
+used to secure Docker registries for push and pull with SSO credentials. The
+included ``manage.py`` command: ``manage.py dockerauth registry add ...``
+allows script based setup.
 
 
 Planned features
@@ -22,7 +29,6 @@ Planned features
 
 * CAS support through ``mama-cas``
 
-* Support for the Docker token authentication "protocol"
 
 Installation
 ------------
@@ -36,7 +42,7 @@ configuration loads its configuration from a
 `appconfig folder <https://github.com/jdelic/saltshaker/blob/master/ETC_APPCONFIG.md>`__.
 
 Canonical reserved configuration folders for this app:
- 
+
 * **/etc/appconfig/authserver**
 * **/etc/appconfig/dkimsigner**
 
