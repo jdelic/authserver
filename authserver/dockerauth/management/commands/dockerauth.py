@@ -1,14 +1,11 @@
 # -* encoding: utf-8 *-
 import os
-from argparse import ArgumentParser
-
 import sys
-from typing import Optional
+from argparse import _SubParsersAction
+from typing import Type
 
 from Crypto.PublicKey import RSA
 from django.core.management.base import BaseCommand, CommandParser
-from django.db.models import QuerySet
-from django.db.models.query_utils import Q
 from django.db.utils import DatabaseError
 
 from dockerauth.models import DockerRegistry
@@ -17,8 +14,15 @@ from mailauth.models import MNUser
 
 
 class Command(BaseCommand):
-    def add_arguments(self, parser: CommandParser) -> None:
+    def _add_permission_subparsers(self, subparser: _SubParsersAction, parser_class: Type[CommandParser]):
+        reg_group_parser = subparser.add_parser("group", help="Manage group permissions")
+        reg_group_sp = reg_group_parser.add_subparsers(title="Group access permissions", parser_class=parser_class,
+                                                       dest="accesssubcmd")
+        reg_user_parser = subparser.add_parser("user", help="Manage user permissions")
+        reg_user_sp = reg_user_parser.add_subparsers(title="User access permissions", parser_class=parser_class,
+                                                     dest="accesssubcmd")
 
+    def add_arguments(self, parser: CommandParser) -> None:
         cmd = self
 
         class SubCommandParser(CommandParser):
@@ -29,12 +33,12 @@ class Command(BaseCommand):
             dest='type',
             title="subcommands",
             parser_class=SubCommandParser
-        )  # type: ArgumentParser
+        )  # type: _SubParsersAction
 
-        registry_parser = subparsers.add_parser("registry", help="Manage Docker Registry access")
-        repo_parser = subparsers.add_parser("repo", help="Manage Docker Repository access")
+        registry_parser = subparsers.add_parser("registry", help="Manage Docker registries")
+        repo_parser = subparsers.add_parser("repo", help="Manage Docker repositories in a registry")
 
-        reg_subparser = registry_parser.add_subparsers(title="Registry access", parser_class=SubCommandParser,
+        reg_subparser = registry_parser.add_subparsers(title="Registry management", parser_class=SubCommandParser,
                                                        dest="subcommand")
         reg_add_parser = reg_subparser.add_parser("add", help="Add a Docker Registry")  # type: CommandParser
 
@@ -61,6 +65,8 @@ class Command(BaseCommand):
                                        help="Delete the registry with this name.")
         reg_remove_parser.add_argument("--client-id", dest="client_id", default=None,
                                        help="Delete the registry with this client_id.")
+        reg_remove_parser.add_argument("--force", dest="force", action="store_true", default=False,
+                                       help="Do not ask for confirmation.")
 
         reg_list_parser = reg_subparser.add_parser("list", help="List Docker registries")  # type: CommandParser
         reg_show_parser = reg_subparser.add_parser("show", help="Show details for a Docker registry.")
@@ -76,6 +82,8 @@ class Command(BaseCommand):
                                      help="Allow case insensitive matching.")
         reg_show_parser.add_argument("--allow-multiple", dest="allow_multiple", action="store_true", default=False,
                                      help="Allow (and output) more than a single match.")
+        self._add_permission_subparsers(reg_subparser, SubCommandParser)
+        #self._add_permission_subparsers(repo_subparser)
 
     def _list_registries(self) -> None:
         registries = DockerRegistry.objects.all()
@@ -203,7 +211,7 @@ class Command(BaseCommand):
 
         self.stderr.write(self.style.SUCCESS("Created Docker registry %s (client id=%s)" % (name, client_id)))
 
-    def _remove_registry(self, name: str=None, client_id: str=None) -> None:
+    def _remove_registry(self, name: str=None, client_id: str=None, force: bool=False) -> None:
         pass
 
     def handle(self, *args, **options) -> None:
@@ -229,4 +237,4 @@ class Command(BaseCommand):
                 if not options["name"] and not options["client_id"]:
                     self.stderr.write("You have to provide at least ONE of --name or --client-id or both.")
                     return
-                self._remove_registry(options["name"], options["client_id"])
+                self._remove_registry(options["name"], options["client_id"], options["force"])
