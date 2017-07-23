@@ -193,7 +193,9 @@ class DockerAuthView(View):
 
             rightnow = datetime.datetime.now(tz=pytz.UTC)
             user = authenticate(request, username=username, password=password)
-            if user and tp.type == "login":
+            if user is None:
+                return HttpResponseForbidden("Authentication failed")
+            elif tp.type == "login":
                 # create and return a refresh token
                 response = HttpResponse(content=json.dumps({
                     "token": self._create_jwt(
@@ -204,7 +206,7 @@ class DockerAuthView(View):
                     ),
                 }), status=200, content_type="application/json")
                 return response
-            elif user and drepo.registry.has_access(user, tp) or drepo.has_access(user, tp):
+            elif drepo.registry.has_access(user, tp) or drepo.has_access(user, tp):
                 response = HttpResponse(content=json.dumps({
                     "token": self._create_jwt(
                         self._make_access_token(request, tr, rightnow, tp, user), drepo.registry.private_key_pem()
