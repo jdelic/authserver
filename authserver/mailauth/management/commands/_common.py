@@ -19,22 +19,22 @@ CMDT = TypeVar('CMDT', bound=BaseCommand)
 
 
 def _add_publishing_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument_group("Config output options")
-    parser.add_argument("--publish-to-stdout", dest="publish_to_stdout", action="store_true", default=False,
+    out_gr = parser.add_argument_group("Config output options")
+    out_gr.add_argument("--publish-to-stdout", dest="publish_to_stdout", action="store_true", default=False,
                         help="write the OAuth2 credentials to stdout as a JSON object.")
-    parser.add_argument("--publish-to-consulkv", dest="publish_to_consulkv", default=None,
+    out_gr.add_argument("--publish-to-consulkv", dest="publish_to_consulkv", default=None,
                         help="write the OAuth2 credentials to Hashicorp Consul. The credentials will be stored in "
                              "key/value pairs under the specified path.")
-    parser.add_argument("--publish-to-vault", dest="publish_to_vault", default=None,
+    out_gr.add_argument("--publish-to-vault", dest="publish_to_vault", default=None,
                         help="write the OAuth2 credentials to Hashicorp Vault. The credentials will be stored in "
                              "key/value paris under the specified path. The path must reside in a Vault 'secret' "
                              "backend. Set environment variables as specified by '12factor-vault' to configure "
                              "Vault authentication in the Authserver settings.")
-    parser.add_argument("--consul-url", dest="consul_url",
+    out_gr.add_argument("--consul-url", dest="consul_url",
                         default=os.getenv("CONSUL_HTTP_ADDR", "http://127.0.0.1:8500/"),
                         help="URL to use to contact the local Consul agent. Will use $CONSUL_HTTP_ADDR from the "
                              "environment if it exists.")
-    parser.add_argument("--consul-token", dest="consul_token",
+    out_gr.add_argument("--consul-token", dest="consul_token",
                         default=None,
                         help="An optional Consul ACL token. Will use the value of $CONSUL_TOKEN from the "
                              "environment if it exists.")
