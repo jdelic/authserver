@@ -295,3 +295,6 @@ class Command(BaseCommand):
                 pass
             elif options["accesssubcmd"] == "group":
                 pass
+        else:
+            self.stderr.write("Please specify a command.")
+            self.stderr.write("Use django-admin.py dockerauth --settings=authserver.settings --help to get help.")

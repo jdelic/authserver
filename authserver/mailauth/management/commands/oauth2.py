@@ -147,3 +147,6 @@ class Command(BaseCommand):
             self._publish(**options)
         elif options["scmd"] == "remove":
             self._remove(**options)
+        else:
+            self.stderr.write("Please specify a command.")
+            self.stderr.write("Use django-admin.py oauth2 --settings=authserver.settings --help to get help.")
