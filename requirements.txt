@@ -14,7 +14,7 @@ psycopg2==2.7.3
 pycryptodome==3.4.6
 pyjwt==1.5.2
 python-consul==0.7.0
-requests==2.18.1
+requests==2.18.2
 sqlparse==0.2.3
 typing==3.6.1
 whitenoise==3.3.0
