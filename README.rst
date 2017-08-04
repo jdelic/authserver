@@ -2,16 +2,31 @@ maurus.networks Authentication server
 =====================================
 
 This is a Python Django based server application that provides single sign-on
-services for my own setup. It has OAuth2 and CAS endpoints and for applications
+services for my own setup. It has OAuth2 endpoints and for applications
 that don't support any of these a SQL stored procedure database abstraction.
-
-OAuth2 applications can use a SSL client certificate to authenticate for a
-non-standard HTTP API to register as an OAuth2 client and get their OAuth2
-credentials, cutting down on manual configuration.
 
 As a second application it provides *dkimsigner*, a daemon that speaks SMTP and
 receives mail, then forwards it to another SMTP port after signing it with a
 DKIM key from its database.
+
+It also provides Django ``manage.py`` commands for registering OAuth2
+applications. Those are useful for creating configuration entries through
+configuration management systems.
+
+Finally, it also includes an implementation of the
+`Docker Token Authentication protocol <dockerauth_>`__ and can therefore be
+used to secure Docker registries for push and pull with SSO credentials. The
+included ``manage.py`` command: ``manage.py dockerauth registry add ...``
+allows script based setup.
+
+
+Planned features
+----------------
+* OAuth2 applications can use a SSL client certificate to authenticate for a
+  non-standard HTTP API to register as an OAuth2 client and get their OAuth2
+  credentials, cutting down on manual configuration.
+
+* CAS support through ``mama-cas``
 
 
 Installation
@@ -26,7 +41,7 @@ configuration loads its configuration from a
 `appconfig folder <https://github.com/jdelic/saltshaker/blob/master/ETC_APPCONFIG.md>`__.
 
 Canonical reserved configuration folders for this app:
- 
+
 * **/etc/appconfig/authserver**
 * **/etc/appconfig/dkimsigner**
 
@@ -192,3 +207,6 @@ source code is licensed.
 This program includes a copy of
 `django12factor <https://github.com/doismellburning/django12factor/>`__ which is
 licensed unser The MIT License (MIT) Copyright (c) 2013-2017 Kristian Glass.
+
+
+.. _dockerauth: https://docs.docker.com/registry/spec/auth/token/

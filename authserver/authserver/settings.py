@@ -9,6 +9,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 INSTALLED_APPS = [
     'mailauth.MailAuthApp',
+    'dockerauth.DockerAuthApp',
     'postgresql_setrole',
     'vault12factor',
     'oauth2_provider',
@@ -112,6 +113,8 @@ else:
     CORS_ORIGIN_WHITELIST = os.getenv("CORS_ORIGIN_WHITELIST", "").split(',')
     CORS_ORIGIN_REGEX_WHITELIST = os.getenv("CORS_ORIGIN_REGEX_WHITELIST", "").split(',')
 
+DOCKERAUTH_ALLOW_UNCONFIGURED_REPOS = django12factor.getenv_bool("DOCKERAUTH_ALLOW_UNCONFIGURED_REPOS")
+
 AUTH_USER_MODEL = 'mailauth.MNUser'
 
 # Validate email addresses against our special DB structure
@@ -154,6 +157,8 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
+
+USE_X_FORWARDED_HOST = django12factor.getenv_bool("USE_X_FORWARDED_HOST")
 
 # third-party access credentials
 SPAPI_DBUSERS = [s.strip() for s in os.getenv("SPAPI_DBUSERS", "").split(",")]
