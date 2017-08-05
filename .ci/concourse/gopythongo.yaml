@@ -12,6 +12,12 @@ inputs:
     - name: authserver
 
 
+params:
+    APTLY_PASSPHRASE: ((aptly_gpg_passphrase))
+    VAULT_ROLEID: ((vaultgetcert.role_id))
+    VAULT_SECRETID: ((vaultgetcert.secret_id))
+
+
 run:
     path: /bin/bash
     args:
