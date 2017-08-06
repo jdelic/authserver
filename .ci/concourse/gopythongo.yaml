@@ -13,7 +13,7 @@ inputs:
 
 
 params:
-    APTLY_PASSPHRASE: ((aptly_gpg_passphrase))
+    APTLY_PASSPHRASE: ((aptly_gpg_passphrase.passphrase))
     VAULT_ROLEID: ((vaultgetcert.role_id))
     VAULT_SECRETID: ((vaultgetcert.secret_id))
 
