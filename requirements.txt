@@ -16,7 +16,7 @@ pyjwt==1.5.2
 python-consul==0.7.1
 requests==2.18.3
 sqlparse==0.2.3
-typing==3.6.1
+typing==3.6.2
 whitenoise==3.3.0
 
 # DKIM filter dependencies
