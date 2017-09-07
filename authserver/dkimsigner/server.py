@@ -40,6 +40,7 @@ class DKIMSignerServer(SMTPServer):
             connection.close()
             if "retry" in kwargs:
                 _log.error("Database unavailable.")
+                return "421 Processing problem. Please try again later."
             else:
                 return self.process_message(peer, mailfrom, rcpttos, data, retry=True, **kwargs)
 
