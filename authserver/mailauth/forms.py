@@ -3,16 +3,18 @@
 # The forms in here are hooked up to Django admin via mailauth.admin
 #
 import re
-from typing import Any, Dict, TypeVar
+from typing import Any, Dict, TypeVar, Sequence
 
 import django.contrib.auth.forms as auth_forms
 from Crypto.PublicKey import RSA
 from django.contrib.admin import widgets
 from django.forms.models import ModelForm, ALL_FIELDS
 from django.forms.renderers import BaseRenderer
+from django.utils.encoding import force_text
 from django.utils.html import format_html
+from django_select2.forms import Select2TagWidget
 
-from mailauth.models import MNUser, Domain
+from mailauth.models import MNUser, Domain, MailingList
 
 
 class MNUserCreationForm(auth_forms.UserCreationForm):
@@ -65,4 +67,23 @@ class DomainForm(ModelForm):
     class Meta:
         model = Domain
         widgets = {'dkimkey': DomainKeyWidget()}
+        fields = ALL_FIELDS
+
+
+class ArrayFieldWidget(Select2TagWidget):
+    def value_from_datadict(self, data, files, name):
+        values = super().value_from_datadict(data, files, name)
+        return ",".join(values)
+
+    def optgroups(self, name: str, value: Sequence[str], attrs=None):
+        values = value[0].split(',') if value[0] else []
+        selected = set(values)
+        subgroup = [self.create_option(name, v, v, selected, i) for i, v in enumerate(values)]
+        return [(None, subgroup, 0)]
+
+
+class MailingListForm(ModelForm):
+    class Meta:
+        model = MailingList
+        widgets = {'addresses': ArrayFieldWidget(attrs={"style": "width: 750px"})}
         fields = ALL_FIELDS

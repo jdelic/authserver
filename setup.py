@@ -45,6 +45,7 @@ def read_version() -> str:
             return m.group(1)
     raise Exception("Can't read base version from %s" % fn)
 
+
 version = read_version()
 if version.endswith(".dev"):
     _version = "%s%s" % (version, int(time.time()))
@@ -70,6 +71,7 @@ setup(
     entry_points={
         "console_scripts": [
             "dkimsigner = dkimsigner.server:main",
+            "mailforwarder = forwarder.server:main",
         ],
     },
     install_requires=reqs,

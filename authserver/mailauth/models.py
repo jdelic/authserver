@@ -3,6 +3,8 @@ import uuid
 
 from django.contrib.auth import models as auth_models, base_user
 from django.conf import settings
+from django.contrib.postgres.fields.array import ArrayField
+from django.core.exceptions import ValidationError
 from django.db import models
 from typing import Any
 
@@ -52,18 +54,42 @@ class Domain(models.Model):
         return self.name
 
 
-class EmailAlias(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="aliases",
-                             null=False)
-    domain = models.ForeignKey(Domain, verbose_name="On domain")
-    mailprefix = models.CharField("Mail prefix", max_length=255)
+class MailingList(models.Model):
+    name = models.CharField("Descriptive name", max_length=255)
+    addresses = ArrayField(models.CharField(max_length=255))
 
+    def __str__(self) -> str:
+        return self.name
+
+
+class EmailAlias(models.Model):
     class Meta:
         unique_together = (('mailprefix', 'domain'),)
         verbose_name_plural = "Email aliases"
 
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="aliases",
+                             null=True, blank=True)
+    domain = models.ForeignKey(Domain, verbose_name="On domain")
+    mailprefix = models.CharField("Mail prefix", max_length=255)
+    forward_to = models.ForeignKey(MailingList, verbose_name="Forward to list", null=True, blank=True)
+
+    def clean(self):
+        if hasattr(self, 'forward_to') and self.forward_to is not None \
+                and hasattr(self, 'user') and self.user is not None:
+            raise ValidationError({'forward_to': "An email alias can't be associated with a user and be a mailing list "
+                                                 "at the same time"})
+
+        if not hasattr(self, 'forward_to') and not hasattr(self, 'user'):
+            raise ValidationError({'user': "An email alias must either be a mailing list or be associated with an "
+                                           "user."})
+
     def __str__(self) -> str:
-        return "%s@%s (%s)" % (self.mailprefix, self.domain, self.user.identifier)
+        s = "%s@%s" % (self.mailprefix, self.domain,)
+        if self.user is not None:
+            s = "%s (Belongs to: %s)" % (s, self.user.identifier,)
+        elif self.forward_to is not None:
+            s = "%s (List: %s)" % (s, self.forward_to.name,)
+        return s
 
 
 class MNApplicationPermission(models.Model):

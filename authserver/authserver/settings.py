@@ -15,6 +15,7 @@ INSTALLED_APPS = [
     'oauth2_provider',
     'mama_cas',
     'corsheaders',
+    'django_select2',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -176,3 +177,7 @@ MAMA_CAS_SERVICES = []  # type: List[str]  # currently none
 # APP CONFIG
 COMPANY_NAME = "maurus.networks"
 COMPANY_LOGO_URL = "/static/mn.png"
+
+SELECT2_JS = '/static/vendor/select2/select2.full.min.js'
+SELECT2_CSS = '/static/vendor/select2/select2.min.css'
+SELECT2_I18N = '/static/vendor/select2/i18n'
