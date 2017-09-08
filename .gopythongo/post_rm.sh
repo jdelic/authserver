@@ -9,6 +9,8 @@ if [ "$1" = "purge" ]; then
         /usr/bin/deb-systemd-helper unmask authserver.service >/dev/null
         /usr/bin/deb-systemd-helper purge dkimsigner.service >/dev/null
         /usr/bin/deb-systemd-helper unmask dkimsigner.service >/dev/null
+        /usr/bin/deb-systemd-helper purge mailforwarder.service >/dev/null
+        /usr/bin/deb-systemd-helper unmask mailforwarder.service >/dev/null
     fi
 
     if [ -x /etc/appconfig/authserver ]; then
@@ -17,5 +19,9 @@ if [ "$1" = "purge" ]; then
 
     if [ -x /etc/appconfig/dkimsigner ]; then
         rm -rf /etc/appconfig/dkimsigner
+    fi
+
+    if [ -x /etc/appconfig/mailforwarder ]; then
+        rm -rf /etc/appconfig/mailforwarder
     fi
 fi
