@@ -32,7 +32,10 @@ class ForwarderServer(SMTPServer):
             rcptuser, rcptdomain = rcptto.split("@", 1)
 
             # follow the same path like the stored procedure authserver_resolve_alias(...)
-            user_mailprefix = "%s+%s" % tuple(rcptuser.split("-", 1))  # convert the first - to a +
+            if "-" in rcptuser:
+                user_mailprefix = "%s+%s" % tuple(rcptuser.split("-", 1))  # convert the first - to a +
+            else:
+                user_mailprefix = rcptuser
 
             if "+" in user_mailprefix:
                 # if we had a dashext, or a plusext, we're left with just the prefix after this
