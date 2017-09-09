@@ -22,6 +22,7 @@ class Migration(migrations.Migration):
                 user_mailprefix varchar;
                 user_domain varchar;
                 primary_email varchar;
+                the_alias record;
             BEGIN
                 SELECT split_part(email, '@', 1) INTO user_mailprefix;
                 SELECT split_part(email, '@', 2) INTO user_domain;
@@ -35,6 +36,20 @@ class Migration(migrations.Migration):
                 -- handle plusext by cutting it and querying aliases
                 IF position('+' in user_mailprefix) > 0 THEN
                     user_mailprefix := split_part(user_mailprefix, '+', 1);
+                END IF;
+
+                SELECT alias.* INTO the_alias FROM
+                        mailauth_emailalias AS "alias",
+                        mailauth_domain AS "domain"
+                    WHERE
+                        "alias".domain_id="domain".id AND
+                        "alias".mailprefix=user_mailprefix AND
+                        "domain".name=user_domain;
+
+                -- check for mailing lists (foreign keys to mailauth_mailinglist)
+                IF the_alias.forward_to_id IS NOT NULL THEN
+                    RETURN QUERY SELECT (the_alias.mailprefix || '@' || user_domain)::varchar AS primary_email;
+                    RETURN;
                 END IF;
 
                 SELECT primary_alias.mailprefix || '@' || primary_domain.name INTO primary_email FROM
