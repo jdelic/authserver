@@ -44,6 +44,7 @@ Canonical reserved configuration folders for this app:
 
 * **/etc/appconfig/authserver**
 * **/etc/appconfig/dkimsigner**
+* **/etc/appconfig/mailforwarder**
 
 Run ``django-admin.py`` like this:
 
@@ -85,21 +86,22 @@ These configuration values in the appconfig folder must be provided manually
 ====================  ========================================================
 Variable              Description
 ====================  ========================================================
-VAULT_CA              The CA to use to validate that we're talking to the
+VAULT_CA              Pinned CA to use to validate that we're talking to the
                       right Vault.
 VAULT_DATABASE_PATH   The key path to read from Vault to get database
                       credentials for a full access role.
 DATABASE_PARENTROLE   The role that authserver should "sudo" into (via
                       ``SET ROLE``) after connecting to the database, i.e. the
-                      primary access role.
-DATABASE_NAME         The name of the database to connect to.
+                      primary access role (only used with Vault).
+DATABASE_NAME         The name of the database to connect to (only used with
+                      Vault).
 SPAPI_DBUSERS         A comma-separated list of database users which are being
                       granted access to the stored procedure API in migration
                       ``0003_opensmtpd_access``.
 DATABASE_URL          When client SSL certificates or usernames and passwords
                       are used to connect to the database instead of Vault,
                       then this URL (parsed by dj-database-url) is used to
-                      connect.
+                      connect (only used without Vault).
 ====================  ========================================================
 
 
@@ -146,15 +148,19 @@ N   Function Name                        Description
 2   ``authserver_check_domain(           Checks whether the passed domain is a
     varchar)``                           valid delivery domain.
 3   ``authserver_resolve_alias(varchar,  Resolves email addresses to known
-    boolean)``                           ``MNUser`` instances. Resolving a
-                                         primary delivery address will return
-                                         the "magic" value "virtmail" pointing
-                                         to the system user normally handling
+    boolean)``                           ``MNUser`` or ``MailingList``
+                                         instances. Resolving a primary
+                                         delivery address will return the
+                                         "magic" value "virtmail" pointing to
+                                         the system user normally handling
                                          email delivery if the boolean
                                          parameter is ``true``. If the boolean
                                          parameter is ``false`` it will return
-                                         the primary delivery address again.
-4   ``authserver_iterate_users()``       Returns a list of all delivery
+                                         the primary delivery address again. If
+                                         the resolved address is a
+                                         ``MailingList`` it will return the
+                                         input unchanged.
+4   ``authserver_iterate_users()``       Returns a list of all valid delivery
                                          mailboxes.
 ==  ===================================  =====================================
 
@@ -185,7 +191,8 @@ and create a cross-signature configuration for the other CA using the
 
 .. code-block:: shell
 
-    export VGC_XSIGN_CACERT=postgresql.crt=/etc/concourse/cacerts/env-build-ca.crt,vault.crt=/etc/concourse/cacerts/cas-build-ca.crt
+    export VGC_VAULT_PKI=casserver-ca/issue/build
+    export VGC_XSIGN_CACERT=postgresql.crt=/etc/concourse/cacerts/env-dev-ca.crt,vault.crt=/etc/concourse/cacerts/cas-ca.crt
     export VAULTWRAPPER_READ_PATH=secret/gpg/packaging_passphrase
     export VGC_OVERWRITE=True
     export GNUPGHOME=/etc/gpg-managed-keyring/
