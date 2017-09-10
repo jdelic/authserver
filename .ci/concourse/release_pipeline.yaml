@@ -13,7 +13,7 @@ resources:
           uri: git@github.com:jdelic/authserver.git
           private_key: ((github.access_key))
           branch: master
-          tag_filter: *.*.*
+          tag_filter: v*.*.*
     - name: github-status
       type: github-status
       source:
