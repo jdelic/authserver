@@ -18,9 +18,8 @@ from typing import Dict
 from oauth2_provider.admin import ApplicationAdmin
 from oauth2_provider.models import get_application_model
 
-from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm
-from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroup, MNApplication
-
+from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm, MailingListForm
+from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroup, MNApplication, MailingList
 
 admin.site.unregister(auth_admin.Group)
 
@@ -76,18 +75,33 @@ class DomainAdmin(admin.ModelAdmin):
         return form_t
 
 
+@admin.register(MailingList)
+class MailingListAdmin(admin.ModelAdmin):
+    form = MailingListForm
+    search_fields = ('name', 'addresses',)
+    list_display = ('name', 'addresses',)
+
+
 @admin.register(EmailAlias)
 class EmailAliasAdmin(admin.ModelAdmin):
     search_fields = ('mailprefix', 'domain__name',)
 
     def get_user(self, obj: EmailAlias) -> str:
-        return format_html(
-            "<a href=\"{}\">{}</a>",
-            urlresolvers.reverse('admin:mailauth_mnuser_change', args=[obj.user.uuid]),
-            obj.user.identifier,
-        )
-    get_user.short_description = "User"  # type: ignore  # (mypy#708)
-    get_user.admin_order_field = 'user__uuid'  # type: ignore  # (mypy#708)
+        if obj.user is not None:
+            ret = format_html(
+                "<a href=\"{}\">{}</a>",
+                urlresolvers.reverse('admin:mailauth_mnuser_change', args=[obj.user.uuid]),
+                obj.user.identifier,
+            )
+        elif obj.forward_to is not None:
+            ret = format_html(
+                "<a href=\"{}\">{}</a>",
+                urlresolvers.reverse('admin:mailauth_mailinglist_change', args=[obj.forward_to.id]),
+                obj.forward_to.name,
+            )
+        return ret
+    get_user.short_description = "Owner / Mailing List"  # type: ignore  # (mypy#708)
+    get_user.admin_order_field = 'user_id'  # type: ignore  # (mypy#708)
 
     def get_mailalias(self, obj: EmailAlias) -> str:
         return "%s@%s" % (obj.mailprefix, obj.domain.name)

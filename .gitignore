@@ -8,6 +8,7 @@ syntax: glob
 .pydevproject
 .settings
 .idea
+.mypy_cache
 dist
 *.egg-info
 *.iml

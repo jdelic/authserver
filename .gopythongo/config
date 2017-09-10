@@ -6,7 +6,7 @@ django-gen-secret-key=.gopythongo/etc/appconfig/authserver/env/SECRET_KEY
 django-settings=authserver.settings
 collect-static
 
-vaultgetcert-config=[.gopythongo/authserver.vgc, .gopythongo/dkimsigner.vgc]
+vaultgetcert-config=[.gopythongo/authserver.vgc, .gopythongo/dkimsigner.vgc, .gopythongo/mailforwarder.vgc]
 
 # local build options
 install-pkg=[libssl-dev, libffi-dev, libpq-dev]

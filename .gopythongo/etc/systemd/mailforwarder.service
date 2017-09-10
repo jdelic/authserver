@@ -1,0 +1,22 @@
+[Unit]
+Description=maurus.net mailforwarder
+
+[Service]
+Type=simple
+User=authserver
+Group=authserver
+SyslogIdentifier=mailforwarder
+# $$ to quote envvars so systemd doesn't expand them first
+ExecStart=/usr/local/authserver/bin/envdir /etc/appconfig/mailforwarder/env \
+    /bin/bash -c '/usr/local/authserver/bin/mailforwarder -p /run/authserver/mailforwarder.pid \
+        --input-ip $${BINDIP} \
+        --input-port $${BINDPORT} \
+        --output-ip $${RELAYIP} \
+        --output-port $${RELAYPORT}'
+Restart=on-failure
+RestartSec=5s
+WorkingDirectory=/usr/local/authserver
+PIDFile=/run/authserver/mailforwarder.pid
+
+[Install]
+WantedBy=multi-user.target

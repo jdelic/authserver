@@ -11,9 +11,8 @@ import os
 
 from types import FrameType
 from smtpd import SMTPServer
-from typing import Tuple, Sequence, Any
+from typing import Tuple, Sequence, Any, Union
 
-import dkim
 import daemon
 from django.db.utils import OperationalError
 
@@ -21,44 +20,62 @@ _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
 
 
-class DKIMSignerServer(SMTPServer):
+class ForwarderServer(SMTPServer):
     def process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: str,
-                        **kwargs: Any) -> str:
+                        **kwargs: Any) -> Union[str, None]:
         # we can't import the Domain model before Django has been initialized
-        from mailauth.models import Domain
+        from mailauth.models import EmailAlias
 
-        mfdomain = mailfrom.split("@", 1)[1]
-        try:
-            dom = Domain.objects.get(name=mfdomain)  # type: Domain
-        except Domain.DoesNotExist:
-            _log.error("Unknown domain: %s (%s)", mfdomain, mailfrom)
-            return "430 unknown domain"
-        except OperationalError:
-            # this is a hacky hack, but psycopg2 falls over when haproxy closes the connection on us
-            _log.info("Database connection closed, Operational Error, retrying")
-            from django.db import connection
-            connection.close()
-            if "retry" in kwargs:
-                _log.error("Database unavailable.")
-                return "421 Processing problem. Please try again later."
+        new_rcpttos = list(rcpttos)  # ensure that new_rcpttos is a mutable list
+        for ix, rcptto in enumerate(list(new_rcpttos)):  # we're going to modify new_rcpttos so we operate on a copy
+            rcptto = rcptto.lower()
+            rcptuser, rcptdomain = rcptto.split("@", 1)
+
+            # follow the same path like the stored procedure authserver_resolve_alias(...)
+            if "-" in rcptuser:
+                user_mailprefix = "%s+%s" % tuple(rcptuser.split("-", 1))  # convert the first - to a +
             else:
-                return self.process_message(peer, mailfrom, rcpttos, data, retry=True, **kwargs)
+                user_mailprefix = rcptuser
 
-        if dom.dkimkey:
-            sig = dkim.sign(data.encode("utf-8"), dom.dkimselector.encode("utf-8"), dom.name.encode("utf-8"),
-                            dom.dkimkey.replace("\r\n", "\n").encode("utf-8"))
-            data = "%s%s" % (sig.decode("utf-8"), data)
-            _log.debug("Signed output:\n%s", data)
+            if "+" in user_mailprefix:
+                # if we had a dashext, or a plusext, we're left with just the prefix after this
+                user_mailprefix = user_mailprefix.split("+", 1)[0]
 
-        # now send the mail back to be processed
-        with smtplib.SMTP(_args.output_ip, _args.output_port) as smtp:  # type: ignore
-            smtp.sendmail(mailfrom, rcpttos, data)
+            try:
+                alias = EmailAlias.objects.get(mailprefix__iexact=user_mailprefix,
+                                               domain__name__iexact=rcptdomain)  # type: EmailAlias
+            except EmailAlias.DoesNotExist:
+                # OpenSMTPD shouldn't even call us for invalid addresses if we're configured correctly
+                _log.error("Unknown mail address: %s (from: %s, prefix: %s)", rcptto, mailfrom, user_mailprefix)
+                continue
+            except OperationalError:
+                # this is a hacky hack, but psycopg2 falls over when haproxy closes the connection on us
+                _log.info("Database connection closed, Operational Error, retrying")
+                from django.db import connection
+                connection.close()
+                if "retry" in kwargs:
+                    _log.error("Database unavailable.")
+                    return "421 Processing problem. Please try again later."
+                else:
+                    return self.process_message(peer, mailfrom, new_rcpttos, data, retry=True, **kwargs)
+
+            if alias.forward_to is not None:
+                # it's a mailing list, forward the email to all connected addresses
+                _log.info("Forwarding email from '%s' to '%s'", mailfrom, ', '.join(alias.forward_to.addresses))
+                del new_rcpttos[ix]  # remove this recipient from the list
+                with smtplib.SMTP(_args.output_ip, _args.output_port) as smtp:  # type: ignore
+                    smtp.sendmail(mailfrom, alias.forward_to.addresses, data)
+
+        # if there are any remaining non-list recipients, we inject them back to OpenSMTPD here
+        if len(new_rcpttos) > 0:
+            with smtplib.SMTP(_args.output_ip, _args.output_port) as smtp:  # type: ignore
+                smtp.sendmail(mailfrom, new_rcpttos, data)
 
         return None
 
 
 def run() -> None:
-    server = DKIMSignerServer((_args.input_ip, _args.input_port), None)
+    server = ForwarderServer((_args.input_ip, _args.input_port), None)
     asyncore.loop()
 
 
@@ -73,8 +90,8 @@ def main() -> None:
     global _args
     parser = argparse.ArgumentParser(
         description="This is a SMTP daemon that is used through OpenSMTPD configuration "
-                    "to DKIM sign email received on one port and then relay the signed email "
-                    "through a relay listener."
+                    "to check whether incoming emails are addressed to a forwarding email alias "
+                    "and if they are, inject emails to all list delivery addresses / expand the alias."
     )
 
     grp_daemon = parser.add_argument_group("Daemon options")
@@ -92,11 +109,11 @@ def main() -> None:
 
     grp_network = parser.add_argument_group("Network options")
     grp_network.add_argument("--input-ip", dest="input_ip", default="127.0.0.1", help="The network address to bind to")
-    grp_network.add_argument("--input-port", dest="input_port", metavar="PORT", type=int, default=10035,
+    grp_network.add_argument("--input-port", dest="input_port", metavar="PORT", type=int, default=10045,
                              help="The port to bind to")
     grp_network.add_argument("--output-ip", dest="output_ip", default="127.0.0.1",
                              help="The OpenSMTPD instance IP to return processed email to")
-    grp_network.add_argument("--output-port", dest="output_port", metavar="PORT", type=int, default=10036,
+    grp_network.add_argument("--output-port", dest="output_port", metavar="PORT", type=int, default=10046,
                              help="THe port where OpenSMTPD listens for processed email")
 
     grp_django = parser.add_argument_group("Django options")
@@ -137,5 +154,5 @@ if __name__ == "__main__":
     import weakref
     logging._handlers = weakref.WeakValueDictionary()  # type: ignore
     logging.basicConfig(level=logging.DEBUG)
-    _log.info("DKIM signer starting")
+    _log.info("Forwarding Alias Service starting")
     main()
