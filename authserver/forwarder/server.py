@@ -63,12 +63,12 @@ class ForwarderServer(SMTPServer):
                 # it's a mailing list, forward the email to all connected addresses
                 _log.info("Forwarding email from '%s' to '%s'", mailfrom, ', '.join(alias.forward_to.addresses))
                 del new_rcpttos[ix]  # remove this recipient from the list
-                with smtplib.SMTP(_args.output_ip, _args.output_port) as smtp:  # type: ignore
+                with smtplib.SMTP(_args.remote_relay_ip, _args.remote_relay_port) as smtp:  # type: ignore
                     smtp.sendmail(mailfrom, alias.forward_to.addresses, data)
 
         # if there are any remaining non-list recipients, we inject them back to OpenSMTPD here
         if len(new_rcpttos) > 0:
-            with smtplib.SMTP(_args.output_ip, _args.output_port) as smtp:  # type: ignore
+            with smtplib.SMTP(_args.local_delivery_ip, _args.local_delivery_port) as smtp:  # type: ignore
                 smtp.sendmail(mailfrom, new_rcpttos, data)
 
         return None
@@ -111,10 +111,14 @@ def main() -> None:
     grp_network.add_argument("--input-ip", dest="input_ip", default="127.0.0.1", help="The network address to bind to")
     grp_network.add_argument("--input-port", dest="input_port", metavar="PORT", type=int, default=10045,
                              help="The port to bind to")
-    grp_network.add_argument("--output-ip", dest="output_ip", default="127.0.0.1",
-                             help="The OpenSMTPD instance IP to return processed email to")
-    grp_network.add_argument("--output-port", dest="output_port", metavar="PORT", type=int, default=10046,
-                             help="THe port where OpenSMTPD listens for processed email")
+    grp_network.add_argument("--local-delivery-ip", dest="local_delivery_ip", default="127.0.0.1",
+                             help="The OpenSMTPD instance IP for local email to be delivered.")
+    grp_network.add_argument("--local-delivery-port", dest="local_delivery_port", metavar="PORT", type=int,
+                             default=10046, help="THe port where OpenSMTPD listens for local email to be delivered")
+    grp_network.add_argument("--remote-relay-ip", dest="remote_relay_ip", default="127.0.0.1",
+                             help="The OpenSMTPD instance IP that accepts mail for relay to external domains.")
+    grp_network.add_argument("--remote-relay-port", dest="remote_relay_port", default="127.0.0.1",
+                             help="The port where OpenSMTPD listens for mail to relay.")
 
     grp_django = parser.add_argument_group("Django options")
     grp_django.add_argument("--settings", dest="django_settings", default="authserver.settings",
