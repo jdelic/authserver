@@ -29,3 +29,6 @@ jobs:
             trigger: true
           - task: gopythongo
             file: authserver/.ci/concourse/gopythongo.yaml
+            params:
+                APTLY_PUBLISH_ENDPOINT: s3:maurusnet:nightly/stretch
+                APTLY_DISTRIBUTION: mn-nightly

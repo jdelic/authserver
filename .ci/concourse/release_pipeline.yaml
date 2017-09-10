@@ -30,3 +30,6 @@ jobs:
             trigger: true
           - task: gopythongo
             file: authserver/.ci/concourse/gopythongo.yaml
+            params:
+                APTLY_PUBLISH_ENDPOINT: s3:maurusnet:release/stretch
+                APTLY_DISTRIBUTION: mn-release

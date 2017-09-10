@@ -16,11 +16,9 @@ packer=fpm
 store=remote-aptly
 use-aptly-vault-wrapper
 repo=maurusnet
-aptly-distribution=mn-nightly
 # reference for build server
 aptly-architecture=amd64
 aptly-gpg-key=DDB131CF1DF6A9CF8200799002CBD940A78049AF
-aptly-publish-endpoint=s3:maurusnet:nightly/stretch
 
 versioner=searchfile
 search-version-in=authserver/authserver/__init__.py
