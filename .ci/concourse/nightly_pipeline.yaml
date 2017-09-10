@@ -13,7 +13,6 @@ resources:
           uri: git@github.com:jdelic/authserver.git
           private_key: ((github.access_key))
           branch: develop
-
     - name: github-status
       type: github-status
       source:
@@ -24,23 +23,9 @@ resources:
 
 
 jobs:
-    - name: authserver-tests
+    - name: authserver-deb
       plan:
           - get: authserver
             trigger: true
-          - put: github-status
-            params:
-                state: pending
-                commit: authserver
-          - task: run-mypy
-            file: authserver/.ci/concourse/mypy.yaml
-            on_failure:
-                put: github-status
-                params:
-                    state: failure
-                    commit: authserver
-            on_success:
-                put: github-status
-                params:
-                    state: success
-                    commit: authserver
+          - task: gopythongo
+            file: authserver/.ci/concourse/gopythongo.yaml

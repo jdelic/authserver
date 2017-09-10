@@ -1,0 +1,32 @@
+resource_types:
+    - name: github-status
+      type: docker-image
+      source:
+          repository: dpb587/github-status-resource
+          tag: master
+
+
+resources:
+    - name: authserver
+      type: git
+      source:
+          uri: git@github.com:jdelic/authserver.git
+          private_key: ((github.access_key))
+          branch: master
+          tag_filter: *.*.*
+    - name: github-status
+      type: github-status
+      source:
+          access_token: ((github.access_token))
+          repository: jdelic/authserver
+          context: ci/concourse
+          branch: master
+
+
+jobs:
+    - name: authserver-deb
+      plan:
+          - get: authserver
+            trigger: true
+          - task: gopythongo
+            file: authserver/.ci/concourse/gopythongo.yaml
