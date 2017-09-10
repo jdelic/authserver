@@ -12,9 +12,9 @@ ExecStart=/usr/local/authserver/bin/envdir /etc/appconfig/mailforwarder/env \
         --input-ip $${BINDIP} \
         --input-port $${BINDPORT} \
         --local-delivery-ip $${DELIVERYIP} \
-        --local-delivery-port $${DELIVERYPORT}' \
+        --local-delivery-port $${DELIVERYPORT} \
         --remote-relay-ip $${RELAYIP} \
-        --remote-relay-port $${RELAYPORT}
+        --remote-relay-port $${RELAYPORT}'
 Restart=on-failure
 RestartSec=5s
 WorkingDirectory=/usr/local/authserver
