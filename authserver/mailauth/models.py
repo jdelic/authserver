@@ -56,7 +56,8 @@ class Domain(models.Model):
 
 class MailingList(models.Model):
     name = models.CharField("Descriptive name", max_length=255)
-    addresses = ArrayField(models.CharField(max_length=255))
+    addresses = ArrayField(models.EmailField(max_length=255))
+    new_mailfrom = models.EmailField(max_length=255, null=False, blank=True, default="")
 
     def __str__(self) -> str:
         return self.name
