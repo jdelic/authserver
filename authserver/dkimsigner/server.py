@@ -11,7 +11,7 @@ import os
 
 from types import FrameType
 from smtpd import SMTPServer
-from typing import Tuple, Sequence, Any
+from typing import Tuple, Sequence, Any, Union
 
 import dkim
 import daemon
@@ -23,16 +23,16 @@ _log = logging.getLogger(__name__)
 
 class DKIMSignerServer(SMTPServer):
     def process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: str,
-                        **kwargs: Any) -> str:
+                        **kwargs: Any) -> Union[str, None]:
         # we can't import the Domain model before Django has been initialized
         from mailauth.models import Domain
 
         mfdomain = mailfrom.split("@", 1)[1]
+        dom = None
         try:
             dom = Domain.objects.get(name=mfdomain)  # type: Domain
         except Domain.DoesNotExist:
-            _log.error("Unknown domain: %s (%s)", mfdomain, mailfrom)
-            return "430 unknown domain"
+            _log.debug("Unknown domain: %s (%s)", mfdomain, mailfrom)
         except OperationalError:
             # this is a hacky hack, but psycopg2 falls over when haproxy closes the connection on us
             _log.info("Database connection closed, Operational Error, retrying")
@@ -44,7 +44,7 @@ class DKIMSignerServer(SMTPServer):
             else:
                 return self.process_message(peer, mailfrom, rcpttos, data, retry=True, **kwargs)
 
-        if dom.dkimkey:
+        if dom is not None and dom.dkimkey:
             sig = dkim.sign(data.encode("utf-8"), dom.dkimselector.encode("utf-8"), dom.name.encode("utf-8"),
                             dom.dkimkey.replace("\r\n", "\n").encode("utf-8"))
             data = "%s%s" % (sig.decode("utf-8"), data)
