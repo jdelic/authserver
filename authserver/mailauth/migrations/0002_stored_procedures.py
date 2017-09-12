@@ -48,8 +48,14 @@ class Migration(migrations.Migration):
 
                 -- check for mailing lists (foreign keys to mailauth_mailinglist)
                 IF the_alias.forward_to_id IS NOT NULL THEN
-                    RETURN QUERY SELECT (the_alias.mailprefix || '@' || user_domain)::varchar AS primary_email;
-                    RETURN;
+                    IF resolve_to_virtmail IS TRUE THEN
+                        RETURN QUERY SELECT 'virtmail'::varchar;
+                        RETURN;
+                    ELSE
+                        RETURN QUERY SELECT unnest(addresses) FROM mailauth_mailinglist WHERE
+                                        id=the_alias.forward_to_id;
+                        RETURN;
+                    END IF;
                 END IF;
 
                 SELECT primary_alias.mailprefix || '@' || primary_domain.name INTO primary_email FROM
@@ -144,7 +150,7 @@ class Migration(migrations.Migration):
             CREATE OR REPLACE FUNCTION authserver_iterate_users()
                 RETURNS TABLE (userid varchar) AS $$
             BEGIN
-                RETURN QUERY SELECT "alias".mailprefix || '@' || "domain".name AS userid FROM
+                RETURN QUERY SELECT ("alias".mailprefix || '@' || "domain".name)::varchar AS userid FROM
                         mailauth_mnuser AS "user",
                         mailauth_domain AS "domain",
                         mailauth_emailalias AS "alias"
