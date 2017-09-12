@@ -65,8 +65,8 @@ class ForwarderServer(SMTPServer):
                 del new_rcpttos[ix]  # remove this recipient from the list
                 with smtplib.SMTP(_args.remote_relay_ip, _args.remote_relay_port) as smtp:  # type: ignore
                     _newmf = mailfrom
-                    if alias.new_mailfrom != "":
-                        _newmf = alias.new_mailfrom
+                    if alias.forward_to.new_mailfrom != "":
+                        _newmf = alias.forward_to.new_mailfrom
                     smtp.sendmail(_newmf, alias.forward_to.addresses, data)
 
         # if there are any remaining non-list recipients, we inject them back to OpenSMTPD here
