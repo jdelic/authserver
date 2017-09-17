@@ -28,7 +28,7 @@ python-daemon==2.1.2
 dj-database-url==0.4.2
 dj-email-url==0.0.10
 django-cache-url==2.0.0
-six==1.10.0
+six==1.11.0
 
 # pytz is consciously unpinned, I trust this collection of timezones to not fuck up
 pytz
