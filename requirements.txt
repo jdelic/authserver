@@ -18,7 +18,7 @@ python-consul==0.7.2
 requests==2.18.4
 sqlparse==0.2.3
 typing==3.6.2
-whitenoise==3.3.0
+whitenoise==3.3.1
 
 # DKIM filter dependencies
 mn-dkimpy==0.6.1.dev1
