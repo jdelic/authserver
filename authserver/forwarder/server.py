@@ -24,12 +24,37 @@ class ForwarderServer(SMTPServer):
     def process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: str,
                         **kwargs: Any) -> Union[str, None]:
         # we can't import the Domain model before Django has been initialized
-        from mailauth.models import EmailAlias
+        from mailauth.models import EmailAlias, Domain
 
         new_rcpttos = list(rcpttos)  # ensure that new_rcpttos is a mutable list
         for ix, rcptto in enumerate(list(new_rcpttos)):  # we're going to modify new_rcpttos so we operate on a copy
             rcptto = rcptto.lower()
             rcptuser, rcptdomain = rcptto.split("@", 1)
+
+            # implement domain catch-all redirect
+            domain = None
+            try:
+                domain = Domain.objects.get(name=rcptdomain)  # type: Domain
+            except Domain.DoesNotExist:
+                pass
+            except OperationalError:
+                # this is a hacky hack, but psycopg2 falls over when haproxy closes the connection on us
+                _log.info("Database connection closed, Operational Error, retrying")
+                from django.db import connection
+                connection.close()
+                if "retry" in kwargs:
+                    _log.error("Database unavailable.")
+                    return "421 Processing problem. Please try again later."
+                else:
+                    return self.process_message(peer, mailfrom, new_rcpttos, data, retry=True, **kwargs)
+
+            if domain:
+                if domain.redirect_to:
+                    del new_rcpttos[ix]
+                    rcptto = "%s@%s" % (rcptuser, domain.redirect_to)
+                    with smtplib.SMTP(_args.remote_relay_ip, _args.remote_relay_port) as smtp:  # type: ignore
+                        smtp.sendmail(mailfrom, rcptto, data)
+                    continue
 
             # follow the same path like the stored procedure authserver_resolve_alias(...)
             if "-" in rcptuser:

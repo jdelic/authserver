@@ -49,6 +49,8 @@ class Domain(models.Model):
     dkimselector = models.CharField(verbose_name="DKIM DNS selector", max_length=255, null=False, blank=True,
                                     default="default")
     dkimkey = models.TextField(verbose_name="DKIM private key (PEM)", blank=True)
+    redirect_to = models.CharField(verbose_name="Redirect all mail to domain", max_length=255, null=False, blank=True,
+                                   default="")
 
     def __str__(self) -> str:
         return self.name
