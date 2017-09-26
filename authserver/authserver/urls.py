@@ -30,4 +30,7 @@ urlpatterns = [
 
     # Docker auth
     url(r'^docker/token/$', docker_views.DockerAuthView.as_view()),
+
+    # debug
+    url(r'^debug/error/$', base_views.test_error),
 ]
