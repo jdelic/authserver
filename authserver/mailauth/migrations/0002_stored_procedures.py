@@ -23,6 +23,7 @@ class Migration(migrations.Migration):
                 user_domain varchar;
                 primary_email varchar;
                 the_alias record;
+                the_domain record;
             BEGIN
                 SELECT split_part(email, '@', 1) INTO user_mailprefix;
                 SELECT split_part(email, '@', 2) INTO user_domain;
@@ -36,6 +37,21 @@ class Migration(migrations.Migration):
                 -- handle plusext by cutting it and querying aliases
                 IF position('+' in user_mailprefix) > 0 THEN
                     user_mailprefix := split_part(user_mailprefix, '+', 1);
+                END IF;
+
+                SELECT domain.* INTO the_domain FROM
+                        mailauth_domain AS "domain"
+                    WHERE
+                        "domain".name=user_domain;
+
+                IF the_domain.redirect_to IS NOT NULL THEN
+                    IF resolve_to_virtmail IS TRUE THEN
+                        RETURN QUERY SELECT 'virtmail'::varchar;
+                        RETURN;
+                    ELSE
+                        RETURN QUERY SELECT ('@' || the_domain.name)::varchar;
+                        RETURN;
+                    END IF;
                 END IF;
 
                 SELECT alias.* INTO the_alias FROM
@@ -158,6 +174,10 @@ class Migration(migrations.Migration):
                         "alias".id="user".delivery_mailbox_id AND
                         "domain".id="alias".domain_id AND
                         "user".is_active=TRUE;
+                RETURN QUERY SELECT ('@' || "domain".name)::varchar AS userid FROM
+                        mailauth_domain AS "domain"
+                    WHERE
+                        "domain".redirect_to<>'';
                 RETURN;
             END;
             $$ LANGUAGE plpgsql SECURITY DEFINER;
