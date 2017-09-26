@@ -112,7 +112,7 @@ def _sigint_handler(sig: int, frame: FrameType) -> None:
     sys.exit(1)
 
 
-def main() -> None:
+def _main() -> None:
     signal.signal(signal.SIGINT, _sigint_handler)
 
     global _args
@@ -162,6 +162,7 @@ def main() -> None:
 
     django.setup()
 
+    _log.info("Forwarding Alias Service starting")
     _log.info("Django ORM initialized")
 
     pidfile = open(_args.pidfile, "w")
@@ -182,9 +183,13 @@ def main() -> None:
         run()
 
 
+def main() -> None:
+    try:
+        _main()
+    except Exception as e:
+        _log.fatal("Unhandled exception", exc_info=True)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    import weakref
-    logging._handlers = weakref.WeakValueDictionary()  # type: ignore
-    logging.basicConfig(level=logging.DEBUG)
-    _log.info("Forwarding Alias Service starting")
     main()

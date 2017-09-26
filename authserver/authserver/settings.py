@@ -62,10 +62,11 @@ LOGIN_REDIRECT_URL = "/"
 
 DEBUG = False  # overridden by factorise() if defined
 
-from authserver.gunicorn_conf import LOGGING
-
 import authserver.vendor.django12factor as django12factor
 globals().update(django12factor.factorise())
+
+# order is important here, because we'll overwrite LOGGING with factorise() otherwise
+from authserver.gunicorn_conf import LOGGING
 
 if DEBUG:
     SECRET_KEY = "secretsekrit"  # FOR DEBUG ONLY!

@@ -1,17 +1,42 @@
 # -* encoding: utf-8 *-
+from datetime import datetime
+
+from pythonjsonlogger import jsonlogger
+from typing import Dict, Any
+
+
+class CustomJsonFormatter(jsonlogger.JsonFormatter):
+    def add_fields(self, log_record: Dict[str, str], record: Any, message_dict: Dict[str, str]) -> None:
+        super().add_fields(log_record, record, message_dict)
+        if not log_record.get('timestamp'):
+            # this doesn't use record.created, so it is slightly off
+            now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            log_record['timestamp'] = now
+        if log_record.get('level'):
+            log_record['level'] = log_record['level'].upper()
+        else:
+            log_record['level'] = record.levelname
+
+        if 'exc_info' in log_record and 'exception' not in log_record:
+            log_record['exception'] = log_record['exc_info'].split("\n")
+            del log_record['exc_info']
+
 
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
         "simple": {
-            "format": "%(asctime)s %(levelname)s %(message)s"
+            "format": "%(asctime)s %(levelname)s %(message)s",
         },
+        "json": {
+            '()': 'authserver.gunicorn_conf.CustomJsonFormatter',
+        }
     },
     "handlers": {
         "application_logs": {
             "level": "DEBUG",
-            "formatter": "simple",
+            "formatter": "json",
             "class": 'logging.StreamHandler',
             "stream": 'ext://sys.stderr',
         },
