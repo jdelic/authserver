@@ -21,7 +21,7 @@ _log = logging.getLogger(__name__)
 
 
 class ForwarderServer(SMTPServer):
-    def process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: str,
+    def process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes,
                         **kwargs: Any) -> Union[str, None]:
         # we can't import the Domain model before Django has been initialized
         from mailauth.models import EmailAlias, Domain
@@ -103,7 +103,7 @@ class ForwarderServer(SMTPServer):
 
 
 def run() -> None:
-    server = ForwarderServer((_args.input_ip, _args.input_port), None)
+    server = ForwarderServer((_args.input_ip, _args.input_port), None, decode_data=False)
     asyncore.loop()
 
 
