@@ -67,6 +67,7 @@ class DKIMSignerServer(SMTPServer):
         # handle exceptions through asyncore. Using this implementation will make it go
         # through logging and the JSON wrapper
         _log.exception("Unexpected error")
+        self.handle_close()
 
 
 def run() -> None:
