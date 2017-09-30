@@ -3,11 +3,19 @@ maurus.networks Authentication server
 
 This is a Python Django based server application that provides single sign-on
 services for my own setup. It has OAuth2 endpoints and for applications
-that don't support any of these a SQL stored procedure database abstraction.
+that don't support any of these: a SQL stored procedure database abstraction.
 
 As a second application it provides *dkimsigner*, a daemon that speaks SMTP and
 receives mail, then forwards it to another SMTP port after signing it with a
 DKIM key from its database.
+
+The third included application is *mailforwarder*. As OpenSMTPD 6.x does not
+offer a stable filter API and `my OpenSMTPD setup`__ already `relies on
+<opensmtpd_spapi>`__ the "stored procedure API", *mailforwarder* provides
+a daemon speaking SMTP that resolves domains and email-addresses in
+*authserver's* database and can then forward email to one-or-more other
+email addresses. Basically a `.forward` or `.qmail` implementation based on
+authserver's database schema as a Python daemon.
 
 It also provides Django ``manage.py`` commands for registering OAuth2
 applications. Those are useful for creating configuration entries through
@@ -217,3 +225,7 @@ licensed unser The MIT License (MIT) Copyright (c) 2013-2017 Kristian Glass.
 
 
 .. _dockerauth: https://docs.docker.com/registry/spec/auth/token/
+.. _my OpenSMTPD setup: 
+   https://github.com/jdelic/saltshaker/blob/master/srv/salt/opensmtpd/smtpd.jinja.conf
+.. _opensmtpd_spapi: 
+   https://github.com/jdelic/saltshaker/blob/master/srv/salt/opensmtpd/postgresql.table.jinja.conf
