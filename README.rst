@@ -199,6 +199,9 @@ and create a cross-signature configuration for the other CA using the
 
 .. code-block:: shell
 
+    export REPO=maurusnet
+    export APTLY_DISTRIBUTION=mn-nightly
+    export APTLY_PUBLISH_ENDPOINT=s3:maurusnet:nightly/stretch
     export VGC_VAULT_PKI=casserver-ca/issue/build
     export VGC_XSIGN_CACERT=postgresql.crt=/etc/concourse/cacerts/env-dev-ca.crt,vault.crt=/etc/concourse/cacerts/cas-ca.crt
     export VAULTWRAPPER_READ_PATH=secret/gpg/packaging_passphrase
