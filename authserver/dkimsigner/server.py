@@ -22,7 +22,7 @@ _log = logging.getLogger(__name__)
 
 
 class DKIMSignerServer(SMTPServer):
-    def process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: str,
+    def process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes,
                         **kwargs: Any) -> Union[str, None]:
         # we can't import the Domain model before Django has been initialized
         from mailauth.models import Domain
@@ -45,10 +45,16 @@ class DKIMSignerServer(SMTPServer):
                 return self.process_message(peer, mailfrom, rcpttos, data, retry=True, **kwargs)
 
         if dom is not None and dom.dkimkey:
-            sig = dkim.sign(data.encode("utf-8"), dom.dkimselector.encode("utf-8"), dom.name.encode("utf-8"),
+            sig = dkim.sign(data, dom.dkimselector.encode("utf-8"), dom.name.encode("utf-8"),
                             dom.dkimkey.replace("\r\n", "\n").encode("utf-8"))
-            data = "%s%s" % (sig.decode("utf-8"), data)
-            _log.debug("Signed output:\n%s", data)
+            data = b"%s%s" % (sig, data)
+            try:
+                logstr = data.decode('utf-8')
+                enc = "utf-8"
+            except UnicodeDecodeError:
+                logstr = data.decode('latin1')
+                enc = "latin1"
+            _log.debug("Signed output (%s):\n%s", enc, logstr)
 
         # now send the mail back to be processed
         with smtplib.SMTP(_args.output_ip, _args.output_port) as smtp:  # type: ignore
@@ -58,7 +64,7 @@ class DKIMSignerServer(SMTPServer):
 
 
 def run() -> None:
-    server = DKIMSignerServer((_args.input_ip, _args.input_port), None)
+    server = DKIMSignerServer((_args.input_ip, _args.input_port), None, decode_data=False)
     asyncore.loop()
 
 
