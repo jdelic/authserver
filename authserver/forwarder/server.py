@@ -32,9 +32,9 @@ class ForwarderServer(SMTPServer):
             rcptuser, rcptdomain = rcptto.split("@", 1)
 
             # implement domain catch-all redirect
-            domain = None
+            domain = None  # type: Domain
             try:
-                domain = Domain.objects.get(name=rcptdomain)  # type: Domain
+                domain = Domain.objects.get(name=rcptdomain)
             except Domain.DoesNotExist:
                 pass
             except OperationalError:
@@ -53,6 +53,7 @@ class ForwarderServer(SMTPServer):
                     del new_rcpttos[ix]
                     rcptto = "%s@%s" % (rcptuser, domain.redirect_to)
                     with smtplib.SMTP(_args.remote_relay_ip, _args.remote_relay_port) as smtp:  # type: ignore
+                        _log.info("Forwarding email from <%s> to domain @%s", mailfrom, domain.redirect_to)
                         smtp.sendmail(mailfrom, rcptto, data)
                     continue
 
@@ -86,17 +87,18 @@ class ForwarderServer(SMTPServer):
 
             if alias.forward_to is not None:
                 # it's a mailing list, forward the email to all connected addresses
-                _log.info("Forwarding email from '%s' to '%s'", mailfrom, ', '.join(alias.forward_to.addresses))
                 del new_rcpttos[ix]  # remove this recipient from the list
                 with smtplib.SMTP(_args.remote_relay_ip, _args.remote_relay_port) as smtp:  # type: ignore
                     _newmf = mailfrom
                     if alias.forward_to.new_mailfrom != "":
                         _newmf = alias.forward_to.new_mailfrom
+                    _log.info("Forwarding email from <%s> with new sender <%s> to <%s>", mailfrom, _newmf, new_rcpttos)
                     smtp.sendmail(_newmf, alias.forward_to.addresses, data)
 
         # if there are any remaining non-list recipients, we inject them back to OpenSMTPD here
         if len(new_rcpttos) > 0:
             with smtplib.SMTP(_args.local_delivery_ip, _args.local_delivery_port) as smtp:  # type: ignore
+                _log.info("Forwarding email from <%s> to <%s>", mailfrom, new_rcpttos)
                 smtp.sendmail(mailfrom, new_rcpttos, data)
 
         return None

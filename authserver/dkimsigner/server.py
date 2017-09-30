@@ -58,6 +58,7 @@ class DKIMSignerServer(SMTPServer):
 
         # now send the mail back to be processed
         with smtplib.SMTP(_args.output_ip, _args.output_port) as smtp:  # type: ignore
+            _log.info("Sending DKIM signed email from <%s> to <%s>", mailfrom, rcpttos)
             smtp.sendmail(mailfrom, rcpttos, data)
 
         return None
