@@ -10,11 +10,11 @@ receives mail, then forwards it to another SMTP port after signing it with a
 DKIM key from its database.
 
 The third included application is *mailforwarder*. As OpenSMTPD 6.x does not
-offer a stable filter API and `my OpenSMTPD setup`__ already `relies on
-<opensmtpd_spapi>`__ the "stored procedure API", *mailforwarder* provides
+offer a stable filter API and `my OpenSMTPD setup`_ already `relies on
+<opensmtpd_spapi_>`__ the "stored procedure API", *mailforwarder* provides
 a daemon speaking SMTP that resolves domains and email-addresses in
 *authserver's* database and can then forward email to one-or-more other
-email addresses. Basically a `.forward` or `.qmail` implementation based on
+email addresses. Basically a ``.forward`` or ``.qmail`` implementation based on
 authserver's database schema as a Python daemon.
 
 It also provides Django ``manage.py`` commands for registering OAuth2
