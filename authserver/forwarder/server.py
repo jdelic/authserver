@@ -43,7 +43,7 @@ class ForwarderServer(SMTPServer):
                 from django.db import connection
                 connection.close()
                 if "retry" in kwargs:
-                    _log.error("Database unavailable.")
+                    _log.exception("Database unavailable.")
                     return "421 Processing problem. Please try again later."
                 else:
                     return self.process_message(peer, mailfrom, new_rcpttos, data, retry=True, **kwargs)
@@ -79,7 +79,7 @@ class ForwarderServer(SMTPServer):
                 from django.db import connection
                 connection.close()
                 if "retry" in kwargs:
-                    _log.error("Database unavailable.")
+                    _log.exception("Database unavailable.")
                     return "421 Processing problem. Please try again later."
                 else:
                     return self.process_message(peer, mailfrom, new_rcpttos, data, retry=True, **kwargs)
@@ -100,6 +100,11 @@ class ForwarderServer(SMTPServer):
                 smtp.sendmail(mailfrom, new_rcpttos, data)
 
         return None
+
+    def handle_error(self) -> None:
+        # handle exceptions through asyncore. Using this implementation will make it go
+        # through logging and the JSON wrapper
+        _log.exception("Unexpected error")
 
 
 def run() -> None:
