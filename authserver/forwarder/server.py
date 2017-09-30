@@ -21,13 +21,17 @@ _log = logging.getLogger(__name__)
 
 
 class ForwarderServer(SMTPServer):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
     def process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes,
                         **kwargs: Any) -> Union[str, None]:
         # we can't import the Domain model before Django has been initialized
         from mailauth.models import EmailAlias, Domain
 
-        new_rcpttos = list(rcpttos)  # ensure that new_rcpttos is a mutable list
-        for ix, rcptto in enumerate(list(new_rcpttos)):  # we're going to modify new_rcpttos so we operate on a copy
+        remaining_rcpttos = list(rcpttos)  # ensure that new_rcpttos is a mutable list
+        # we're going to modify new_rcpttos so we operate on a copy
+        for ix, rcptto in enumerate(list(remaining_rcpttos)):
             rcptto = rcptto.lower()
             rcptuser, rcptdomain = rcptto.split("@", 1)
 
@@ -42,19 +46,23 @@ class ForwarderServer(SMTPServer):
                 _log.info("Database connection closed, Operational Error, retrying")
                 from django.db import connection
                 connection.close()
-                if "retry" in kwargs:
-                    _log.exception("Database unavailable.")
+                if "retry" in kwargs and kwargs["retry"]:
+                    _log.exception("(Retry) Database unavailable.")
                     return "421 Processing problem. Please try again later."
                 else:
-                    return self.process_message(peer, mailfrom, new_rcpttos, data, retry=True, **kwargs)
+                    # any already-processed rcptto will have been removed from the array. We retry all other ones.
+                    return self.process_message(peer, mailfrom, remaining_rcpttos, data, retry=True, **kwargs)
 
             if domain:
                 if domain.redirect_to:
-                    del new_rcpttos[ix]
-                    rcptto = "%s@%s" % (rcptuser, domain.redirect_to)
+                    _log.debug("ix: %s - rcptto: %s - remaining rcpttos: %s", ix, rcptto, remaining_rcpttos)
+                    del remaining_rcpttos[ix]
+                    new_rcptto = "%s@%s" % (rcptuser, domain.redirect_to)
                     with smtplib.SMTP(_args.remote_relay_ip, _args.remote_relay_port) as smtp:  # type: ignore
-                        _log.info("Forwarding email from <%s> to domain @%s", mailfrom, domain.redirect_to)
-                        smtp.sendmail(mailfrom, rcptto, data)
+                        _log.info("%sForwarding email from <%s> to <%s> to domain @%s",
+                                  "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
+                                  mailfrom, rcptto, domain.redirect_to)
+                        smtp.sendmail(mailfrom, new_rcptto, data)
                     continue
 
             # follow the same path like the stored procedure authserver_resolve_alias(...)
@@ -72,35 +80,43 @@ class ForwarderServer(SMTPServer):
                                                domain__name__iexact=rcptdomain)  # type: EmailAlias
             except EmailAlias.DoesNotExist:
                 # OpenSMTPD shouldn't even call us for invalid addresses if we're configured correctly
-                _log.error("Unknown mail address: %s (from: %s, prefix: %s)", rcptto, mailfrom, user_mailprefix)
+                _log.error("%sUnknown mail address: %s (from: %s, prefix: %s)",
+                           "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
+                           rcptto, mailfrom, user_mailprefix)
                 continue
             except OperationalError:
                 # this is a hacky hack, but psycopg2 falls over when haproxy closes the connection on us
                 _log.info("Database connection closed, Operational Error, retrying")
                 from django.db import connection
                 connection.close()
-                if "retry" in kwargs:
-                    _log.exception("Database unavailable.")
+                if "retry" in kwargs and kwargs["retry"]:
+                    _log.exception("(Retry) Database unavailable.")
                     return "421 Processing problem. Please try again later."
                 else:
-                    return self.process_message(peer, mailfrom, new_rcpttos, data, retry=True, **kwargs)
+                    # any already-processed rcptto will have been removed from the array. We retry all other ones.
+                    return self.process_message(peer, mailfrom, remaining_rcpttos, data, retry=True, **kwargs)
 
             if alias.forward_to is not None:
                 # it's a mailing list, forward the email to all connected addresses
-                del new_rcpttos[ix]  # remove this recipient from the list
+                del remaining_rcpttos[ix]  # remove this recipient from the list
                 with smtplib.SMTP(_args.remote_relay_ip, _args.remote_relay_port) as smtp:  # type: ignore
                     _newmf = mailfrom
                     if alias.forward_to.new_mailfrom != "":
                         _newmf = alias.forward_to.new_mailfrom
-                    _log.info("Forwarding email from <%s> with new sender <%s> to <%s>", mailfrom, _newmf, new_rcpttos)
+                    _log.info("%sForwarding email from <%s> with new sender <%s> to <%s>",
+                              "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
+                              mailfrom, _newmf, alias.forward_to.addresses)
                     smtp.sendmail(_newmf, alias.forward_to.addresses, data)
 
-        # if there are any remaining non-list recipients, we inject them back to OpenSMTPD here
-        if len(new_rcpttos) > 0:
+        # if there are any remaining non-list/non-forward recipients, we inject them back to OpenSMTPD here
+        if len(remaining_rcpttos) > 0:
             with smtplib.SMTP(_args.local_delivery_ip, _args.local_delivery_port) as smtp:  # type: ignore
-                _log.info("Forwarding email from <%s> to <%s>", mailfrom, new_rcpttos)
-                smtp.sendmail(mailfrom, new_rcpttos, data)
+                _log.info("%sReinjecting email from <%s> to remaining recipients <%s>",
+                          "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
+                          mailfrom, remaining_rcpttos)
+                smtp.sendmail(mailfrom, remaining_rcpttos, data)
 
+        _log.debug("Done processing.")
         return None
 
     def handle_error(self) -> None:
