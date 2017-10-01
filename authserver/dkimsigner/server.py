@@ -10,7 +10,7 @@ import sys
 import os
 
 from types import FrameType
-from smtpd import SMTPServer
+from smtpd import SMTPServer, SMTPChannel
 from typing import Tuple, Sequence, Any, Union
 
 import dkim
@@ -21,7 +21,17 @@ _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
 
 
+class DKIMSignerSMTPChannel(SMTPChannel):
+    def handle_error(self) -> None:
+        # handle exceptions through asyncore. Using this implementation will make it go
+        # through logging and the JSON wrapper
+        _log.exception("Unexpected error")
+        self.handle_close()
+
+
 class DKIMSignerServer(SMTPServer):
+    channel_class = DKIMSignerSMTPChannel
+
     def process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes,
                         **kwargs: Any) -> Union[str, None]:
         # we can't import the Domain model before Django has been initialized
@@ -58,6 +68,7 @@ class DKIMSignerServer(SMTPServer):
 
         # now send the mail back to be processed
         with smtplib.SMTP(_args.output_ip, _args.output_port) as smtp:  # type: ignore
+            _log.info("Sending DKIM signed email from <%s> to <%s>", mailfrom, rcpttos)
             smtp.sendmail(mailfrom, rcpttos, data)
 
         return None
@@ -66,6 +77,7 @@ class DKIMSignerServer(SMTPServer):
         # handle exceptions through asyncore. Using this implementation will make it go
         # through logging and the JSON wrapper
         _log.exception("Unexpected error")
+        self.handle_close()
 
 
 def run() -> None:
