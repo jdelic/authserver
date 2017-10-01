@@ -12,6 +12,7 @@ import os
 from types import FrameType
 from smtpd import SMTPServer, SMTPChannel
 from typing import Tuple, Sequence, Any, Union
+from concurrent.futures import ThreadPoolExecutor as Pool
 
 import dkim
 import daemon
@@ -19,6 +20,7 @@ from django.db.utils import OperationalError
 
 _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
+pool = None  # type: Pool
 
 
 class DKIMSignerSMTPChannel(SMTPChannel):
@@ -32,8 +34,10 @@ class DKIMSignerSMTPChannel(SMTPChannel):
 class DKIMSignerServer(SMTPServer):
     channel_class = DKIMSignerSMTPChannel
 
-    def process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes,
-                        **kwargs: Any) -> Union[str, None]:
+    # ** must be thread-safe, don't modify shared state,
+    # _log should be thread-safe as stated by the docs. Django ORM should be as well.
+    def _process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes,
+                         **kwargs: Any) -> Union[str, None]:
         # we can't import the Domain model before Django has been initialized
         from mailauth.models import Domain
 
@@ -73,6 +77,10 @@ class DKIMSignerServer(SMTPServer):
 
         return None
 
+    def process_message(self, *args, **kwargs):
+        future = pool.submit(DKIMSignerServer._process_message, *args, **kwargs)
+        return future.result()
+
     def handle_error(self) -> None:
         # handle exceptions through asyncore. Using this implementation will make it go
         # through logging and the JSON wrapper
@@ -81,12 +89,15 @@ class DKIMSignerServer(SMTPServer):
 
 
 def run() -> None:
+    global pool
     server = DKIMSignerServer((_args.input_ip, _args.input_port), None, decode_data=False)
+    pool = Pool()
     asyncore.loop()
 
 
 def _sigint_handler(sig: int, frame: FrameType) -> None:
     print("CTRL+C exiting")
+    pool.shutdown(wait=False)
     sys.exit(1)
 
 
