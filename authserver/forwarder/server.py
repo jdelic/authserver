@@ -12,12 +12,14 @@ import os
 from types import FrameType
 from smtpd import SMTPServer, SMTPChannel
 from typing import Tuple, Sequence, Any, Union
+from concurrent.futures import ThreadPoolExecutor as Pool
 
 import daemon
 from django.db.utils import OperationalError
 
 _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
+pool = None  # type: Pool
 
 
 class ForwarderSMTPChannel(SMTPChannel):
@@ -34,8 +36,10 @@ class ForwarderServer(SMTPServer):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes,
-                        **kwargs: Any) -> Union[str, None]:
+    # ** must be thread-safe, don't modify shared state,
+    # _log should be thread-safe as stated by the docs. Django ORM should be as well.
+    def _process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes,
+                         **kwargs: Any) -> Union[str, None]:
         # we can't import the Domain model before Django has been initialized
         from mailauth.models import EmailAlias, Domain
 
@@ -129,14 +133,21 @@ class ForwarderServer(SMTPServer):
         _log.debug("Done processing.")
         return None
 
+    def process_message(self, *args: Any, **kwargs: Any) -> Union[str, None]:
+        future = pool.submit(ForwarderServer._process_message, self, *args, **kwargs)
+        return future.result()
+
 
 def run() -> None:
+    global pool
+    pool = Pool()
     server = ForwarderServer((_args.input_ip, _args.input_port), None, decode_data=False)
     asyncore.loop()
 
 
 def _sigint_handler(sig: int, frame: FrameType) -> None:
     print("CTRL+C exiting")
+    pool.shutdown(wait=False)
     sys.exit(1)
 
 
