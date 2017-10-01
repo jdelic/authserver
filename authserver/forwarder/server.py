@@ -40,9 +40,9 @@ class ForwarderServer(SMTPServer):
         from mailauth.models import EmailAlias, Domain
 
         remaining_rcpttos = list(rcpttos)  # ensure that new_rcpttos is a mutable list
-        # we're going to modify new_rcpttos so we operate on a copy
-        for ix, rcptto in enumerate(list(remaining_rcpttos)):
-            rcptto = rcptto.lower()
+        # we're going to modify remaining_rcpttos so we start from its end
+        for ix in range(len(remaining_rcpttos) - 1, -1, -1):
+            rcptto = rcpttos[ix].lower()
             rcptuser, rcptdomain = rcptto.split("@", 1)
 
             # implement domain catch-all redirect
