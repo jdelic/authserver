@@ -10,7 +10,7 @@ import sys
 import os
 
 from types import FrameType
-from smtpd import SMTPServer
+from smtpd import SMTPServer, SMTPChannel
 from typing import Tuple, Sequence, Any, Union
 
 import daemon
@@ -20,7 +20,17 @@ _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
 
 
+class ForwarderSMTPChannel(SMTPChannel):
+    def handle_error(self) -> None:
+        # handle exceptions through asyncore. Using this implementation will make it go
+        # through logging and the JSON wrapper
+        _log.exception("Unexpected error")
+        self.handle_close()
+
+
 class ForwarderServer(SMTPServer):
+    channel_class = ForwarderSMTPChannel
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -118,12 +128,6 @@ class ForwarderServer(SMTPServer):
 
         _log.debug("Done processing.")
         return None
-
-    def handle_error(self) -> None:
-        # handle exceptions through asyncore. Using this implementation will make it go
-        # through logging and the JSON wrapper
-        _log.exception("Unexpected error")
-        self.handle_close()
 
 
 def run() -> None:
