@@ -8,10 +8,10 @@ from typing import Dict, Any
 class CustomJsonFormatter(jsonlogger.JsonFormatter):
     def add_fields(self, log_record: Dict[str, str], record: Any, message_dict: Dict[str, str]) -> None:
         super().add_fields(log_record, record, message_dict)
-        if not log_record.get('timestamp'):
+        if not log_record.get('appts'):
             # this doesn't use record.created, so it is slightly off
             now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-            log_record['timestamp'] = now
+            log_record['appts'] = now
         if log_record.get('level'):
             log_record['level'] = log_record['level'].upper()
         else:
@@ -31,6 +31,7 @@ LOGGING = {
         },
         "json": {
             '()': 'authserver.gunicorn_conf.CustomJsonFormatter',
+            'prefix': '@cee: ',
         }
     },
     "handlers": {
