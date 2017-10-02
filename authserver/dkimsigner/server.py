@@ -78,7 +78,7 @@ class DKIMSignerServer(SMTPServer):
         return None
 
     def process_message(self, *args, **kwargs):
-        future = pool.submit(DKIMSignerServer._process_message, *args, **kwargs)
+        future = pool.submit(DKIMSignerServer._process_message, self, *args, **kwargs)
         return future.result()
 
     def handle_error(self) -> None:
