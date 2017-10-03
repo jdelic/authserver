@@ -181,8 +181,8 @@ There are multiple ways to authenticate user accounts against this program.
 Offered APIs include OAuth2, CAS and a "if nothing else works" abstraction
 layer for direct user database access based on stored procedures.
 
-Stored Procdure API
--------------------
+Stored Procedure API
+--------------------
 Since some applications (like OpenSMTPD and Dovecot) which are used by
 `my saltshaker <jdelics_saltshaker_>`__  need lowest common denominator
 authentication, authserver includes a pgplsql stored procedure API tailored to
