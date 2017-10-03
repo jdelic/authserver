@@ -64,13 +64,13 @@ Run ``django-admin.py`` like this:
         --settings=authserver.settings``
 
 
-Environment configuration
--------------------------
+12factor Environment configuration
+----------------------------------
 
 Managed configuration
 +++++++++++++++++++++
-These configuration values in the appconfig folder must be provided manually
-(or through configuration management).
+These environment variables must be placed in the appconfig folder manually (or
+through configuration management).
 
 ====================  ========================================================
 Variable              Description
@@ -116,8 +116,9 @@ Building
 
 Build configuration
 -------------------
-This configuration is generated during build time using
-`GoPythonGo tools <gopythongo_>`__.
+These entries in the appconfig folder are generated during build time using
+`GoPythonGo tools <gopythongo_>`__ and are then meant to be shipped with the
+application.
 
 ==============  ==============================================================
 Variable        Description
@@ -177,6 +178,7 @@ and create a cross-signature configuration for the other CA using the
 
 Access methods
 ==============
+
 There are multiple ways to authenticate user accounts against this program.
 Offered APIs include OAuth2, CAS and a "if nothing else works" abstraction
 layer for direct user database access based on stored procedures.
