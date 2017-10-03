@@ -47,7 +47,6 @@ but you can install from this repository.
 
 APPCONFIG FOLDER
 ----------------
-
 This application uses `12factor <12factor_>`__ and in its systemd configuration
 loads its configuration from a `appconfig folder <appconfig_>`__.
 
@@ -68,31 +67,10 @@ Run ``django-admin.py`` like this:
 Environment configuration
 -------------------------
 
-Build configuration
-+++++++++++++++++++
-
-This configuration is generated during build time using
-`GoPythonGo tools <gopythongo_>`__.
-
-==============  ==============================================================
-Variable        Description
-==============  ==============================================================
-VAULT_SSLCERT   The client certificate to be used to connect to Vault to
-                retrieve database credentials.
-VAULT_SSLKEY    The client key to be used to connect to Vault to retrieve
-                database credentials.
-SECRET_KEY      The Django settings.SECRET_KEY value to be used.
-DB_SSLCERT      An alternative way for connecting to the database. If Vault
-                isn't used to manage database access, this can be set to a
-                SSL client certificate to authenticate with the database.
-DB_SSLKEY       The private key for ``DB_SSLCERT``.
-==============  ==============================================================
-
 Managed configuration
 +++++++++++++++++++++
-
 These configuration values in the appconfig folder must be provided manually
-(or through comfiguration management).
+(or through configuration management).
 
 ====================  ========================================================
 Variable              Description
@@ -118,7 +96,6 @@ DATABASE_URL          When client SSL certificates or usernames and passwords
 
 Smartstack services
 -------------------
-
 This application relies on the following smartstack services being available
 on localhost:
 
@@ -134,15 +111,78 @@ Smartstack registration and loadbalancing
 -----------------------------------------
 
 
-Access methods
---------------
+Building
+========
 
+Build configuration
+-------------------
+This configuration is generated during build time using
+`GoPythonGo tools <gopythongo_>`__.
+
+==============  ==============================================================
+Variable        Description
+==============  ==============================================================
+VAULT_SSLCERT   The client certificate to be used to connect to Vault to
+                retrieve database credentials.
+VAULT_SSLKEY    The client key to be used to connect to Vault to retrieve
+                database credentials.
+SECRET_KEY      The Django settings.SECRET_KEY value to be used.
+DB_SSLCERT      An alternative way for connecting to the database. If Vault
+                isn't used to manage database access, this can be set to a
+                SSL client certificate to authenticate with the database.
+DB_SSLKEY       The private key for ``DB_SSLCERT``.
+==============  ==============================================================
+
+The ``vaultgetcert`` configurations in ``.gopythongo`` refer to the following
+certificate + CA chain bundles. If you're building for an environment that
+uses `Certified Build <certified_builds_>`__ then ``VGC_XSIGN_CACERT`` should
+contain the following bundles:
+
+==============  ==============================================================
+Certificate
+==============  ==============================================================
+vault.crt       The CA chain used to access Vault for database credentials (if
+                used)
+postgresql.crt  The CA chain used to access PostgreSQL with a client 
+                certificate (if used)
+==============  ==============================================================
+
+
+Build script
+------------
+This application is meant to be built using `GoPythonGo <gopythongo_>`__ using
+gopythongo's ``vaultgetcert`` tool to create a number of SSL client
+certificates (see "Environment configuration" above).
+
+If you plan on deploying authserver with usernames and passwords, you can
+just comment out the ``vaultgetcert-config`` line in ``.gopythongo/config``.
+Otherwise, set up intermediate CAs for your deployment environment and the
+``authserver`` application and install one of them in Vault, as described in
+`Certified Builds <certified_builds_>`__
+and create a cross-signature configuration for the other CA using the
+``VGC_XSIGN_CACERT`` environment variable like so:
+
+.. code-block:: shell
+
+    export VGC_XSIGN_CACERT=postgresql.crt=/etc/concourse/cacerts/env-dev-ca.crt,vault.crt=/etc/concourse/cacerts/cas-ca.crt
+    export REPO=maurusnet
+    export APTLY_DISTRIBUTION=mn-nightly
+    export APTLY_PUBLISH_ENDPOINT=s3:maurusnet:nightly/stretch
+    export VGC_VAULT_PKI=casserver-ca/issue/build
+    export VAULTWRAPPER_READ_PATH=secret/gpg/packaging_passphrase
+    export VGC_OVERWRITE=True
+    export GNUPGHOME=/etc/gpg-managed-keyring/
+    /opt/gopythongo/bin/gopythongo -v /usr/local/authserver /path/to/source
+
+
+Access methods
+==============
 There are multiple ways to authenticate user accounts against this program.
 Offered APIs include OAuth2, CAS and a "if nothing else works" abstraction
 layer for direct user database access based on stored procedures.
 
 Stored Procdure API
-+++++++++++++++++++
+-------------------
 Since some applications (like OpenSMTPD and Dovecot) which are used by
 `my saltshaker <jdelics_saltshaker_>`__  need lowest common denominator
 authentication, authserver includes a pgplsql stored procedure API tailored to
@@ -174,34 +214,6 @@ N   Function Name                        Description
 4   ``authserver_iterate_users()``       Returns a list of all valid delivery
                                          mailboxes.
 ==  ===================================  =====================================
-
-
-Building
-========
-
-This application is meant to be built using `GoPythonGo <gpythongo_>`__ using
-gopythongo's ``vaultgetcert`` tool to create a number of SSL client
-certificates (see "Environment configuration" above).
-
-If you plan on deploying authserver with usernames and passwords, you can
-just comment out the ``vaultgetcert-config`` line in ``.gopythongo/config``.
-Otherwise, set up intermediate CAs for your deployment environment and the
-``authserver`` application and install one of them in Vault, as described in
-`Certified Builds <certified_builds_>`__
-and create a cross-signature configuration for the other CA using the
-``VGC_XSIGN_CACERT`` environment variable like so:
-
-.. code-block:: shell
-
-    export VGC_XSIGN_CACERT=postgresql.crt=/etc/concourse/cacerts/env-dev-ca.crt,vault.crt=/etc/concourse/cacerts/cas-ca.crt
-    export REPO=maurusnet
-    export APTLY_DISTRIBUTION=mn-nightly
-    export APTLY_PUBLISH_ENDPOINT=s3:maurusnet:nightly/stretch
-    export VGC_VAULT_PKI=casserver-ca/issue/build
-    export VAULTWRAPPER_READ_PATH=secret/gpg/packaging_passphrase
-    export VGC_OVERWRITE=True
-    export GNUPGHOME=/etc/gpg-managed-keyring/
-    /opt/gopythongo/bin/gopythongo -v /usr/local/authserver /path/to/source
 
 
 TODO
