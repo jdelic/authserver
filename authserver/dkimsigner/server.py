@@ -58,6 +58,7 @@ class DKIMSignerServer(SMTPServer):
             else:
                 return self.process_message(peer, mailfrom, rcpttos, data, retry=True, **kwargs)
 
+        signed = False
         if dom is not None and dom.dkimkey:
             sig = dkim.sign(data, dom.dkimselector.encode("utf-8"), dom.name.encode("utf-8"),
                             dom.dkimkey.replace("\r\n", "\n").encode("utf-8"))
@@ -69,10 +70,13 @@ class DKIMSignerServer(SMTPServer):
                 logstr = data.decode('latin1')
                 enc = "latin1"
             _log.debug("Signed output (%s):\n%s", enc, logstr)
+            signed = True
 
         # now send the mail back to be processed
         with smtplib.SMTP(_args.output_ip, _args.output_port) as smtp:  # type: ignore
-            _log.info("Sending DKIM signed email from <%s> to <%s>", mailfrom, rcpttos)
+            _log.info("Relaying %semail from <%s> to <%s>",
+                      "DKIM signed " if signed else "",
+                      mailfrom, rcpttos)
             smtp.sendmail(mailfrom, rcpttos, data)
 
         return None
