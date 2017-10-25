@@ -18,6 +18,8 @@ import dkim
 import daemon
 from django.db.utils import OperationalError
 
+from maildaemons.utils import smtp_sendmail_wrapper
+
 _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
 pool = None  # type: Pool
@@ -77,7 +79,7 @@ class DKIMSignerServer(SMTPServer):
             _log.info("Relaying %semail from <%s> to <%s>",
                       "DKIM signed " if signed else "",
                       mailfrom, rcpttos)
-            smtp.sendmail(mailfrom, rcpttos, data)
+            smtp_sendmail_wrapper(smtp, mailfrom, rcpttos, data)
 
         return None
 
