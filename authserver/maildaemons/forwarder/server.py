@@ -4,7 +4,6 @@
 import argparse
 import asyncore
 import logging
-import smtplib
 import signal
 import sys
 import os
@@ -17,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor as Pool
 import daemon
 from django.db.utils import OperationalError
 
-from maildaemons.utils import smtp_sendmail_wrapper
+from maildaemons.utils import smtp_sendmail_wrapper, SMTPWrapper
 
 _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
@@ -37,6 +36,8 @@ class ForwarderServer(SMTPServer):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        self.smtp = SMTPWrapper(external_ip=_args.remote_relay_ip, external_port=_args.remote_relay_port,
+                                internal_ip=_args.local_delivery_ip, internal_port=_args.local_delivery_port)
 
     # ** must be thread-safe, don't modify shared state,
     # _log should be thread-safe as stated by the docs. Django ORM should be as well.
@@ -74,11 +75,10 @@ class ForwarderServer(SMTPServer):
                     _log.debug("ix: %s - rcptto: %s - remaining rcpttos: %s", ix, rcptto, remaining_rcpttos)
                     del remaining_rcpttos[ix]
                     new_rcptto = "%s@%s" % (rcptuser, domain.redirect_to)
-                    with smtplib.SMTP(_args.remote_relay_ip, _args.remote_relay_port) as smtp:  # type: ignore
-                        _log.info("%sForwarding email from <%s> to <%s> to domain @%s",
-                                  "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
-                                  mailfrom, rcptto, domain.redirect_to)
-                        smtp_sendmail_wrapper(smtp, mailfrom, new_rcptto, data)
+                    _log.info("%sForwarding email from <%s> to <%s> to domain @%s",
+                              "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
+                              mailfrom, rcptto, domain.redirect_to)
+                    self.smtp.sendmail(mailfrom, new_rcptto, data)
                     continue
 
             # follow the same path like the stored procedure authserver_resolve_alias(...)
@@ -115,22 +115,20 @@ class ForwarderServer(SMTPServer):
             if alias.forward_to is not None:
                 # it's a mailing list, forward the email to all connected addresses
                 del remaining_rcpttos[ix]  # remove this recipient from the list
-                with smtplib.SMTP(_args.remote_relay_ip, _args.remote_relay_port) as smtp:  # type: ignore
-                    _newmf = mailfrom
-                    if alias.forward_to.new_mailfrom != "":
-                        _newmf = alias.forward_to.new_mailfrom
-                    _log.info("%sForwarding email from <%s> with new sender <%s> to <%s>",
-                              "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
-                              mailfrom, _newmf, alias.forward_to.addresses)
-                    smtp_sendmail_wrapper(smtp, _newmf, alias.forward_to.addresses, data)
+                _newmf = mailfrom
+                if alias.forward_to.new_mailfrom != "":
+                    _newmf = alias.forward_to.new_mailfrom
+                _log.info("%sForwarding email from <%s> with new sender <%s> to <%s>",
+                          "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
+                          mailfrom, _newmf, alias.forward_to.addresses)
+                self.smtp.sendmail(_newmf, alias.forward_to.addresses, data)
 
         # if there are any remaining non-list/non-forward recipients, we inject them back to OpenSMTPD here
         if len(remaining_rcpttos) > 0:
-            with smtplib.SMTP(_args.local_delivery_ip, _args.local_delivery_port) as smtp:  # type: ignore
-                _log.info("%sReinjecting email from <%s> to remaining recipients <%s>",
-                          "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
-                          mailfrom, remaining_rcpttos)
-                smtp_sendmail_wrapper(smtp, mailfrom, remaining_rcpttos, data)
+            _log.info("%sReinjecting email from <%s> to remaining recipients <%s>",
+                      "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
+                      mailfrom, remaining_rcpttos)
+            self.smtp.sendmail(mailfrom, remaining_rcpttos, data)
 
         _log.debug("Done processing.")
         return None

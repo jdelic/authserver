@@ -18,7 +18,8 @@ import dkim
 import daemon
 from django.db.utils import OperationalError
 
-from maildaemons.utils import smtp_sendmail_wrapper
+from maildaemons.utils import SMTPWrapper
+
 
 _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
@@ -35,6 +36,10 @@ class DKIMSignerSMTPChannel(SMTPChannel):
 
 class DKIMSignerServer(SMTPServer):
     channel_class = DKIMSignerSMTPChannel
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.smtp = SMTPWrapper(external_ip=_args.output_ip, external_port=_args.output_port)
 
     # ** must be thread-safe, don't modify shared state,
     # _log should be thread-safe as stated by the docs. Django ORM should be as well.
@@ -75,12 +80,10 @@ class DKIMSignerServer(SMTPServer):
             signed = True
 
         # now send the mail back to be processed
-        with smtplib.SMTP(_args.output_ip, _args.output_port) as smtp:  # type: ignore
-            _log.info("Relaying %semail from <%s> to <%s>",
-                      "DKIM signed " if signed else "",
-                      mailfrom, rcpttos)
-            smtp_sendmail_wrapper(smtp, mailfrom, rcpttos, data)
-
+        _log.info("Relaying %semail from <%s> to <%s>",
+                  "DKIM signed " if signed else "",
+                  mailfrom, rcpttos)
+        self.smtp.sendmail(mailfrom, rcpttos, data)
         return None
 
     def process_message(self, *args, **kwargs):
