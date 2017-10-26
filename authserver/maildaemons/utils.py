@@ -56,11 +56,12 @@ class SMTPWrapper:
                 return "%s %s" % (e.smtp_code, e.smtp_error)
             except smtplib.SMTPRecipientsRefused as e:
                 _log.info("Some recipients where refused by the downstream server: %s", " ".join(e.recipients))
-                with smtplib.SMTP(self.internal_ip, self.internal_port) as smtp_r:
-                    try:
-                        smtp_r.sendmail("<>", [from_addr], self._format_denied_recipients(e.recipients))
-                    except smtplib.SMTPException as ex:
-                        _log.exception("Error while sending denied recipients reply: %s", str(ex))
+                if self.internal_ip and self.internal_port:
+                    with smtplib.SMTP(self.internal_ip, self.internal_port) as smtp_r:
+                        try:
+                            smtp_r.sendmail("<>", [from_addr], self._format_denied_recipients(e.recipients))
+                        except smtplib.SMTPException as ex:
+                            _log.exception("Error while sending denied recipients reply: %s", str(ex))
                 return None
             except smtplib.SMTPServerDisconnected as e:
                 _log.info("Downstream server unexpectedly disconnected: %s", str(e))
