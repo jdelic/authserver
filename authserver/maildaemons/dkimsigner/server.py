@@ -4,7 +4,6 @@
 import argparse
 import asyncore
 import logging
-import smtplib
 import signal
 import sys
 import os

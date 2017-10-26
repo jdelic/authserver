@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor as Pool
 import daemon
 from django.db.utils import OperationalError
 
-from maildaemons.utils import smtp_sendmail_wrapper, SMTPWrapper
+from maildaemons.utils import SMTPWrapper
 
 _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
