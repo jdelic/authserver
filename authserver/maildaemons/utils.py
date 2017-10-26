@@ -1,6 +1,8 @@
 # -* encoding: utf-8 *-
 import logging
 import smtplib
+from email.message import Message
+from email.parser import BytesParser
 from typing import Union, List, Sequence
 
 _log = logging.getLogger(__name__)
@@ -31,11 +33,20 @@ class SMTPWrapper:
         self.internal_ip = internal_ip
         self.internal_port = internal_port
 
-    def _format_denied_recipients(self, recipients: Sequence[str]) -> bytes:
+    def _format_denied_recipients(self, original_mail: bytes, recipients: Sequence[str]) -> bytes:
+        parser = BytesParser()
+        msg = parser.parsebytes(original_mail, True)  # type: Message
+        msg["Subject"] = "[mailforwarder error] Re: %s" % msg["Subject"]
+        msg["To"] = msg["From"]
+        msg["From"] = "mailforwarder bounce <>"
+        msg.add_header("Received",
+                       "from %s by %s ")
+
         rcptlist = ""
         for rcpt in recipients:
             rcptlist = "%s\n%s" % ("  * %s" % rcpt, rcptlist,)
-        return denied_recipients_template.format(rcptlist=rcptlist).encode('utf-8')
+        txt = denied_recipients_template.format(rcptlist=rcptlist)
+
 
     def sendmail(self, from_addr: str, to_addrs: Sequence[str], msg: bytes, mail_options: List[str]=[],
                  rcpt_options: List[str]=[]) -> Union[str, None]:
