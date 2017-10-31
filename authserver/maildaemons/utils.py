@@ -15,7 +15,7 @@ _log = logging.getLogger(__name__)
 denied_recipients_template = """
 Hi there,
 
-this is the mailforwarder daemon writing to you. The following recipients of 
+this is the mailforwarder daemon writing to you. The following recipients of
 your email were denied by their downstream email server:
 
 {rcptlist}
