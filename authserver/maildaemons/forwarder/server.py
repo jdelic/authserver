@@ -17,6 +17,7 @@ from concurrent.futures import ThreadPoolExecutor as Pool
 import daemon
 from django.db.utils import OperationalError
 
+import authserver
 from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer
 
 _args = None  # type: argparse.Namespace
@@ -198,7 +199,7 @@ def _main() -> None:
 
     django.setup()
 
-    _log.info("Forwarding Alias Service starting")
+    _log.info("mailforwarder v%s: Forwarding Alias Service starting" % authserver.version)
     _log.info("Django ORM initialized")
 
     pidfile = open(_args.pidfile, "w")

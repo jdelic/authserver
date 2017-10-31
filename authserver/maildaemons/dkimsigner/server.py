@@ -16,6 +16,7 @@ import dkim
 import daemon
 from django.db.utils import OperationalError
 
+import authserver
 from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer
 
 _args = None  # type: argparse.Namespace
@@ -147,7 +148,7 @@ def _main() -> None:
 
     django.setup()
 
-    _log.info("DKIM signer starting")
+    _log.info("dkimsigner v%s: DKIM signer starting" % authserver.version)
     _log.info("Django ORM initialized")
 
     pidfile = open(_args.pidfile, "w")
