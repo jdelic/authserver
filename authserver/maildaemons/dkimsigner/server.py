@@ -4,13 +4,11 @@
 import argparse
 import asyncore
 import logging
-import smtplib
 import signal
 import sys
 import os
 
 from types import FrameType
-from smtpd import SMTPServer, SMTPChannel
 from typing import Tuple, Sequence, Any, Union
 from concurrent.futures import ThreadPoolExecutor as Pool
 
@@ -18,28 +16,28 @@ import dkim
 import daemon
 from django.db.utils import OperationalError
 
+import authserver
+from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer
+
 _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
 pool = None  # type: Pool
 
 
-class DKIMSignerSMTPChannel(SMTPChannel):
-    def handle_error(self) -> None:
-        # handle exceptions through asyncore. Using this implementation will make it go
-        # through logging and the JSON wrapper
-        _log.exception("Unexpected error")
-        self.handle_close()
-
-
-class DKIMSignerServer(SMTPServer):
-    channel_class = DKIMSignerSMTPChannel
+class DKIMSignerServer(SaneSMTPServer):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.smtp = SMTPWrapper(external_ip=_args.output_ip, external_port=_args.output_port)
 
     # ** must be thread-safe, don't modify shared state,
     # _log should be thread-safe as stated by the docs. Django ORM should be as well.
-    def _process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes,
+    def _process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes, *,
+                         channel: PatchedSMTPChannel,
                          **kwargs: Any) -> Union[str, None]:
         # we can't import the Domain model before Django has been initialized
         from mailauth.models import Domain
+
+        data = self.add_received_header(peer, data, channel)
 
         mfdomain = mailfrom.split("@", 1)[1]
         dom = None
@@ -58,6 +56,7 @@ class DKIMSignerServer(SMTPServer):
             else:
                 return self.process_message(peer, mailfrom, rcpttos, data, retry=True, **kwargs)
 
+        signed = False
         if dom is not None and dom.dkimkey:
             sig = dkim.sign(data, dom.dkimselector.encode("utf-8"), dom.name.encode("utf-8"),
                             dom.dkimkey.replace("\r\n", "\n").encode("utf-8"))
@@ -69,12 +68,13 @@ class DKIMSignerServer(SMTPServer):
                 logstr = data.decode('latin1')
                 enc = "latin1"
             _log.debug("Signed output (%s):\n%s", enc, logstr)
+            signed = True
 
         # now send the mail back to be processed
-        with smtplib.SMTP(_args.output_ip, _args.output_port) as smtp:  # type: ignore
-            _log.info("Sending DKIM signed email from <%s> to <%s>", mailfrom, rcpttos)
-            smtp.sendmail(mailfrom, rcpttos, data)
-
+        _log.info("Relaying %semail from <%s> to <%s>",
+                  "DKIM signed " if signed else "",
+                  mailfrom, rcpttos)
+        self.smtp.sendmail(mailfrom, rcpttos, data)
         return None
 
     def process_message(self, *args, **kwargs):
@@ -90,7 +90,8 @@ class DKIMSignerServer(SMTPServer):
 
 def run() -> None:
     global pool
-    server = DKIMSignerServer((_args.input_ip, _args.input_port), None, decode_data=False)
+    server = DKIMSignerServer((_args.input_ip, _args.input_port), None, decode_data=False,
+                              daemon_name="dkimsigner")
     pool = Pool()
     asyncore.loop()
 
@@ -147,7 +148,7 @@ def _main() -> None:
 
     django.setup()
 
-    _log.info("DKIM signer starting")
+    _log.info("dkimsigner v%s: DKIM signer starting" % authserver.version)
     _log.info("Django ORM initialized")
 
     pidfile = open(_args.pidfile, "w")

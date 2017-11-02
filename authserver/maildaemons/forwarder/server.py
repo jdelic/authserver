@@ -4,44 +4,44 @@
 import argparse
 import asyncore
 import logging
-import smtplib
 import signal
+import socket
 import sys
 import os
 
 from types import FrameType
 from smtpd import SMTPServer, SMTPChannel
-from typing import Tuple, Sequence, Any, Union
+from typing import Tuple, Sequence, Any, Union, Optional
 from concurrent.futures import ThreadPoolExecutor as Pool
 
 import daemon
 from django.db.utils import OperationalError
+
+import authserver
+from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer
 
 _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
 pool = None  # type: Pool
 
 
-class ForwarderSMTPChannel(SMTPChannel):
-    def handle_error(self) -> None:
-        # handle exceptions through asyncore. Using this implementation will make it go
-        # through logging and the JSON wrapper
-        _log.exception("Unexpected error")
-        self.handle_close()
-
-
-class ForwarderServer(SMTPServer):
-    channel_class = ForwarderSMTPChannel
-
-    def __init__(self, *args, **kwargs) -> None:
+class ForwarderServer(SaneSMTPServer):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+        self.smtp = SMTPWrapper(
+            external_ip=_args.remote_relay_ip, external_port=_args.remote_relay_port,
+            internal_ip=_args.local_delivery_ip, internal_port=_args.local_delivery_port
+        )
 
     # ** must be thread-safe, don't modify shared state,
     # _log should be thread-safe as stated by the docs. Django ORM should be as well.
-    def _process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes,
+    def _process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes, *,
+                         channel: PatchedSMTPChannel,
                          **kwargs: Any) -> Union[str, None]:
         # we can't import the Domain model before Django has been initialized
         from mailauth.models import EmailAlias, Domain
+
+        data = self.add_received_header(peer, data, channel)
 
         remaining_rcpttos = list(rcpttos)  # ensure that new_rcpttos is a mutable list
         # we're going to modify remaining_rcpttos so we start from its end
@@ -72,11 +72,10 @@ class ForwarderServer(SMTPServer):
                     _log.debug("ix: %s - rcptto: %s - remaining rcpttos: %s", ix, rcptto, remaining_rcpttos)
                     del remaining_rcpttos[ix]
                     new_rcptto = "%s@%s" % (rcptuser, domain.redirect_to)
-                    with smtplib.SMTP(_args.remote_relay_ip, _args.remote_relay_port) as smtp:  # type: ignore
-                        _log.info("%sForwarding email from <%s> to <%s> to domain @%s",
-                                  "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
-                                  mailfrom, rcptto, domain.redirect_to)
-                        smtp.sendmail(mailfrom, new_rcptto, data)
+                    _log.info("%sForwarding email from <%s> to <%s> to domain @%s",
+                              "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
+                              mailfrom, rcptto, domain.redirect_to)
+                    self.smtp.sendmail(mailfrom, new_rcptto, data)
                     continue
 
             # follow the same path like the stored procedure authserver_resolve_alias(...)
@@ -113,27 +112,25 @@ class ForwarderServer(SMTPServer):
             if alias.forward_to is not None:
                 # it's a mailing list, forward the email to all connected addresses
                 del remaining_rcpttos[ix]  # remove this recipient from the list
-                with smtplib.SMTP(_args.remote_relay_ip, _args.remote_relay_port) as smtp:  # type: ignore
-                    _newmf = mailfrom
-                    if alias.forward_to.new_mailfrom != "":
-                        _newmf = alias.forward_to.new_mailfrom
-                    _log.info("%sForwarding email from <%s> with new sender <%s> to <%s>",
-                              "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
-                              mailfrom, _newmf, alias.forward_to.addresses)
-                    smtp.sendmail(_newmf, alias.forward_to.addresses, data)
+                _newmf = mailfrom
+                if alias.forward_to.new_mailfrom != "":
+                    _newmf = alias.forward_to.new_mailfrom
+                _log.info("%sForwarding email from <%s> with new sender <%s> to <%s>",
+                          "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
+                          mailfrom, _newmf, alias.forward_to.addresses)
+                self.smtp.sendmail(_newmf, alias.forward_to.addresses, data)
 
         # if there are any remaining non-list/non-forward recipients, we inject them back to OpenSMTPD here
         if len(remaining_rcpttos) > 0:
-            with smtplib.SMTP(_args.local_delivery_ip, _args.local_delivery_port) as smtp:  # type: ignore
-                _log.info("%sReinjecting email from <%s> to remaining recipients <%s>",
-                          "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
-                          mailfrom, remaining_rcpttos)
-                smtp.sendmail(mailfrom, remaining_rcpttos, data)
+            _log.info("%sReinjecting email from <%s> to remaining recipients <%s>",
+                      "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
+                      mailfrom, remaining_rcpttos)
+            self.smtp.sendmail(mailfrom, remaining_rcpttos, data)
 
         _log.debug("Done processing.")
         return None
 
-    def process_message(self, *args: Any, **kwargs: Any) -> Union[str, None]:
+    def process_message(self, *args: Any, **kwargs: Any) -> Optional[str]:
         future = pool.submit(ForwarderServer._process_message, self, *args, **kwargs)
         return future.result()
 
@@ -141,7 +138,8 @@ class ForwarderServer(SMTPServer):
 def run() -> None:
     global pool
     pool = Pool()
-    server = ForwarderServer((_args.input_ip, _args.input_port), None, decode_data=False)
+    server = ForwarderServer((_args.input_ip, _args.input_port), None, decode_data=False,
+                             daemon_name="mailforwarder")
     asyncore.loop()
 
 
@@ -162,7 +160,7 @@ def _main() -> None:
     )
 
     grp_daemon = parser.add_argument_group("Daemon options")
-    grp_daemon.add_argument("-p", "--pidfile", dest="pidfile", default="./dkimsigner-server.pid",
+    grp_daemon.add_argument("-p", "--pidfile", dest="pidfile", default="./mailforwarder-server.pid",
                             help="Path to a pidfile")
     grp_daemon.add_argument("-u", "--user", dest="user", default=None, help="Drop privileges and switch to this user")
     grp_daemon.add_argument("-g", "--group", dest="group", default=None,
@@ -201,7 +199,7 @@ def _main() -> None:
 
     django.setup()
 
-    _log.info("Forwarding Alias Service starting")
+    _log.info("mailforwarder v%s: Forwarding Alias Service starting" % authserver.version)
     _log.info("Django ORM initialized")
 
     pidfile = open(_args.pidfile, "w")
