@@ -92,7 +92,7 @@ class SMTPWrapper:
 # and use sane logging
 class PatchedSMTPChannel(smtpd.SMTPChannel):
     def __init__(self, server: smtpd.SMTPServer, conn: socket.socket, addr: Any, *args, **kwargs: Any) -> None:
-        super().__init__(server, server, conn, addr, *args, **kwargs)
+        super().__init__(server, conn, addr, *args, **kwargs)
         self.__real_pm = self.smtp_server.process_message
 
         def wrapper(*args: Any, **kwargs: Any):
