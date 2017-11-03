@@ -3,6 +3,7 @@ import logging
 import smtpd
 import smtplib
 import socket
+from email import policy
 from email.message import Message
 from email.parser import BytesParser
 from typing import Union, List, Sequence, Tuple, Any, Optional
@@ -50,7 +51,7 @@ class SMTPWrapper:
             rcptlist = "%s\n%s" % ("  * %s" % rcpt, rcptlist,)
         txt = denied_recipients_template.format(rcptlist=rcptlist)
         msg.set_payload(txt, charset='utf-8')
-        return msg.as_bytes()
+        return msg.as_bytes(policy=policy.SMTP)
 
     def sendmail(self, from_addr: str, to_addrs: Sequence[str], msg: bytes, mail_options: List[str]=[],
                  rcpt_options: List[str]=[]) -> Union[str, None]:
@@ -123,13 +124,13 @@ class SaneSMTPServer(smtpd.SMTPServer):
 
     def add_received_header(self, peer: Tuple[str, int], msg: bytes, channel: PatchedSMTPChannel) -> bytes:
         parser = BytesParser()
-        new_msg = parser.parsebytes(msg, True)  # type: Message
+        new_msg = parser.parsebytes(msg)  # type: Message
         new_msg.add_header("Received",
                            "from %s (%s:%s) by %s (%s [%s:%s]) with SMTP for <%s>; %s" %
                            (channel.seen_greeting, peer[0], peer[1], self.server_name, self.daemon_name,
                             self._localaddr[0], self._localaddr[1], new_msg["To"],
                             timezone.now().strftime("%a, %d %b %Y %H:%M:%S %z (%Z)")))
-        return new_msg.as_bytes()
+        return new_msg.as_bytes(policy=policy.SMTP)
 
     def process_message(self, peer: _Address, mailfrom: str, rcpttos: List[str], data: bytes,
                         **kwargs: Any) -> Optional[str]:
