@@ -95,10 +95,10 @@ class PatchedSMTPChannel(smtpd.SMTPChannel):
         super().__init__(server, conn, addr, *args, **kwargs)
         self.__real_pm = self.smtp_server.process_message
 
-        def wrapper(*args: Any, **kwargs: Any):
+        def wrapper(*args: Any, **kwargs: Any) -> Optional[str]:
             if "channel" not in kwargs:
                 kwargs["channel"] = self
-            self.__real_pm(*args, **kwargs)
+            return self.__real_pm(*args, **kwargs)
 
         self.smtp_server.process_message = wrapper
 
