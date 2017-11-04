@@ -4,7 +4,7 @@ import smtpd
 import smtplib
 import socket
 from email import policy
-from email.message import Message
+from email.message import Message, _formatparam, SEMISPACE
 from email.parser import BytesParser
 from typing import Union, List, Sequence, Tuple, Any, Optional
 
@@ -121,6 +121,52 @@ class PatchedSMTPChannel(smtpd.SMTPChannel):
 _Address = Tuple[str, int]
 
 
+class SaneMessage(Message):
+    def __init__(self, *args: Any) -> None:
+        super().__init__(*args)
+
+    def prepend(self, name, val):
+        """Set the value of a header.
+
+        Note: this does not overwrite an existing header with the same field
+        name.  Use __delitem__() first to delete any existing headers.
+        """
+        max_count = self.policy.header_max_count(name)
+        if max_count:
+            lname = name.lower()
+            found = 0
+            for k, v in self._headers:
+                if k.lower() == lname:
+                    found += 1
+                    if found >= max_count:
+                        raise ValueError("There may be at most {} {} headers "
+                                         "in a message".format(max_count, name))
+        self._headers.insert(0, self.policy.header_store_parse(name, val))
+
+    def prepend_header(self, _name: str, _value: str, **_params: Union[str, Sequence[str]]) -> None:
+        """Extended header setting.
+
+        Like add_header, but prepends the header. This is useful for Received:.
+
+        Examples:
+
+        msg.add_header('content-disposition', 'attachment', filename='bud.gif')
+        msg.add_header('content-disposition', 'attachment',
+                       filename=('utf-8', '', Fußballer.ppt'))
+        msg.add_header('content-disposition', 'attachment',
+                       filename='Fußballer.ppt'))
+        """
+        parts = []
+        for k, v in _params.items():
+            if v is None:
+                parts.append(k.replace('_', '-'))
+            else:
+                parts.append(_formatparam(k.replace('_', '-'), v))
+        if _value is not None:
+            parts.insert(0, _value)
+        self.prepend(_name, SEMISPACE.join(parts))
+
+
 class SaneSMTPServer(smtpd.SMTPServer):
     channel_class = PatchedSMTPChannel
 
@@ -131,13 +177,13 @@ class SaneSMTPServer(smtpd.SMTPServer):
         self.daemon_name = daemon_name
 
     def add_received_header(self, peer: Tuple[str, int], msg: bytes, channel: PatchedSMTPChannel) -> bytes:
-        parser = BytesParser()
-        new_msg = parser.parsebytes(msg)  # type: Message
-        new_msg.add_header("Received",
-                           "from %s (%s:%s) by %s (%s [%s:%s]) with SMTP for <%s>; %s" %
-                           (channel.seen_greeting, peer[0], peer[1], self.server_name, self.daemon_name,
-                            self._localaddr[0], self._localaddr[1], new_msg["To"],
-                            timezone.now().strftime("%a, %d %b %Y %H:%M:%S %z (%Z)")))
+        parser = BytesParser(_class=SaneMessage)
+        new_msg = parser.parsebytes(msg)  # type: SaneMessage
+        new_msg.prepend_header("Received",
+                               "from %s (%s:%s)\r\n\tby %s (%s [%s:%s]) with SMTP\r\n\tfor <%s>;\r\n\t%s" %
+                               (channel.seen_greeting, peer[0], peer[1], self.server_name, self.daemon_name,
+                                self._localaddr[0], self._localaddr[1], new_msg["To"],
+                                timezone.now().strftime("%a, %d %b %Y %H:%M:%S %z (%Z)")))
         return new_msg.as_bytes(policy=policy.SMTP)
 
     def process_message(self, peer: _Address, mailfrom: str, rcpttos: List[str], data: bytes,
