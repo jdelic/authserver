@@ -63,13 +63,21 @@ class SMTPWrapper:
             try:
                 smtp.sendmail(from_addr, to_addrs, msg, mail_options, rcpt_options)
             except smtplib.SMTPSenderRefused as e:
-                _log.info("Downstream server refused sender: %s (%s %s)", e.sender, e.smtp_code, e.smtp_error)
+                if isinstance(e.smtp_error, bytes):
+                    errorstr = e.smtp_error.decode("utf-8", errors="ignore")
+                else:
+                    errorstr = str(e.smtp_error)
+                _log.info("Downstream server refused sender: %s (%s %s)", e.sender, e.smtp_code, errorstr)
                 return "%s %s" % (e.smtp_code, e.smtp_error)
             except smtplib.SMTPResponseException as e:
                 # This exception baseclass is for all exceptions that have a SMTP response code.
                 # Return the downstream error code upstream
-                _log.info("Unexpected response from server (passed upstream): %s %s", e.smtp_code, e.smtp_error)
-                return "%s %s" % (e.smtp_code, e.smtp_error)
+                if isinstance(e.smtp_error, bytes):
+                    errorstr = e.smtp_error.decode("utf-8", errors="ignore")
+                else:
+                    errorstr = str(e.smtp_error)
+                _log.info("Unexpected response from server (passed upstream): %s %s", e.smtp_code, errorstr)
+                return "%s %s" % (e.smtp_code, errorstr)
             except smtplib.SMTPRecipientsRefused as e:
                 _log.info("Some recipients where refused by the downstream server: %s", " ".join(e.recipients))
                 if self.internal_ip and self.internal_port:
