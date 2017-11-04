@@ -3,7 +3,7 @@ import logging
 import smtpd
 import smtplib
 import socket
-from email import policy
+from email import policy, utils
 from email.message import Message, _formatparam, SEMISPACE
 from email.parser import BytesParser
 from typing import Union, List, Sequence, Tuple, Any, Optional
@@ -180,9 +180,9 @@ class SaneSMTPServer(smtpd.SMTPServer):
         parser = BytesParser(_class=SaneMessage)
         new_msg = parser.parsebytes(msg)  # type: SaneMessage
         new_msg.prepend_header("Received",
-                               "from %s (%s:%s)\r\n\tby %s (%s [%s:%s]) with SMTP\r\n\tfor <%s>;\r\n\t%s" %
+                               "from %s (%s:%s)\r\n\tby %s (%s [%s:%s]) with SMTP;\r\n\t%s" %
                                (channel.seen_greeting, peer[0], peer[1], self.server_name, self.daemon_name,
-                                self._localaddr[0], self._localaddr[1], new_msg["To"],
+                                self._localaddr[0], self._localaddr[1],
                                 timezone.now().strftime("%a, %d %b %Y %H:%M:%S %z (%Z)")))
         return new_msg.as_bytes(policy=policy.SMTP)
 
