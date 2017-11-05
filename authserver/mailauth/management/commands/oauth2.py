@@ -2,7 +2,10 @@
 from argparse import _SubParsersAction
 
 import sys
+from typing import List
+
 from django.core.management.base import BaseCommand, CommandParser
+from django.db.models.query_utils import Q
 from django.db.utils import DatabaseError
 from oauth2_provider import models as oauth2_models
 from typing import Any
@@ -19,7 +22,7 @@ class Command(BaseCommand):
         cmd = self
 
         class SubCommandParser(CommandParser):
-            def __init__(self, **kwargs) -> None:
+            def __init__(self, **kwargs: Any) -> None:
                 super().__init__(cmd, **kwargs)
 
         subparsers = parser.add_subparsers(
@@ -84,7 +87,7 @@ class Command(BaseCommand):
             sys.exit(2)
 
     def _list(self, **kwargs: Any) -> None:
-        clients = []
+        clients = []  # type: List[oauth2_models.Application]
         if kwargs["search_client_id"]:
             try:
                 clients = list(appmodel.objects.filter(client_id__ilike=kwargs["search_client_id"]))

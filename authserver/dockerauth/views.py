@@ -11,6 +11,7 @@ import datetime
 import json
 import logging
 import base64
+from typing import List
 
 from typing import NamedTuple, Dict, Any, Union
 
@@ -25,6 +26,7 @@ from django.http.response import HttpResponse, HttpResponseNotFound, HttpRespons
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
+from typing import Optional
 
 from dockerauth.models import DockerRepo, DockerRegistry
 from dockerauth.permissions import TokenPermissions
@@ -59,7 +61,7 @@ class DockerAuthView(View):
 
         fp = base64.b32encode(
             SHA256.new(
-                data=RSA.import_key(key_pemstr).publickey().exportKey(format="DER")
+                data=RSA.importKey(key_pemstr).publickey().exportKey(format="DER")
             ).digest()[0:30]  # shorten to 240 bit presumably so no padding is necessary
         ).decode('utf-8')
 
@@ -79,8 +81,8 @@ class DockerAuthView(View):
         _log.debug("JWT response: %s", jwtstr)
         return jwtstr
 
-    def _user_from_refresh_token(self, jwtstr: str, key_pemstr: str, expected_issuer: str=None,
-                                 expected_audience: str=None) -> Union[MNUser, None]:
+    def _user_from_refresh_token(self, jwtstr: str, key_pemstr: str, expected_issuer: Optional[str]=None,
+                                 expected_audience: Optional[str]=None) -> Optional[MNUser]:
         _log.debug("Received refresh token: %s", jwtstr)
         try:
             token = jwt.decode(jwtstr, key_pemstr, algorithms=["RS256"], leeway=10,
@@ -95,7 +97,7 @@ class DockerAuthView(View):
             return None
 
         try:
-            user = MNUser.objects.get(pk=token["sub"])
+            user = MNUser.objects.get(pk=token["sub"])  # type: MNUser
         except MNUser.DoesNotExist:
             _log.warning("No such user from valid JWT. %s", jwtstr)
             return None
@@ -108,6 +110,7 @@ class DockerAuthView(View):
         # describes the "kid" field required by Docker. The JWK implementation provided
         # by jwcrypto doesn't seem to work.
         # https://umbrella.cisco.com/blog/blog/2016/02/23/implementing-oauth-for-registry-v2/
+        _x = []  # type: List[str]
         jwtobj = {
             'exp': int((rightnow + datetime.timedelta(minutes=2)).timestamp()),
             'nbf': int((rightnow - datetime.timedelta(seconds=1)).timestamp()),
@@ -118,11 +121,11 @@ class DockerAuthView(View):
             'access': [{
                 "type": perms.type,
                 "name": perms.path,
-                "actions": [] + (["push"] if perms.push else []) +
+                "actions": _x + (["push"] if perms.push else []) +
                                 (["pull"] if perms.pull else []) +
                                 (["login"] if perms.type == "login" else [])
             }]
-        }
+        }  # type: Dict[str, Union[str, int, List[Dict[str, Union[str, List[str]]]]]]
         return jwtobj
 
     def _make_refresh_token(self, request: HttpRequest, tokenreq: _TokenRequest,

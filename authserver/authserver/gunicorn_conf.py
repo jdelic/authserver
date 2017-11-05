@@ -18,7 +18,7 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
             log_record['level'] = record.levelname
 
         if 'exc_info' in log_record and 'exception' not in log_record:
-            log_record['exception'] = log_record['exc_info'].split("\n")
+            log_record['exception'] = log_record['exc_info'].split("\n")  # type: ignore
             del log_record['exc_info']
 
 

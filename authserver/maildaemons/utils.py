@@ -4,7 +4,10 @@ import smtpd
 import smtplib
 import socket
 from email import policy, utils
-from email.message import Message, _formatparam, SEMISPACE
+from email._policybase import Policy
+from email.message import Message, _formatparam, SEMISPACE  # type: ignore
+
+
 from email.parser import BytesParser
 from typing import Union, List, Sequence, Tuple, Any, Optional
 
@@ -33,7 +36,7 @@ class SMTPWrapper:
     """
     def __init__(self, *,
                  external_ip: str, external_port: int,
-                 internal_ip: str=None, internal_port: int=None) -> None:
+                 internal_ip: Optional[str]=None, internal_port: Optional[int]=None) -> None:
         self.external_ip = external_ip
         self.external_port = external_port
         self.internal_ip = internal_ip
@@ -41,7 +44,9 @@ class SMTPWrapper:
 
     def _format_denied_recipients(self, original_mail: bytes, recipients: Sequence[str]) -> bytes:
         parser = BytesParser()
-        msg = parser.parsebytes(original_mail, True)  # type: Message
+        # TODO: fix type annotation when typeshed has better stubs
+        msg = None  # type: Message
+        msg = parser.parsebytes(original_mail, True)  # type: ignore
         msg["Subject"] = "[mailforwarder error] Re: %s" % msg["Subject"]
         msg["To"] = msg["From"]
         msg["From"] = "mailforwarder bounce <>"
@@ -79,14 +84,14 @@ class SMTPWrapper:
                 _log.info("Unexpected response from server (passed upstream): %s %s", e.smtp_code, errorstr)
                 return "%s %s" % (e.smtp_code, errorstr)
             except smtplib.SMTPRecipientsRefused as e:
-                _log.info("Some recipients where refused by the downstream server: %s", " ".join(e.recipients))
+                _log.info("Some recipients where refused by the downstream server: %s", ", ".join(e.recipients.keys()))
                 if self.internal_ip and self.internal_port:
                     with smtplib.SMTP(self.internal_ip, self.internal_port) as smtp_r:
                         try:
                             smtp_r.sendmail(
                                 "<>",
                                 [from_addr],
-                                self._format_denied_recipients(msg, e.recipients)
+                                self._format_denied_recipients(msg, list(e.recipients.keys()))
                             )
                         except smtplib.SMTPException as ex:
                             _log.exception("Error while sending denied recipients reply: %s", str(ex))
@@ -100,7 +105,7 @@ class SMTPWrapper:
 # patch the SMTP channel implementation to pass us a reference to the channel
 # and use sane logging
 class PatchedSMTPChannel(smtpd.SMTPChannel):
-    def __init__(self, server: smtpd.SMTPServer, conn: socket.socket, addr: Any, *args, **kwargs: Any) -> None:
+    def __init__(self, server: smtpd.SMTPServer, conn: socket.socket, addr: Any, *args: Any, **kwargs: Any) -> None:
         super().__init__(server, conn, addr, *args, **kwargs)
         self.__real_pm = self.smtp_server.process_message
 
@@ -109,7 +114,8 @@ class PatchedSMTPChannel(smtpd.SMTPChannel):
                 kwargs["channel"] = self
             return self.__real_pm(*args, **kwargs)
 
-        self.smtp_server.process_message = wrapper
+        # TODO: remove type annotation when issue is fixed
+        self.smtp_server.process_message = wrapper  # type: ignore  # until https://github.com/python/mypy/issues/2427
 
     def handle_error(self) -> None:
         # handle exceptions through asyncore. Using this implementation will make it go
@@ -123,9 +129,11 @@ _Address = Tuple[str, int]
 
 class SaneMessage(Message):
     def __init__(self, *args: Any) -> None:
+        self.policy = None  # type: Policy
+        self._headers = []  # type: List[Any]
         super().__init__(*args)
 
-    def prepend(self, name, val):
+    def prepend(self, name: str, val: str) -> None:
         """Set the value of a header.
 
         Note: this does not overwrite an existing header with the same field
@@ -171,14 +179,17 @@ class SaneSMTPServer(smtpd.SMTPServer):
     channel_class = PatchedSMTPChannel
 
     def __init__(self, localaddr: _Address, remoteaddr: _Address, *,
-                 daemon_name: str, server_name: str=None, **kwargs) -> None:
+                 daemon_name: str, server_name: Optional[str]=None, **kwargs: Any) -> None:
+        self._localaddr = None  # type: _Address
         super().__init__(localaddr, remoteaddr, **kwargs)
         self.server_name = socket.gethostname() if server_name is None else server_name
         self.daemon_name = daemon_name
 
     def add_received_header(self, peer: Tuple[str, int], msg: bytes, channel: PatchedSMTPChannel) -> bytes:
         parser = BytesParser(_class=SaneMessage)
-        new_msg = parser.parsebytes(msg)  # type: SaneMessage
+        # TODO: remove type annotation when issue is fixed
+        new_msg = None  # type: SaneMessage
+        new_msg = parser.parsebytes(msg)  # type: ignore
         new_msg.prepend_header("Received",
                                "from %s (%s:%s)\r\n\tby %s (%s [%s:%s]) with SMTP;\r\n\t%s" %
                                (channel.seen_greeting, peer[0], peer[1], self.server_name, self.daemon_name,
@@ -186,6 +197,6 @@ class SaneSMTPServer(smtpd.SMTPServer):
                                 timezone.now().strftime("%a, %d %b %Y %H:%M:%S %z (%Z)")))
         return new_msg.as_bytes(policy=policy.SMTP)
 
-    def process_message(self, peer: _Address, mailfrom: str, rcpttos: List[str], data: bytes,
+    def process_message(self, peer: _Address, mailfrom: str, rcpttos: List[str], data: Union[str, bytes],
                         **kwargs: Any) -> Optional[str]:
         raise NotImplementedError
