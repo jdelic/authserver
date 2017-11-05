@@ -3,7 +3,7 @@
 # The forms in here are hooked up to Django admin via mailauth.admin
 #
 import re
-from typing import Any, Dict, TypeVar, Sequence, Tuple, Optional, Union
+from typing import Any, Dict, Sequence, Tuple, Optional, List
 
 import django.contrib.auth.forms as auth_forms
 from Crypto.PublicKey import RSA
@@ -13,7 +13,6 @@ from django.forms.models import ModelForm, ALL_FIELDS
 from django.forms.renderers import BaseRenderer
 from django.utils.html import format_html
 from django_select2.forms import Select2TagWidget
-from psycopg2._psycopg.__init__ import List
 
 from mailauth.models import MNUser, Domain, MailingList
 
