@@ -9,7 +9,7 @@ import sys
 import os
 
 from types import FrameType
-from typing import Tuple, Sequence, Any, Union
+from typing import Tuple, Sequence, Any, Union, Optional
 from concurrent.futures import ThreadPoolExecutor as Pool
 
 import dkim
@@ -40,9 +40,9 @@ class DKIMSignerServer(SaneSMTPServer):
         data = self.add_received_header(peer, data, channel)
 
         mfdomain = mailfrom.split("@", 1)[1]
-        dom = None
+        dom = None  # type: Domain
         try:
-            dom = Domain.objects.get(name=mfdomain)  # type: Domain
+            dom = Domain.objects.get(name=mfdomain)
         except Domain.DoesNotExist:
             _log.debug("Unknown domain: %s (%s)", mfdomain, mailfrom)
         except OperationalError:
@@ -77,7 +77,7 @@ class DKIMSignerServer(SaneSMTPServer):
         self.smtp.sendmail(mailfrom, rcpttos, data)
         return None
 
-    def process_message(self, *args, **kwargs):
+    def process_message(self, *args: Any, **kwargs: Any) -> Optional[str]:
         future = pool.submit(DKIMSignerServer._process_message, self, *args, **kwargs)
         return future.result()
 
@@ -173,7 +173,7 @@ def main() -> None:
     try:
         _main()
     except Exception as e:
-        _log.fatal("Unhandled exception", exc_info=True)
+        _log.critical("Unhandled exception", exc_info=True)
         sys.exit(1)
 
 

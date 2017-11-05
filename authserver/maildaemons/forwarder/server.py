@@ -37,7 +37,7 @@ class ForwarderServer(SaneSMTPServer):
     # _log should be thread-safe as stated by the docs. Django ORM should be as well.
     def _process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes, *,
                          channel: PatchedSMTPChannel,
-                         **kwargs: Any) -> Union[str, None]:
+                         **kwargs: Any) -> Optional[str]:
         # we can't import the Domain model before Django has been initialized
         from mailauth.models import EmailAlias, Domain
 
@@ -80,7 +80,8 @@ class ForwarderServer(SaneSMTPServer):
 
             # follow the same path like the stored procedure authserver_resolve_alias(...)
             if "-" in rcptuser:
-                user_mailprefix = "%s+%s" % tuple(rcptuser.split("-", 1))  # convert the first - to a +
+                # convert the first - to a +
+                user_mailprefix = "%s+%s" % tuple(rcptuser.split("-", 1))  # type: ignore
             else:
                 user_mailprefix = rcptuser
 
@@ -100,7 +101,7 @@ class ForwarderServer(SaneSMTPServer):
             except OperationalError:
                 # this is a hacky hack, but psycopg2 falls over when haproxy closes the connection on us
                 _log.info("Database connection closed, Operational Error, retrying")
-                from django.db import connection
+                from django.db import connection  # type: ignore  # mypy doesn't grok the conditional import above
                 connection.close()
                 if "retry" in kwargs and kwargs["retry"]:
                     _log.exception("(Retry) Database unavailable.")
@@ -224,7 +225,7 @@ def main() -> None:
     try:
         _main()
     except Exception as e:
-        _log.fatal("Unhandled exception", exc_info=True)
+        _log.critical("Unhandled exception", exc_info=True)
         sys.exit(1)
 
 

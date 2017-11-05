@@ -1,7 +1,7 @@
 # -* encoding: utf-8 *-
 import logging
 from collections import OrderedDict
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 
 from django.contrib.auth import hashers
 from django.utils.translation import ugettext_lazy as _
@@ -100,12 +100,12 @@ class UnixCryptCompatibleSHA256Hasher(object):
 
 
 class MNUserAuthenticationBackend(object):
-    def authenticate(self, username: str, password: str) -> MNUser:
+    def authenticate(self, username: str, password: str) -> Optional[MNUser]:
         # the argument names must be 'username' and 'password' because the authenticator interface is tightly coupled
         # to the parameter names between login forms and authenticators
         if "@" not in username or username.count("@") > 1:
             try:
-                user = MNUser.objects.get(identifier=username)
+                user = MNUser.objects.get(identifier=username)  # type: MNUser
             except MNUser.DoesNotExist:
                 logging.debug("No user found %s for identifier login", username)
                 return None
@@ -139,7 +139,7 @@ class MNUserAuthenticationBackend(object):
         else:
             return None
 
-    def get_user(self, user_id: str) -> MNUser:
+    def get_user(self, user_id: str) -> Optional[MNUser]:
         try:
             return MNUser.objects.get(uuid=user_id)
         except MNUser.DoesNotExist:
