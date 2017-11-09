@@ -9,7 +9,7 @@ django-postgresql-setrole==1.0.10
 django-select2==5.11.1
 envdir==0.7
 gunicorn==19.7.1
-hvac==0.2.18
+hvac==0.3.0
 passlib==1.7.1
 psycopg2==2.7.3.2
 pycryptodome==3.4.7
