@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib.postgres.fields.array import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
-from typing import Any
+from typing import Any, Optional
 
 from oauth2_provider import models as oauth2_models
 
@@ -49,6 +49,8 @@ class Domain(models.Model):
     dkimselector = models.CharField(verbose_name="DKIM DNS selector", max_length=255, null=False, blank=True,
                                     default="default")
     dkimkey = models.TextField(verbose_name="DKIM private key (PEM)", blank=True)
+    redirect_to = models.CharField(verbose_name="Redirect all mail to domain", max_length=255, null=False, blank=True,
+                                   default="")
 
     def __str__(self) -> str:
         return self.name
@@ -56,7 +58,8 @@ class Domain(models.Model):
 
 class MailingList(models.Model):
     name = models.CharField("Descriptive name", max_length=255)
-    addresses = ArrayField(models.CharField(max_length=255))
+    addresses = ArrayField(models.EmailField(max_length=255))
+    new_mailfrom = models.EmailField(max_length=255, null=False, blank=True, default="")
 
     def __str__(self) -> str:
         return self.name
@@ -73,7 +76,7 @@ class EmailAlias(models.Model):
     mailprefix = models.CharField("Mail prefix", max_length=255)
     forward_to = models.ForeignKey(MailingList, verbose_name="Forward to list", null=True, blank=True)
 
-    def clean(self):
+    def clean(self) -> None:
         if hasattr(self, 'forward_to') and self.forward_to is not None \
                 and hasattr(self, 'user') and self.user is not None:
             raise ValidationError({'forward_to': "An email alias can't be associated with a user and be a mailing list "
@@ -145,7 +148,7 @@ class MNUserManager(base_user.BaseUserManager):
         extrafields["is_staff"] = True
         return self._create_user(identifier, fullname, password, **extrafields)
 
-    def create_user(self, identifier: str, fullname: str, password: str=None, **extrafields: Any) -> 'MNUser':
+    def create_user(self, identifier: str, fullname: str, password: Optional[str]=None, **extrafields: Any) -> 'MNUser':
         extrafields.setdefault("is_superuser", False)
         extrafields.setdefault("is_staff", False)
         return self._create_user(identifier, fullname, password, **extrafields)

@@ -7,6 +7,8 @@ chown -R authserver:authserver /etc/appconfig/authserver/* > /dev/null
 chown -R authserver:authserver /etc/appconfig/dkimsigner/* > /dev/null
 chown -R authserver:authserver /etc/appconfig/mailforwarder/* > /dev/null
 
+chmod 755 /etc/cron.daily/authserver_hygiene.sh
+
 systemctl --system daemon-reload >/dev/null || true
 
 # the following was assembled from various default blocks created by dh_make helpers

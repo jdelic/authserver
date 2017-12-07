@@ -70,8 +70,8 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "dkimsigner = dkimsigner.server:main",
-            "mailforwarder = forwarder.server:main",
+            "dkimsigner = maildaemons.dkimsigner.server:main",
+            "mailforwarder = maildaemons.forwarder.server:main",
         ],
     },
     install_requires=reqs,

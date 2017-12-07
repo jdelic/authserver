@@ -1,73 +1,108 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 -u
 # -* encoding: utf-8 *-
 
 import argparse
 import asyncore
 import logging
-import smtplib
 import signal
 import sys
 import os
 
 from types import FrameType
-from smtpd import SMTPServer
-from typing import Tuple, Sequence, Any
+from typing import Tuple, Sequence, Any, Union, Optional
+from concurrent.futures import ThreadPoolExecutor as Pool
 
 import dkim
 import daemon
 from django.db.utils import OperationalError
 
+import authserver
+from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer
+
 _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
+pool = None  # type: Pool
 
 
-class DKIMSignerServer(SMTPServer):
-    def process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: str,
-                        **kwargs: Any) -> str:
+class DKIMSignerServer(SaneSMTPServer):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.smtp = SMTPWrapper(external_ip=_args.output_ip, external_port=_args.output_port)
+
+    # ** must be thread-safe, don't modify shared state,
+    # _log should be thread-safe as stated by the docs. Django ORM should be as well.
+    def _process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes, *,
+                         channel: PatchedSMTPChannel,
+                         **kwargs: Any) -> Union[str, None]:
         # we can't import the Domain model before Django has been initialized
         from mailauth.models import Domain
 
+        data = self.add_received_header(peer, data, channel)
+
         mfdomain = mailfrom.split("@", 1)[1]
+        dom = None  # type: Domain
         try:
-            dom = Domain.objects.get(name=mfdomain)  # type: Domain
+            dom = Domain.objects.get(name=mfdomain)
         except Domain.DoesNotExist:
-            _log.error("Unknown domain: %s (%s)", mfdomain, mailfrom)
-            return "430 unknown domain"
+            _log.debug("Unknown domain: %s (%s)", mfdomain, mailfrom)
         except OperationalError:
             # this is a hacky hack, but psycopg2 falls over when haproxy closes the connection on us
             _log.info("Database connection closed, Operational Error, retrying")
             from django.db import connection
             connection.close()
             if "retry" in kwargs:
-                _log.error("Database unavailable.")
+                _log.exception("Database unavailable.")
                 return "421 Processing problem. Please try again later."
             else:
                 return self.process_message(peer, mailfrom, rcpttos, data, retry=True, **kwargs)
 
-        if dom.dkimkey:
-            sig = dkim.sign(data.encode("utf-8"), dom.dkimselector.encode("utf-8"), dom.name.encode("utf-8"),
+        signed = False
+        if dom is not None and dom.dkimkey:
+            sig = dkim.sign(data, dom.dkimselector.encode("utf-8"), dom.name.encode("utf-8"),
                             dom.dkimkey.replace("\r\n", "\n").encode("utf-8"))
-            data = "%s%s" % (sig.decode("utf-8"), data)
-            _log.debug("Signed output:\n%s", data)
+            data = b"%s%s" % (sig, data)
+            try:
+                logstr = data.decode('utf-8')
+                enc = "utf-8"
+            except UnicodeDecodeError:
+                logstr = data.decode('latin1')
+                enc = "latin1"
+            _log.debug("Signed output (%s):\n%s", enc, logstr)
+            signed = True
 
         # now send the mail back to be processed
-        with smtplib.SMTP(_args.output_ip, _args.output_port) as smtp:  # type: ignore
-            smtp.sendmail(mailfrom, rcpttos, data)
-
+        _log.info("Relaying %semail from <%s> to <%s>",
+                  "DKIM signed " if signed else "",
+                  mailfrom, rcpttos)
+        self.smtp.sendmail(mailfrom, rcpttos, data)
         return None
+
+    def process_message(self, *args: Any, **kwargs: Any) -> Optional[str]:
+        future = pool.submit(DKIMSignerServer._process_message, self, *args, **kwargs)
+        return future.result()
+
+    def handle_error(self) -> None:
+        # handle exceptions through asyncore. Using this implementation will make it go
+        # through logging and the JSON wrapper
+        _log.exception("Unexpected error")
+        self.handle_close()
 
 
 def run() -> None:
-    server = DKIMSignerServer((_args.input_ip, _args.input_port), None)
+    global pool
+    server = DKIMSignerServer((_args.input_ip, _args.input_port), None, decode_data=False,
+                              daemon_name="dkimsigner")
+    pool = Pool()
     asyncore.loop()
 
 
 def _sigint_handler(sig: int, frame: FrameType) -> None:
     print("CTRL+C exiting")
+    pool.shutdown(wait=False)
     sys.exit(1)
 
 
-def main() -> None:
+def _main() -> None:
     signal.signal(signal.SIGINT, _sigint_handler)
 
     global _args
@@ -113,6 +148,7 @@ def main() -> None:
 
     django.setup()
 
+    _log.info("dkimsigner v%s: DKIM signer starting" % authserver.version)
     _log.info("Django ORM initialized")
 
     pidfile = open(_args.pidfile, "w")
@@ -133,9 +169,13 @@ def main() -> None:
         run()
 
 
+def main() -> None:
+    try:
+        _main()
+    except Exception as e:
+        _log.critical("Unhandled exception", exc_info=True)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    import weakref
-    logging._handlers = weakref.WeakValueDictionary()  # type: ignore
-    logging.basicConfig(level=logging.DEBUG)
-    _log.info("DKIM signer starting")
     main()

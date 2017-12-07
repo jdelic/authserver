@@ -23,6 +23,7 @@ class Migration(migrations.Migration):
                 user_domain varchar;
                 primary_email varchar;
                 the_alias record;
+                the_domain record;
             BEGIN
                 SELECT split_part(email, '@', 1) INTO user_mailprefix;
                 SELECT split_part(email, '@', 2) INTO user_domain;
@@ -38,6 +39,21 @@ class Migration(migrations.Migration):
                     user_mailprefix := split_part(user_mailprefix, '+', 1);
                 END IF;
 
+                SELECT domain.* INTO the_domain FROM
+                        mailauth_domain AS "domain"
+                    WHERE
+                        "domain".name=user_domain;
+
+                IF the_domain.redirect_to IS NOT NULL THEN
+                    IF resolve_to_virtmail IS TRUE THEN
+                        RETURN QUERY SELECT 'virtmail'::varchar;
+                        RETURN;
+                    ELSE
+                        RETURN QUERY SELECT ('@' || the_domain.name)::varchar;
+                        RETURN;
+                    END IF;
+                END IF;
+
                 SELECT alias.* INTO the_alias FROM
                         mailauth_emailalias AS "alias",
                         mailauth_domain AS "domain"
@@ -48,8 +64,14 @@ class Migration(migrations.Migration):
 
                 -- check for mailing lists (foreign keys to mailauth_mailinglist)
                 IF the_alias.forward_to_id IS NOT NULL THEN
-                    RETURN QUERY SELECT (the_alias.mailprefix || '@' || user_domain)::varchar AS primary_email;
-                    RETURN;
+                    IF resolve_to_virtmail IS TRUE THEN
+                        RETURN QUERY SELECT 'virtmail'::varchar;
+                        RETURN;
+                    ELSE
+                        RETURN QUERY SELECT unnest(addresses) FROM mailauth_mailinglist WHERE
+                                        id=the_alias.forward_to_id;
+                        RETURN;
+                    END IF;
                 END IF;
 
                 SELECT primary_alias.mailprefix || '@' || primary_domain.name INTO primary_email FROM
@@ -144,7 +166,7 @@ class Migration(migrations.Migration):
             CREATE OR REPLACE FUNCTION authserver_iterate_users()
                 RETURNS TABLE (userid varchar) AS $$
             BEGIN
-                RETURN QUERY SELECT "alias".mailprefix || '@' || "domain".name AS userid FROM
+                RETURN QUERY SELECT ("alias".mailprefix || '@' || "domain".name)::varchar AS userid FROM
                         mailauth_mnuser AS "user",
                         mailauth_domain AS "domain",
                         mailauth_emailalias AS "alias"
@@ -152,6 +174,10 @@ class Migration(migrations.Migration):
                         "alias".id="user".delivery_mailbox_id AND
                         "domain".id="alias".domain_id AND
                         "user".is_active=TRUE;
+                RETURN QUERY SELECT ('@' || "domain".name)::varchar AS userid FROM
+                        mailauth_domain AS "domain"
+                    WHERE
+                        "domain".redirect_to<>'';
                 RETURN;
             END;
             $$ LANGUAGE plpgsql SECURITY DEFINER;

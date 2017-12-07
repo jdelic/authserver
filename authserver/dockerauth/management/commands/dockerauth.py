@@ -2,7 +2,7 @@
 import os
 import sys
 from argparse import _SubParsersAction
-from typing import Type
+from typing import Type, Any, Optional
 
 from Crypto.PublicKey import RSA
 from django.core.management.base import BaseCommand, CommandParser
@@ -25,7 +25,7 @@ class Command(BaseCommand):
                                              parser_class=parser_class,
                                              dest="accesssubcmd")  # type: _SubParsersAction
 
-        def create_allow_deny_cmds(localsubparser: _SubParsersAction, entity_name: str):
+        def create_allow_deny_cmds(localsubparser: _SubParsersAction, entity_name: str) -> None:
             allow_p = localsubparser.add_parser("allow", help="Give a %s access" % entity_name)  # type: CommandParser
             allow_p.add_argument("--name", dest="name", default=None,
                                  help="Find %s by name." % entity_name)
@@ -41,7 +41,7 @@ class Command(BaseCommand):
         cmd = self
 
         class SubCommandParser(CommandParser):
-            def __init__(self, **kwargs) -> None:
+            def __init__(self, **kwargs: Any) -> None:
                 super().__init__(cmd, **kwargs)
 
         subparsers = parser.add_subparsers(
@@ -150,7 +150,7 @@ class Command(BaseCommand):
                     self.stdout.write("    %s (%s)" % (user.get_username(), user.pk))
             if reg.user_push_access.count() > 0:
                 self.stdout.write("Users with push access:")
-                for user in reg.user_push_access.all():  # type: MNUser
+                for user in reg.user_push_access.all():
                     self.stdout.write("    %s (%s)" % (user.get_username(), user.pk))
             if reg.group_pull_access.count() > 0:
                 self.stdout.write("Groups with pull access:")
@@ -158,14 +158,14 @@ class Command(BaseCommand):
                     self.stdout.write("    %s (%s)" % (group.name, group.pk))
             if reg.group_push_access.count() > 0:
                 self.stdout.write("Groups with push access:")
-                for group in reg.group_push_access.all():  # type: MNGroup
+                for group in reg.group_push_access.all():
                     self.stdout.write("    %s (%s)" % (group.name, group.pk))
             if output_private_key:
                 self.stdout.write("Private key:\n%s\n" % reg.sign_key)
             self.stdout.write("\n")
 
-    def _add_registry(self, name: str, client_id: str, sign_key_file: str, passphrase_env: str=None,
-                      passphrase_file: str=None, unauthenticated_pull: bool=False,
+    def _add_registry(self, name: str, client_id: str, sign_key_file: str, passphrase_env: Optional[str]=None,
+                      passphrase_file: Optional[str]=None, unauthenticated_pull: bool=False,
                       unauthenticated_push: bool=False) -> None:
         if DockerRegistry.objects.filter(name=name).count() > 0:
             self.stderr.write("A Docker registry with the same name exists! (%s)" % name)
@@ -208,7 +208,7 @@ class Command(BaseCommand):
                 passphrase = pf.readline()
 
         try:
-            k = RSA.import_key(pemstr, passphrase=passphrase)
+            k = RSA.importKey(pemstr, passphrase=passphrase)
         except (ValueError, TypeError, IndexError) as e:
             self.stderr.write("PEM private key cannot be imported. Possibly because of a wrong passphrase.\n"
                               "Error message: %s" % str(e))
@@ -232,7 +232,7 @@ class Command(BaseCommand):
 
         self.stderr.write(self.style.SUCCESS("Created Docker registry %s (client id=%s)" % (name, client_id)))
 
-    def _ask_confirmation(self, question, default=None) -> bool:
+    def _ask_confirmation(self, question: str, default: bool=None) -> bool:
         result = input("%s " % question)
         if not result and default is not None:
             return default
@@ -240,7 +240,7 @@ class Command(BaseCommand):
             result = input("Please answer yes or no: ")
         return result[0].lower() == "y"
 
-    def _remove_registry(self, name: str=None, client_id: str=None, force: bool=False) -> None:
+    def _remove_registry(self, name: Optional[str]=None, client_id: Optional[str]=None, force: bool=False) -> None:
         query = Q()
         if name:
             query |= Q(name__exact=name)
@@ -265,7 +265,7 @@ class Command(BaseCommand):
             else:
                 sys.exit(1)
 
-    def handle(self, *args, **options) -> None:
+    def handle(self, *args: Any, **options: Any) -> None:
         if options["type"] == "registry":
             if options["subcommand"] == "list":
                 self._list_registries()
