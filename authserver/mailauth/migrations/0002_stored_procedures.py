@@ -44,7 +44,7 @@ class Migration(migrations.Migration):
                     WHERE
                         "domain".name=user_domain;
 
-                IF the_domain.redirect_to IS NOT NULL THEN
+                IF the_domain.redirect_to IS NOT NULL AND the_domain.redirect_to != '' THEN
                     IF resolve_to_virtmail IS TRUE THEN
                         RETURN QUERY SELECT 'virtmail'::varchar;
                         RETURN;
