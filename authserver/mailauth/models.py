@@ -72,9 +72,10 @@ class EmailAlias(models.Model):
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="aliases",
                              null=True, blank=True)
-    domain = models.ForeignKey(Domain, verbose_name="On domain")
+    domain = models.ForeignKey(Domain, verbose_name="On domain", on_delete=models.CASCADE)
     mailprefix = models.CharField("Mail prefix", max_length=255)
-    forward_to = models.ForeignKey(MailingList, verbose_name="Forward to list", null=True, blank=True)
+    forward_to = models.ForeignKey(MailingList, verbose_name="Forward to list", on_delete=models.CASCADE, null=True,
+                                   blank=True)
 
     def clean(self) -> None:
         if hasattr(self, 'forward_to') and self.forward_to is not None \
