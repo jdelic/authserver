@@ -26,6 +26,12 @@ class PretendHasherPasswordField(models.CharField):
     Django sidesteps the Model instance which has a property below and instantiates the Field class
     directly.
     """
+    def value_from_object(self, obj: 'PretendHasherPasswordField') -> str:
+        if hasattr(obj, 'actual_password'):
+            return getattr(obj, 'actual_password')
+        else:
+            return getattr(obj, self.attname)
+
     def get_prep_value(self, value: str) -> str:
         # we might get a value previously modified by the password getter below. In that case we remove
         # the unwanted prefix.
@@ -72,9 +78,10 @@ class EmailAlias(models.Model):
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="aliases",
                              null=True, blank=True)
-    domain = models.ForeignKey(Domain, verbose_name="On domain")
+    domain = models.ForeignKey(Domain, verbose_name="On domain", on_delete=models.CASCADE)
     mailprefix = models.CharField("Mail prefix", max_length=255)
-    forward_to = models.ForeignKey(MailingList, verbose_name="Forward to list", null=True, blank=True)
+    forward_to = models.ForeignKey(MailingList, verbose_name="Forward to list", on_delete=models.CASCADE, null=True,
+                                   blank=True)
 
     def clean(self) -> None:
         if hasattr(self, 'forward_to') and self.forward_to is not None \
@@ -203,34 +210,41 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
 
     objects = MNUserManager()
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self._masked_password = self.password  # type: str
-
-        # hacky hacky this will breaky at some point in the future
-        # but it's the solution that allows the most code reuse from django.contrib.auth
-        # without having two password columns in the database table
-        setattr(self.__class__, 'password',
-                property(fget=MNUser._get_sha256_password, fset=MNUser._set_sha256_password))
-
     def _get_sha256_password(self) -> str:
         # pretend to return a Django crypt format password string
         from mailauth.auth import UnixCryptCompatibleSHA256Hasher
-        if isinstance(self._masked_password, str):
-            if self._masked_password.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
-                return self._masked_password
+        attr = super().__getattribute__('password')
+        if isinstance(attr, str):
+            if attr.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
+                return attr
             else:
-                return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, self._masked_password)
-        return self._masked_password
+                return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, attr)
+        return attr
 
-    def _set_sha256_password(self, value: str) -> None:
+    def _set_sha256_password(self, value: Any) -> None:
         # pretend to be a standard CharField
         from mailauth.auth import UnixCryptCompatibleSHA256Hasher
         if isinstance(value, str):
             if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
-                self._masked_password = value[len(UnixCryptCompatibleSHA256Hasher.algorithm):]
+                # call superclass __setattr__ to avoid infinite recursion
+                super().__setattr__('password', value[len(UnixCryptCompatibleSHA256Hasher.algorithm):])
                 return
-        self._masked_password = value
+        super().__setattr__('password', value)
+
+    # hacky hacky this will breaky at some point in the future
+    # but it's the solution that allows the most code reuse from django.contrib.auth
+    # without having two password columns in the database table
+    def __setattr__(self, key: str, value: Any) -> None:
+        if key == "password":
+            self._set_sha256_password(value)
+        else:
+            super().__setattr__(key, value)
+
+    def __getattribute__(self, item: str) -> Any:
+        if item == "password":
+            return self._get_sha256_password()
+        else:
+            return super().__getattribute__(item)
 
     def get_full_name(self) -> str:
         return "%s %s" % (self.firstname, self.lastname)
