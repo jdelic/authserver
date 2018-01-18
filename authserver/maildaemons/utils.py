@@ -114,8 +114,16 @@ class PatchedSMTPChannel(smtpd.SMTPChannel):
                 kwargs["channel"] = self
             return self.__real_pm(*args, **kwargs)
 
-        # TODO: remove type annotation when issue is fixed
-        self.smtp_server.process_message = wrapper  # type: ignore  # until https://github.com/python/mypy/issues/2427
+        # it appears that sometimes the framework will create SMTPChannels with previously
+        # instantiated SMTPServer instances. So these can have been patched already. Therefore
+        # we make sure they're not by marking them. Otherwise we'll end up with a really long stacktrace of
+        # nested __real_pm calls.
+        wrapper.mn_is_wrapper = True
+
+        if hasattr(self.smtp_server.process_message, 'mn_is_wrapper') or not self.smtp_server.mn_is_wrapper:
+            # TODO: remove type annotation when issue is fixed
+            #  until https://github.com/python/mypy/issues/2427
+            self.smtp_server.process_message = wrapper  # type: ignore
 
     def handle_error(self) -> None:
         # handle exceptions through asyncore. Using this implementation will make it go
