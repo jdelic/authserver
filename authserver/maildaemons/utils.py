@@ -121,7 +121,7 @@ class PatchedSMTPChannel(smtpd.SMTPChannel):
         # nested __real_pm calls.
         wrapper.mn_is_wrapper = True
 
-        if hasattr(self.smtp_server.process_message, 'mn_is_wrapper') or not self.smtp_server.mn_is_wrapper:
+        if not hasattr(self.smtp_server.process_message, 'mn_is_wrapper'):
             # TODO: remove type annotation when issue is fixed
             #  until https://github.com/python/mypy/issues/2427
             self.smtp_server.process_message = wrapper  # type: ignore
