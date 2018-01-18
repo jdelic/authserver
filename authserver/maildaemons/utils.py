@@ -3,7 +3,7 @@ import logging
 import smtpd
 import smtplib
 import socket
-from email import policy, utils
+from email import policy
 from email._policybase import Policy
 from email.message import Message, _formatparam, SEMISPACE  # type: ignore
 
@@ -14,6 +14,7 @@ from typing import Union, List, Sequence, Tuple, Any, Optional
 from django.utils import timezone
 
 _log = logging.getLogger(__name__)
+_compat32_smtp_policy = policy.compat32.clone(linesep='\r\n')
 
 
 denied_recipients_template = """
@@ -194,7 +195,7 @@ class SaneSMTPServer(smtpd.SMTPServer):
         self.daemon_name = daemon_name
 
     def add_received_header(self, peer: Tuple[str, int], msg: bytes, channel: PatchedSMTPChannel) -> bytes:
-        parser = BytesParser(_class=SaneMessage)
+        parser = BytesParser(_class=SaneMessage, policy=_compat32_smtp_policy)
         # TODO: remove type annotation when issue is fixed
         new_msg = None  # type: SaneMessage
         new_msg = parser.parsebytes(msg)  # type: ignore
@@ -203,7 +204,7 @@ class SaneSMTPServer(smtpd.SMTPServer):
                                (channel.seen_greeting, peer[0], peer[1], self.server_name, self.daemon_name,
                                 self._localaddr[0], self._localaddr[1],
                                 timezone.now().strftime("%a, %d %b %Y %H:%M:%S %z (%Z)")))
-        return new_msg.as_bytes(policy=policy.SMTP)
+        return new_msg.as_bytes()
 
     def process_message(self, peer: _Address, mailfrom: str, rcpttos: List[str], data: Union[str, bytes],
                         **kwargs: Any) -> Optional[str]:
