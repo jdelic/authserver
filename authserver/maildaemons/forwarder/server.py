@@ -5,12 +5,10 @@ import argparse
 import asyncore
 import logging
 import signal
-import socket
 import sys
 import os
 
 from types import FrameType
-from smtpd import SMTPServer, SMTPChannel
 from typing import Tuple, Sequence, Any, Union, Optional
 from concurrent.futures import ThreadPoolExecutor as Pool
 
