@@ -23,7 +23,7 @@ typing==3.6.2
 whitenoise==3.3.1
 
 # DKIM filter dependencies
-mn-dkimpy==0.6.1.dev1
+valimail-dkimpy==0.7.1
 python-daemon==2.1.2
 
 # vendored dependencies from django12factor
