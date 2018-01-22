@@ -11,6 +11,7 @@ INSTALLED_APPS = [
     'mailauth.MailAuthApp',
     'dockerauth.DockerAuthApp',
     'postgresql_setrole',
+    'django_dbconn_retry',
     'vault12factor',
     'oauth2_provider',
     'mama_cas',

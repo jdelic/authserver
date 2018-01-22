@@ -58,16 +58,8 @@ class ForwarderServer(SaneSMTPServer):
             except Domain.DoesNotExist:
                 pass
             except OperationalError:
-                # this is a hacky hack, but psycopg2 falls over when haproxy closes the connection on us
-                _log.info("Database connection closed, Operational Error, retrying")
-                from django.db import connection
-                connection.close()
-                if "retry" in kwargs and kwargs["retry"]:
-                    _log.exception("(Retry) Database unavailable.")
-                    return "421 Processing problem. Please try again later."
-                else:
-                    # any already-processed rcptto will have been removed from the array. We retry all other ones.
-                    return self.process_message(peer, mailfrom, remaining_rcpttos, data, retry=True, **kwargs)
+                _log.exception("Database unavailable.")
+                return "421 Processing problem. Please try again later."
 
             if domain:
                 if domain.redirect_to:
@@ -101,16 +93,8 @@ class ForwarderServer(SaneSMTPServer):
                            rcptto, mailfrom, user_mailprefix)
                 continue
             except OperationalError:
-                # this is a hacky hack, but psycopg2 falls over when haproxy closes the connection on us
-                _log.info("Database connection closed, Operational Error, retrying")
-                from django.db import connection  # type: ignore  # mypy doesn't grok the conditional import above
-                connection.close()
-                if "retry" in kwargs and kwargs["retry"]:
-                    _log.exception("(Retry) Database unavailable.")
-                    return "421 Processing problem. Please try again later."
-                else:
-                    # any already-processed rcptto will have been removed from the array. We retry all other ones.
-                    return self.process_message(peer, mailfrom, remaining_rcpttos, data, retry=True, **kwargs)
+                _log.exception("Database unavailable.")
+                return "421 Processing problem. Please try again later."
 
             if alias.forward_to is not None:
                 # it's a mailing list, forward the email to all connected addresses
