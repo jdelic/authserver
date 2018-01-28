@@ -67,8 +67,8 @@ class DKIMSignerServer(SaneSMTPServer):
         _log.info("Relaying %semail from <%s> to <%s>",
                   "DKIM signed " if signed else "",
                   mailfrom, rcpttos)
-        self.smtp.sendmail(mailfrom, rcpttos, data)
-        return None
+        ret = self.smtp.sendmail(mailfrom, rcpttos, data)
+        return ret
 
     def process_message(self, *args: Any, **kwargs: Any) -> Optional[str]:
         future = pool.submit(DKIMSignerServer._process_message, self, *args, **kwargs)
