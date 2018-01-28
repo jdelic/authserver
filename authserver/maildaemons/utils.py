@@ -37,11 +37,11 @@ class SMTPWrapper:
     """
     def __init__(self, *,
                  external_ip: str, external_port: int,
-                 internal_ip: Optional[str]=None, internal_port: Optional[int]=None) -> None:
+                 error_relay_ip: Optional[str]=None, error_relay_port: Optional[int]=None) -> None:
         self.external_ip = external_ip
         self.external_port = external_port
-        self.internal_ip = internal_ip
-        self.internal_port = internal_port
+        self.error_relay_ip = error_relay_ip
+        self.error_relay_port = error_relay_port
 
     def _format_denied_recipients(self, original_mail: bytes, recipients: Sequence[str]) -> bytes:
         parser = BytesParser()
@@ -86,8 +86,8 @@ class SMTPWrapper:
                 return "%s %s" % (e.smtp_code, errorstr)
             except smtplib.SMTPRecipientsRefused as e:
                 _log.info("Some recipients where refused by the downstream server: %s", ", ".join(e.recipients.keys()))
-                if self.internal_ip and self.internal_port:
-                    with smtplib.SMTP(self.internal_ip, self.internal_port) as smtp_r:
+                if self.error_relay_ip and self.error_relay_port:
+                    with smtplib.SMTP(self.error_relay_ip, self.error_relay_port) as smtp_r:
                         try:
                             smtp_r.sendmail(
                                 "<>",

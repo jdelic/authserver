@@ -28,11 +28,11 @@ class ForwarderServer(SaneSMTPServer):
         super().__init__(*args, **kwargs)
         self.ext_smtp = SMTPWrapper(
             external_ip=_args.remote_relay_ip, external_port=_args.remote_relay_port,
-            internal_ip=_args.local_delivery_ip, internal_port=_args.local_delivery_port
+            error_relay_ip=_args.local_delivery_ip, error_relay_port=_args.local_delivery_port
         )
         self.int_smtp = SMTPWrapper(
             external_ip=_args.local_delivery_ip, external_port=_args.local_delivery_port,
-            internal_ip=_args.local_delivery_ip, internal_port=_args.local_delivery_port
+            error_relay_ip=_args.local_delivery_ip, error_relay_port=_args.local_delivery_port
         )
 
     # ** must be thread-safe, don't modify shared state,
