@@ -1,4 +1,5 @@
 # -* encoding: utf-8 *-
+import os
 from datetime import datetime
 
 from pythonjsonlogger import jsonlogger
@@ -51,17 +52,17 @@ LOGGING = {
     "loggers": {
         "": {
             "handlers": ["application_logs"],
-            "level": "DEBUG",
+            "level": os.getenv("APPLICATION_LOGLEVEL", "INFO"),
             "propagate": True,
         },
         "gunicorn.access": {
             "handlers": ["server_logs"],
-            "level": "INFO",
+            "level": os.getenv("ACCESSLOG_LOGLEVEL", "INFO"),
             "propagate": False,
         },
         "gunicorn.error": {
             "handlers": ["application_logs"],
-            "level": "INFO",
+            "level": os.getenv("GUNICORN_LOGLEVEL", "ERROR"),
             "propagate": False,
         },
     },
