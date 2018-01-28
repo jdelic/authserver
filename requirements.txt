@@ -14,7 +14,7 @@ gunicorn==19.7.1
 hvac==0.3.0
 passlib==1.7.1
 psycopg2==2.7.3.2
-pycryptodome==3.4.7
+pycryptodome==3.4.8
 pyjwt==1.5.3
 python-consul==0.7.2
 python-json-logger==0.1.8
