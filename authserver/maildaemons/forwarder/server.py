@@ -69,7 +69,9 @@ class ForwarderServer(SaneSMTPServer):
                     _log.info("%sForwarding email from <%s> to <%s> to domain @%s",
                               "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
                               mailfrom, rcptto, domain.redirect_to)
-                    self.ext_smtp.sendmail(mailfrom, new_rcptto, data)
+                    ret = self.ext_smtp.sendmail(mailfrom, new_rcptto, data)
+                    if ret is not None:
+                        return ret
                     continue
 
             # follow the same path like the stored procedure authserver_resolve_alias(...)
@@ -105,14 +107,18 @@ class ForwarderServer(SaneSMTPServer):
                 _log.info("%sForwarding email from <%s> with new sender <%s> to <%s>",
                           "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
                           mailfrom, _newmf, alias.forward_to.addresses)
-                self.ext_smtp.sendmail(_newmf, alias.forward_to.addresses, data)
+                ret = self.ext_smtp.sendmail(_newmf, alias.forward_to.addresses, data)
+                if ret is not None:
+                    return ret
 
         # if there are any remaining non-list/non-forward recipients, we inject them back to OpenSMTPD here
         if len(remaining_rcpttos) > 0:
             _log.info("%sDelivering email from <%s> to remaining recipients <%s>",
                       "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
                       mailfrom, remaining_rcpttos)
-            self.int_smtp.sendmail(mailfrom, remaining_rcpttos, data)
+            ret = self.int_smtp.sendmail(mailfrom, remaining_rcpttos, data)
+            if ret is not None:
+                return ret
 
         _log.debug("Done processing.")
         return None
