@@ -3,13 +3,14 @@
 
 import argparse
 import asyncore
+import json
 import logging
 import signal
 import sys
 import os
 
 from types import FrameType
-from typing import Tuple, Sequence, Any, Union, Optional
+from typing import Tuple, Sequence, Any, Union, Optional, List
 from concurrent.futures import ThreadPoolExecutor as Pool
 
 import daemon
@@ -26,12 +27,8 @@ pool = None  # type: Pool
 class ForwarderServer(SaneSMTPServer):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.ext_smtp = SMTPWrapper(
+        self.smtp = SMTPWrapper(
             external_ip=_args.remote_relay_ip, external_port=_args.remote_relay_port,
-            error_relay_ip=_args.local_delivery_ip, error_relay_port=_args.local_delivery_port
-        )
-        self.int_smtp = SMTPWrapper(
-            external_ip=_args.local_delivery_ip, external_port=_args.local_delivery_port,
             error_relay_ip=_args.local_delivery_ip, error_relay_port=_args.local_delivery_port
         )
 
@@ -46,6 +43,20 @@ class ForwarderServer(SaneSMTPServer):
         data = self.add_received_header(peer, data, channel)
 
         remaining_rcpttos = list(rcpttos)  # ensure that new_rcpttos is a mutable list
+        combined_rcptto = {}  # type: Dict[str, List[str]]  # { new_mailfrom: [recipients] }
+
+        def add_rcptto(mfrom: str, rcpt: Union[str, List]):
+            if mailfrom in new_rcptto:
+                if isinstance(rcpt, list):
+                    combined_rcptto[mfrom] += rcpt
+                else:
+                    combined_rcptto[mfrom].append(rcpt)
+            else:
+                if isinstance(rcpt, list):
+                    combined_rcptto[mfrom] = rcpt
+                else:
+                    combined_rcptto[mfrom] = [rcpt]
+
         # we're going to modify remaining_rcpttos so we start from its end
         for ix in range(len(remaining_rcpttos) - 1, -1, -1):
             rcptto = rcpttos[ix].lower()
@@ -69,9 +80,7 @@ class ForwarderServer(SaneSMTPServer):
                     _log.info("%sForwarding email from <%s> to <%s> to domain @%s",
                               "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
                               mailfrom, rcptto, domain.redirect_to)
-                    ret = self.ext_smtp.sendmail(mailfrom, new_rcptto, data)
-                    if ret is not None:
-                        return ret
+                    add_rcptto(mailfrom, new_rcptto)
                     continue
 
             # follow the same path like the stored procedure authserver_resolve_alias(...)
@@ -107,18 +116,28 @@ class ForwarderServer(SaneSMTPServer):
                 _log.info("%sForwarding email from <%s> with new sender <%s> to <%s>",
                           "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
                           mailfrom, _newmf, alias.forward_to.addresses)
-                ret = self.ext_smtp.sendmail(_newmf, alias.forward_to.addresses, data)
-                if ret is not None:
-                    return ret
+                add_rcptto(_newmf, alias.forward_to.addresses)
 
         # if there are any remaining non-list/non-forward recipients, we inject them back to OpenSMTPD here
         if len(remaining_rcpttos) > 0:
             _log.info("%sDelivering email from <%s> to remaining recipients <%s>",
                       "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
                       mailfrom, remaining_rcpttos)
-            ret = self.int_smtp.sendmail(mailfrom, remaining_rcpttos, data)
+            add_rcptto(mailfrom, remaining_rcpttos)
+
+        if len(combined_rcptto.keys()) == 1:
+            _log.debug("Only one mail envelope sender, forwarding is atomic")
+
+        for new_mailfrom in combined_rcptto.keys():
+            _log.debug("Injecting email from <%s> to <%s>", new_mailfrom, combined_rcptto[new_mailfrom])
+            ret = self.smtp.sendmail(new_mailfrom, combined_rcptto[new_mailfrom], data)
             if ret is not None:
+                combined_rcptto[new_mailfrom]['failure'] = True
+                if len(combined_rcptto.keys()) > 1:
+                    _log.error("Non-atomic mail sending failed from <%s> in dict(%s)", combined_rcptto.keys(),
+                               json.dumps(combined_rcptto))
                 return ret
+            combined_rcptto[new_mailfrom]['success'] = True
 
         _log.debug("Done processing.")
         return None
