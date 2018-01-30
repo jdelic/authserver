@@ -128,16 +128,17 @@ class ForwarderServer(SaneSMTPServer):
         if len(combined_rcptto.keys()) == 1:
             _log.debug("Only one mail envelope sender, forwarding is atomic")
 
+        results = {k: "unsent" for k in combined_rcptto.keys()}  # type: Dict[str, str]
         for new_mailfrom in combined_rcptto.keys():
             _log.debug("Injecting email from <%s> to <%s>", new_mailfrom, combined_rcptto[new_mailfrom])
             ret = self.smtp.sendmail(new_mailfrom, combined_rcptto[new_mailfrom], data)
             if ret is not None:
-                combined_rcptto[new_mailfrom]['failure'] = True
+                results[new_mailfrom] = "failure"
                 if len(combined_rcptto.keys()) > 1:
                     _log.error("Non-atomic mail sending failed from <%s> in dict(%s)", combined_rcptto.keys(),
-                               json.dumps(combined_rcptto))
+                               json.dumps(results))
                 return ret
-            combined_rcptto[new_mailfrom]['success'] = True
+            results[new_mailfrom] = "success"
 
         _log.debug("Done processing.")
         return None
