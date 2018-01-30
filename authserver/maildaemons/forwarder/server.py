@@ -46,7 +46,7 @@ class ForwarderServer(SaneSMTPServer):
         combined_rcptto = {}  # type: Dict[str, List[str]]  # { new_mailfrom: [recipients] }
 
         def add_rcptto(mfrom: str, rcpt: Union[str, List]):
-            if mailfrom in new_rcptto:
+            if mailfrom in combined_rcptto:
                 if isinstance(rcpt, list):
                     combined_rcptto[mfrom] += rcpt
                 else:
