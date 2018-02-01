@@ -3,15 +3,14 @@
 
 import argparse
 import asyncore
+import json
 import logging
 import signal
-import socket
 import sys
 import os
 
 from types import FrameType
-from smtpd import SMTPServer, SMTPChannel
-from typing import Tuple, Sequence, Any, Union, Optional
+from typing import Tuple, Sequence, Any, Union, Optional, List
 from concurrent.futures import ThreadPoolExecutor as Pool
 
 import daemon
@@ -19,6 +18,7 @@ from django.db.utils import OperationalError
 
 import authserver
 from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer
+
 
 _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ class ForwarderServer(SaneSMTPServer):
         super().__init__(*args, **kwargs)
         self.smtp = SMTPWrapper(
             external_ip=_args.remote_relay_ip, external_port=_args.remote_relay_port,
-            internal_ip=_args.local_delivery_ip, internal_port=_args.local_delivery_port
+            error_relay_ip=_args.local_delivery_ip, error_relay_port=_args.local_delivery_port
         )
 
     # ** must be thread-safe, don't modify shared state,
@@ -44,6 +44,20 @@ class ForwarderServer(SaneSMTPServer):
         data = self.add_received_header(peer, data, channel)
 
         remaining_rcpttos = list(rcpttos)  # ensure that new_rcpttos is a mutable list
+        combined_rcptto = {}  # type: Dict[str, List[str]]  # { new_mailfrom: [recipients] }
+
+        def add_rcptto(mfrom: str, rcpt: Union[str, List]):
+            if mailfrom in combined_rcptto:
+                if isinstance(rcpt, list):
+                    combined_rcptto[mfrom] += rcpt
+                else:
+                    combined_rcptto[mfrom].append(rcpt)
+            else:
+                if isinstance(rcpt, list):
+                    combined_rcptto[mfrom] = rcpt
+                else:
+                    combined_rcptto[mfrom] = [rcpt]
+
         # we're going to modify remaining_rcpttos so we start from its end
         for ix in range(len(remaining_rcpttos) - 1, -1, -1):
             rcptto = rcpttos[ix].lower()
@@ -56,16 +70,8 @@ class ForwarderServer(SaneSMTPServer):
             except Domain.DoesNotExist:
                 pass
             except OperationalError:
-                # this is a hacky hack, but psycopg2 falls over when haproxy closes the connection on us
-                _log.info("Database connection closed, Operational Error, retrying")
-                from django.db import connection
-                connection.close()
-                if "retry" in kwargs and kwargs["retry"]:
-                    _log.exception("(Retry) Database unavailable.")
-                    return "421 Processing problem. Please try again later."
-                else:
-                    # any already-processed rcptto will have been removed from the array. We retry all other ones.
-                    return self.process_message(peer, mailfrom, remaining_rcpttos, data, retry=True, **kwargs)
+                _log.exception("Database unavailable.")
+                return "421 Processing problem. Please try again later."
 
             if domain:
                 if domain.redirect_to:
@@ -75,7 +81,7 @@ class ForwarderServer(SaneSMTPServer):
                     _log.info("%sForwarding email from <%s> to <%s> to domain @%s",
                               "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
                               mailfrom, rcptto, domain.redirect_to)
-                    self.smtp.sendmail(mailfrom, new_rcptto, data)
+                    add_rcptto(mailfrom, new_rcptto)
                     continue
 
             # follow the same path like the stored procedure authserver_resolve_alias(...)
@@ -99,16 +105,8 @@ class ForwarderServer(SaneSMTPServer):
                            rcptto, mailfrom, user_mailprefix)
                 continue
             except OperationalError:
-                # this is a hacky hack, but psycopg2 falls over when haproxy closes the connection on us
-                _log.info("Database connection closed, Operational Error, retrying")
-                from django.db import connection  # type: ignore  # mypy doesn't grok the conditional import above
-                connection.close()
-                if "retry" in kwargs and kwargs["retry"]:
-                    _log.exception("(Retry) Database unavailable.")
-                    return "421 Processing problem. Please try again later."
-                else:
-                    # any already-processed rcptto will have been removed from the array. We retry all other ones.
-                    return self.process_message(peer, mailfrom, remaining_rcpttos, data, retry=True, **kwargs)
+                _log.exception("Database unavailable.")
+                return "421 Processing problem. Please try again later."
 
             if alias.forward_to is not None:
                 # it's a mailing list, forward the email to all connected addresses
@@ -119,14 +117,29 @@ class ForwarderServer(SaneSMTPServer):
                 _log.info("%sForwarding email from <%s> with new sender <%s> to <%s>",
                           "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
                           mailfrom, _newmf, alias.forward_to.addresses)
-                self.smtp.sendmail(_newmf, alias.forward_to.addresses, data)
+                add_rcptto(_newmf, alias.forward_to.addresses)
 
         # if there are any remaining non-list/non-forward recipients, we inject them back to OpenSMTPD here
         if len(remaining_rcpttos) > 0:
-            _log.info("%sReinjecting email from <%s> to remaining recipients <%s>",
+            _log.info("%sDelivering email from <%s> to remaining recipients <%s>",
                       "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
                       mailfrom, remaining_rcpttos)
-            self.smtp.sendmail(mailfrom, remaining_rcpttos, data)
+            add_rcptto(mailfrom, remaining_rcpttos)
+
+        if len(combined_rcptto.keys()) == 1:
+            _log.debug("Only one mail envelope sender, forwarding is atomic")
+
+        results = {k: "unsent" for k in combined_rcptto.keys()}  # type: Dict[str, str]
+        for new_mailfrom in combined_rcptto.keys():
+            _log.debug("Injecting email from <%s> to <%s>", new_mailfrom, combined_rcptto[new_mailfrom])
+            ret = self.smtp.sendmail(new_mailfrom, combined_rcptto[new_mailfrom], data)
+            if ret is not None:
+                results[new_mailfrom] = "failure"
+                if len(combined_rcptto.keys()) > 1:
+                    _log.error("Non-atomic mail sending failed from <%s> in dict(%s)", combined_rcptto.keys(),
+                               json.dumps(results))
+                return ret
+            results[new_mailfrom] = "success"
 
         _log.debug("Done processing.")
         return None

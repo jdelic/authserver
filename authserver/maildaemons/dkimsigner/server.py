@@ -46,15 +46,8 @@ class DKIMSignerServer(SaneSMTPServer):
         except Domain.DoesNotExist:
             _log.debug("Unknown domain: %s (%s)", mfdomain, mailfrom)
         except OperationalError:
-            # this is a hacky hack, but psycopg2 falls over when haproxy closes the connection on us
-            _log.info("Database connection closed, Operational Error, retrying")
-            from django.db import connection
-            connection.close()
-            if "retry" in kwargs:
-                _log.exception("Database unavailable.")
-                return "421 Processing problem. Please try again later."
-            else:
-                return self.process_message(peer, mailfrom, rcpttos, data, retry=True, **kwargs)
+            _log.exception("Database unavailable.")
+            return "421 Processing problem. Please try again later."
 
         signed = False
         if dom is not None and dom.dkimkey:
@@ -74,8 +67,8 @@ class DKIMSignerServer(SaneSMTPServer):
         _log.info("Relaying %semail from <%s> to <%s>",
                   "DKIM signed " if signed else "",
                   mailfrom, rcpttos)
-        self.smtp.sendmail(mailfrom, rcpttos, data)
-        return None
+        ret = self.smtp.sendmail(mailfrom, rcpttos, data)
+        return ret
 
     def process_message(self, *args: Any, **kwargs: Any) -> Optional[str]:
         future = pool.submit(DKIMSignerServer._process_message, self, *args, **kwargs)
