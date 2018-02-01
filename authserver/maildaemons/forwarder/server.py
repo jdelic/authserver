@@ -19,6 +19,7 @@ from django.db.utils import OperationalError
 import authserver
 from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer
 
+
 _args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
 pool = None  # type: Pool
