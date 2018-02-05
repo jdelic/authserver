@@ -11,10 +11,10 @@ django-postgresql-setrole==1.0.10
 django-select2==5.11.1  # rq.filter: <6.0.0
 envdir==0.7
 gunicorn==19.7.1
-hvac==0.3.0
+hvac==0.4.0
 passlib==1.7.1
 psycopg2==2.7.3.2
-pycryptodome==3.4.9
+pycryptodome==3.4.11
 pyjwt==1.5.3
 python-consul==0.7.2
 python-json-logger==0.1.8
