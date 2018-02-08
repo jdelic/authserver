@@ -13,7 +13,7 @@ envdir==0.7
 gunicorn==19.7.1
 hvac==0.4.0
 passlib==1.7.1
-psycopg2==2.7.3.2
+psycopg2==2.7.4
 pycryptodome==3.4.11
 pyjwt==1.5.3
 python-consul==0.7.2
