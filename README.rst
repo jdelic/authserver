@@ -234,6 +234,11 @@ This program includes a copy of
 `django12factor <django12factor_>`__ which is licensed under The MIT License
 (MIT) Copyright (c) 2013-2017 Kristian Glass.
 
+This program includes a copy of 
+`Select2 JavaScript library <select2_>`__ which is licensed user the MIT 
+License
+Copyright (c) 2012-2017 Kevin Brown, Igor Vaynberg, and Select2 contributors
+
 
 .. _12factor: https://12factor.net/
 .. _appconfig:
@@ -250,3 +255,5 @@ This program includes a copy of
 .. _opensmtpd_spapi:
    https://github.com/jdelic/saltshaker/blob/master/srv/salt/opensmtpd/
    postgresql.table.jinja.conf
+.. _select2:
+   https://github.com/select2/select2/

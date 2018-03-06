@@ -1,3 +1,14 @@
+This program includes a copy of
+`django12factor <django12factor_>`__ which is licensed under The MIT License
+(MIT) Copyright (c) 2013-2017 Kristian Glass.
+
+
+This program includes a copy of
+`Select2 JavaScript library <select2_>`__ which is licensed user the MIT
+License
+Copyright (c) 2012-2017 Kevin Brown, Igor Vaynberg, and Select2 contributors
+
+Authserver itself is
 Copyright (c) 2017, Jonas Maurus
 All rights reserved.
 
@@ -14,6 +25,11 @@ modification, are permitted provided that the following conditions are met:
 3. Neither the name of the copyright holder nor the names of its contributors
    may be used to endorse or promote products derived from this software
    without specific prior written permission.
+
+4. In addition to clause 3, static resources included with the source code and
+   binary forms (including, but not limited to the maurus.networks logo) are
+   not subject to this license. All rights for these resources stay with the
+   copyright holder.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
