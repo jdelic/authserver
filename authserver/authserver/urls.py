@@ -31,6 +31,10 @@ urlpatterns = [
     # Docker auth
     url(r'^docker/token/$', docker_views.DockerAuthView.as_view()),
 
+    # well-known config endpoint
+    # http://docs.akana.com/cm/api_oauth/oauth_discovery/m_oauth_getOpenIdConnectWellknownConfiguration.htm
+    url(r'^.well-known/openid-configuration', mail_views.WellKnown.as_view()),
+
     # debug
     url(r'^debug/error/$', base_views.test_error),
 ]
