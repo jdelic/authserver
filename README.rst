@@ -236,7 +236,7 @@ This program includes a copy of
 
 This program includes a copy of 
 `Select2 JavaScript library <select2_>`__ which is licensed user the MIT 
-License
+License (MIT)
 Copyright (c) 2012-2017 Kevin Brown, Igor Vaynberg, and Select2 contributors
 
 
