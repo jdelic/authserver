@@ -5,6 +5,7 @@ from typing import Union
 
 import django.contrib.auth.admin as auth_admin
 from Crypto.PublicKey import RSA
+from django import forms
 from django.contrib import admin
 from django.core import urlresolvers
 from django.db.models.fields import Field as _ModelField
@@ -18,10 +19,28 @@ from typing import Dict
 from oauth2_provider.admin import ApplicationAdmin
 from oauth2_provider.models import get_application_model
 
-from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm, MailingListForm
-from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroup, MNApplication, MailingList
+from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm, MailingListForm, MNServiceUserCreationForm, \
+    MNServiceUserChangeForm
+from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroup, MNApplication, MailingList, \
+    MNServiceUser
 
 admin.site.unregister(auth_admin.Group)
+
+
+@admin.register(MNServiceUser)
+class MNServiceUserAdmin(admin.ModelAdmin):
+    form = MNServiceUserChangeForm
+    add_form = MNServiceUserCreationForm
+
+    def get_form(self, request: HttpRequest, obj: forms.ModelForm=None, **kwargs: Any) -> forms.ModelForm:
+        """
+        Use special form during user creation
+        """
+        defaults = {}
+        if obj is None:
+            defaults['form'] = self.add_form
+        defaults.update(kwargs)
+        return super().get_form(request, obj, **defaults)
 
 
 @admin.register(MNUser)

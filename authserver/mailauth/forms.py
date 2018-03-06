@@ -7,6 +7,7 @@ from typing import Any, Dict, Sequence, Tuple, Optional, List
 
 import django.contrib.auth.forms as auth_forms
 from Crypto.PublicKey import RSA
+from django import forms
 from django.contrib.admin import widgets
 from django.core.files.uploadedfile import UploadedFile
 from django.forms.models import ModelForm, ALL_FIELDS
@@ -14,7 +15,38 @@ from django.forms.renderers import BaseRenderer
 from django.utils.html import format_html
 from django_select2.forms import Select2TagWidget
 
-from mailauth.models import MNUser, Domain, MailingList
+from mailauth.models import MNUser, Domain, MailingList, MNServiceUser
+
+
+class MNServiceUserCreationForm(forms.ModelForm):
+    password = forms.CharField(
+        label="Password",
+        strip=False,
+        help_text="This is the only time you will be able to see this password. Note it down now!"
+    )
+
+    class Meta:
+        model = MNServiceUser
+        fields = ("username",)
+        field_classes = {'username': auth_forms.UsernameField}
+
+
+class MNServiceUserChangeForm(forms.ModelForm):
+    password = auth_forms.ReadOnlyPasswordHashField(
+        label="Password",
+        help_text="The passwords are not stored. To change it please delete this service user and create a new one"
+    )
+
+    class Meta:
+        model = MNServiceUser
+        fields = '__all__'
+        field_classes = {'username': auth_forms.UsernameField}
+
+    def clean_password(self) -> str:
+        # Regardless of what the user provides, return the initial value.
+        # This is done here, rather than on the field, because the
+        # field does not have access to the initial value
+        return self.initial["password"]
 
 
 class MNUserCreationForm(auth_forms.UserCreationForm):

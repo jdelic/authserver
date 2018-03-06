@@ -253,6 +253,21 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
         return self.identifier
 
 
+class MNServiceUser(models.Model):
+    """
+    Service users are usernames and passwords that alias a valid user. This is useful when usernames
+    and passwords must be shared with a service that doesn't support OAuth2/OpenID connect or requires
+    the Resource Owner flow, but isn't always used from a trustworthy client.
+    """
+    class Meta:
+        verbose_name = "Service User"
+        verbose_name_plural = "Service Users"
+
+    user = models.ForeignKey(MNUser, on_delete=models.CASCADE)
+    username = models.UUIDField("Username", default=uuid.uuid4, editable=False, primary_key=True)
+    password = PretendHasherPasswordField("Password", max_length=128)
+
+
 class MNApplication(oauth2_models.AbstractApplication):
     """
     Add permissions to applications. They are permissions that applications are *allowed to request
