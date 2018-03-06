@@ -2,7 +2,10 @@
 #
 # The forms in here are hooked up to Django admin via mailauth.admin
 #
+import os
 import re
+import math
+import string
 from typing import Any, Dict, Sequence, Tuple, Optional, List
 
 import django.contrib.auth.forms as auth_forms
@@ -18,11 +21,17 @@ from django_select2.forms import Select2TagWidget
 from mailauth.models import MNUser, Domain, MailingList, MNServiceUser
 
 
+def generate_password(pass_len):
+    symbols = "0123456789=-$%^&*()[]{}\\/!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    return ''.join([symbols[math.floor(int(x) / 256 * len(symbols))] for x in os.urandom(pass_len)])
+
+
 class MNServiceUserCreationForm(forms.ModelForm):
     password = forms.CharField(
         label="Password",
         strip=False,
-        help_text="This is the only time you will be able to see this password. Note it down now!"
+        help_text="This is the only time you will be able to see this password. Note it down now!",
+        initial=generate_password(24)
     )
 
     class Meta:

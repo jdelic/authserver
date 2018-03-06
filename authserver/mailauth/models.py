@@ -266,6 +266,7 @@ class MNServiceUser(models.Model):
     user = models.ForeignKey(MNUser, on_delete=models.CASCADE)
     username = models.UUIDField("Username", default=uuid.uuid4, editable=False, primary_key=True)
     password = PretendHasherPasswordField("Password", max_length=128)
+    description = models.CharField(max_length=255, blank=True, null=False, default='')
 
 
 class MNApplication(oauth2_models.AbstractApplication):
