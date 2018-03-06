@@ -33,6 +33,13 @@ Planned features
 * OAuth2 applications can use a SSL client certificate to authenticate for a
   non-standard HTTP API to register as an OAuth2 client and get their OAuth2
   credentials, cutting down on manual configuration.
+  
+* OpenID Connect support
+
+* Command-line authentication helper
+
+* Service-specific username and passwords for systems that don't support
+  OAuth2/OIDC
 
 * CAS support through ``mama-cas``
 
