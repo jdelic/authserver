@@ -31,6 +31,11 @@ admin.site.unregister(auth_admin.Group)
 class MNServiceUserAdmin(admin.ModelAdmin):
     form = MNServiceUserChangeForm
     add_form = MNServiceUserCreationForm
+    readonly_fields = ('username',)
+    list_display = ('user', 'username', 'description',)
+    list_filter = ('user',)
+    search_fields = ('user', 'username', 'description',)
+    ordering = ('user',)
 
     def get_form(self, request: HttpRequest, obj: forms.ModelForm=None, **kwargs: Any) -> forms.ModelForm:
         """

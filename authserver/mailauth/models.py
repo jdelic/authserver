@@ -3,6 +3,7 @@ import uuid
 
 from django.contrib.auth import models as auth_models, base_user
 from django.conf import settings
+from django.contrib.auth.hashers import make_password
 from django.contrib.postgres.fields.array import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -167,8 +168,8 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
 
     uuid = models.UUIDField("Shareable ID", default=uuid.uuid4, editable=False, primary_key=True)
     identifier = models.CharField("User ID", max_length=255, unique=True, db_index=True)
-    fullname = models.CharField("Full name", max_length=255)
     password = PretendHasherPasswordField("Password", max_length=128)
+    fullname = models.CharField("Full name", max_length=255)
     delivery_mailbox = models.OneToOneField(EmailAlias, on_delete=models.PROTECT, null=True)
 
     pgp_key_id = models.CharField("PGP Key ID", max_length=64, blank=True, default="")
@@ -210,6 +211,12 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
 
     objects = MNUserManager()
 
+    def get_full_name(self) -> str:
+        return "%s %s" % (self.firstname, self.lastname)
+
+    def get_short_name(self) -> str:
+        return self.identifier
+
     def _get_sha256_password(self) -> str:
         # pretend to return a Django crypt format password string
         from mailauth.auth import UnixCryptCompatibleSHA256Hasher
@@ -246,12 +253,6 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
         else:
             return super().__getattribute__(item)
 
-    def get_full_name(self) -> str:
-        return "%s %s" % (self.firstname, self.lastname)
-
-    def get_short_name(self) -> str:
-        return self.identifier
-
 
 class MNServiceUser(models.Model):
     """
@@ -267,6 +268,48 @@ class MNServiceUser(models.Model):
     username = models.UUIDField("Username", default=uuid.uuid4, editable=False, primary_key=True)
     password = PretendHasherPasswordField("Password", max_length=128)
     description = models.CharField(max_length=255, blank=True, null=False, default='')
+
+    def _get_sha256_password(self) -> str:
+        # pretend to return a Django crypt format password string
+        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
+        attr = super().__getattribute__('password')
+        if isinstance(attr, str):
+            if attr.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
+                return attr
+            else:
+                return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, attr)
+        return attr
+
+    def _set_sha256_password(self, value: Any) -> None:
+        # pretend to be a standard CharField
+        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
+        if isinstance(value, str):
+            if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
+                # call superclass __setattr__ to avoid infinite recursion
+                super().__setattr__('password', value[len(UnixCryptCompatibleSHA256Hasher.algorithm):])
+                return
+        super().__setattr__('password', value)
+
+    # hacky hacky this will breaky at some point in the future
+    # but it's the solution that allows the most code reuse from django.contrib.auth
+    # without having two password columns in the database table
+    def __setattr__(self, key: str, value: Any) -> None:
+        if key == "password":
+            self._set_sha256_password(value)
+        else:
+            super().__setattr__(key, value)
+
+    def __getattribute__(self, item: str) -> Any:
+        if item == "password":
+            return self._get_sha256_password()
+        else:
+            return super().__getattribute__(item)
+
+    def set_password(self, raw_password: str) -> None:
+        self.password = make_password(raw_password)
+
+    def __str__(self) -> str:
+        return "%s (%s)" % (self.username, self.user.identifier,)
 
 
 class MNApplication(oauth2_models.AbstractApplication):

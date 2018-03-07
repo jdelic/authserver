@@ -13,7 +13,6 @@ from Crypto.PublicKey import RSA
 from django import forms
 from django.contrib.admin import widgets
 from django.core.files.uploadedfile import UploadedFile
-from django.forms.models import ModelForm, ALL_FIELDS
 from django.forms.renderers import BaseRenderer
 from django.utils.html import format_html
 from django_select2.forms import Select2TagWidget
@@ -36,20 +35,27 @@ class MNServiceUserCreationForm(forms.ModelForm):
 
     class Meta:
         model = MNServiceUser
-        fields = ("username",)
-        field_classes = {'username': auth_forms.UsernameField}
+        fields = forms.ALL_FIELDS
+        readonly_fields = ('username',)
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password"])
+        if commit:
+            user.save()
+        return user
 
 
 class MNServiceUserChangeForm(forms.ModelForm):
     password = auth_forms.ReadOnlyPasswordHashField(
         label="Password",
-        help_text="The passwords are not stored. To change it please delete this service user and create a new one"
+        help_text="Password plaintext is never stored. To get a new password, please create a new service user."
     )
 
     class Meta:
         model = MNServiceUser
-        fields = '__all__'
-        field_classes = {'username': auth_forms.UsernameField}
+        fields = forms.ALL_FIELDS
+        readonly_fields = ('username',)
 
     def clean_password(self) -> str:
         # Regardless of what the user provides, return the initial value.
@@ -71,7 +77,7 @@ class MNUserChangeForm(auth_forms.UserChangeForm):
 
     class Meta:
         model = MNUser
-        fields = ALL_FIELDS
+        fields = forms.ALL_FIELDS
         field_classes = {'identifier': auth_forms.UsernameField}
 
 
@@ -105,11 +111,11 @@ class DomainKeyWidget(widgets.AdminTextareaWidget):
         return format_html("<div style=\"float: left\">{}</div>", ret)
 
 
-class DomainForm(ModelForm):
+class DomainForm(forms.ModelForm):
     class Meta:
         model = Domain
         widgets = {'dkimkey': DomainKeyWidget()}
-        fields = ALL_FIELDS
+        fields = forms.ALL_FIELDS
 
 
 class ArrayFieldWidget(Select2TagWidget):
@@ -125,8 +131,8 @@ class ArrayFieldWidget(Select2TagWidget):
         return [(None, subgroup, 0)]
 
 
-class MailingListForm(ModelForm):
+class MailingListForm(forms.ModelForm):
     class Meta:
         model = MailingList
         widgets = {'addresses': ArrayFieldWidget(attrs={"style": "width: 750px"})}
-        fields = ALL_FIELDS
+        fields = forms.ALL_FIELDS
