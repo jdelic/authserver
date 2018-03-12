@@ -4,6 +4,7 @@ from collections import OrderedDict
 from typing import Tuple, Dict, Optional
 
 from django.contrib.auth import hashers
+from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 from typing import Union
 
@@ -113,7 +114,7 @@ class MNUserAuthenticationBackend(object):
             user = None  # type: Union[MNUser, MNServiceUser]
             try:
                 service_user = MNServiceUser.objects.get(username=username)
-            except MNServiceUser.DoesNotExist:
+            except (MNServiceUser.DoesNotExist, ValidationError):
                 try:
                     user = MNUser.objects.get(identifier=username)
                 except MNUser.DoesNotExist:
@@ -134,7 +135,7 @@ class MNUserAuthenticationBackend(object):
             else:
                 # It's a valid MNServiceUser
                 _log.debug("Logging in service user %s as %s", service_user.username, service_user.user.identifier)
-                tocheck_password = user.password
+                tocheck_password = service_user.password
                 user = service_user.user
         else:
             _log.debug("logging in email alis %s", username)

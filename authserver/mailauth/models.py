@@ -162,7 +162,45 @@ class MNUserManager(base_user.BaseUserManager):
         return self._create_user(identifier, fullname, password, **extrafields)
 
 
-class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
+class PasswordMaskMixin:
+    def _get_sha256_password(self) -> str:
+        # pretend to return a Django crypt format password string
+        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
+        attr = super().__getattribute__('password')
+        if isinstance(attr, str):
+            if attr.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
+                return attr
+            else:
+                return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, attr)
+        return attr
+
+    def _set_sha256_password(self, value: Any) -> None:
+        # pretend to be a standard CharField
+        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
+        if isinstance(value, str):
+            if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
+                # call superclass __setattr__ to avoid infinite recursion
+                super().__setattr__('password', value[len(UnixCryptCompatibleSHA256Hasher.algorithm):])
+                return
+        super().__setattr__('password', value)
+
+    # hacky hacky this will breaky at some point in the future
+    # but it's the solution that allows the most code reuse from django.contrib.auth
+    # without having two password columns in the database table
+    def __setattr__(self, key: str, value: Any) -> None:
+        if key == "password":
+            self._set_sha256_password(value)
+        else:
+            super().__setattr__(key, value)
+
+    def __getattribute__(self, item: str) -> Any:
+        if item == "password":
+            return self._get_sha256_password()
+        else:
+            return super().__getattribute__(item)
+
+
+class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.PermissionsMixin):
     class Meta:
         verbose_name_plural = "User accounts"
 
@@ -217,44 +255,8 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
     def get_short_name(self) -> str:
         return self.identifier
 
-    def _get_sha256_password(self) -> str:
-        # pretend to return a Django crypt format password string
-        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
-        attr = super().__getattribute__('password')
-        if isinstance(attr, str):
-            if attr.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
-                return attr
-            else:
-                return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, attr)
-        return attr
 
-    def _set_sha256_password(self, value: Any) -> None:
-        # pretend to be a standard CharField
-        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
-        if isinstance(value, str):
-            if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
-                # call superclass __setattr__ to avoid infinite recursion
-                super().__setattr__('password', value[len(UnixCryptCompatibleSHA256Hasher.algorithm):])
-                return
-        super().__setattr__('password', value)
-
-    # hacky hacky this will breaky at some point in the future
-    # but it's the solution that allows the most code reuse from django.contrib.auth
-    # without having two password columns in the database table
-    def __setattr__(self, key: str, value: Any) -> None:
-        if key == "password":
-            self._set_sha256_password(value)
-        else:
-            super().__setattr__(key, value)
-
-    def __getattribute__(self, item: str) -> Any:
-        if item == "password":
-            return self._get_sha256_password()
-        else:
-            return super().__getattribute__(item)
-
-
-class MNServiceUser(models.Model):
+class MNServiceUser(PasswordMaskMixin, models.Model):
     """
     Service users are usernames and passwords that alias a valid user. This is useful when usernames
     and passwords must be shared with a service that doesn't support OAuth2/OpenID connect or requires
@@ -268,42 +270,6 @@ class MNServiceUser(models.Model):
     username = models.UUIDField("Username", default=uuid.uuid4, editable=False, primary_key=True)
     password = PretendHasherPasswordField("Password", max_length=128)
     description = models.CharField(max_length=255, blank=True, null=False, default='')
-
-    def _get_sha256_password(self) -> str:
-        # pretend to return a Django crypt format password string
-        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
-        attr = super().__getattribute__('password')
-        if isinstance(attr, str):
-            if attr.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
-                return attr
-            else:
-                return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, attr)
-        return attr
-
-    def _set_sha256_password(self, value: Any) -> None:
-        # pretend to be a standard CharField
-        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
-        if isinstance(value, str):
-            if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
-                # call superclass __setattr__ to avoid infinite recursion
-                super().__setattr__('password', value[len(UnixCryptCompatibleSHA256Hasher.algorithm):])
-                return
-        super().__setattr__('password', value)
-
-    # hacky hacky this will breaky at some point in the future
-    # but it's the solution that allows the most code reuse from django.contrib.auth
-    # without having two password columns in the database table
-    def __setattr__(self, key: str, value: Any) -> None:
-        if key == "password":
-            self._set_sha256_password(value)
-        else:
-            super().__setattr__(key, value)
-
-    def __getattribute__(self, item: str) -> Any:
-        if item == "password":
-            return self._get_sha256_password()
-        else:
-            return super().__getattribute__(item)
 
     def set_password(self, raw_password: str) -> None:
         self.password = make_password(raw_password)
