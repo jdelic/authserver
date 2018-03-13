@@ -5,6 +5,7 @@
 import os
 import re
 import math
+import uuid
 from typing import Any, Dict, Sequence, Tuple, Optional, List
 
 import django.contrib.auth.forms as auth_forms

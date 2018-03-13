@@ -1,6 +1,6 @@
 # -* encoding: utf-8 *-
 import functools
-from typing import Type, Any
+from typing import Type, Any, List
 from typing import Union
 
 import django.contrib.auth.admin as auth_admin
@@ -31,13 +31,13 @@ admin.site.unregister(auth_admin.Group)
 class MNServiceUserAdmin(admin.ModelAdmin):
     form = MNServiceUserChangeForm
     add_form = MNServiceUserCreationForm
-    readonly_fields = ('username',)
     list_display = ('user', 'username', 'description',)
     list_filter = ('user',)
     search_fields = ('user', 'username', 'description',)
     ordering = ('user',)
 
     fields = ['username', 'password', 'description', 'user']
+    readonly_fields = ['username',]
 
     def get_form(self, request: HttpRequest, obj: forms.ModelForm=None, **kwargs: Any) -> forms.ModelForm:
         """
