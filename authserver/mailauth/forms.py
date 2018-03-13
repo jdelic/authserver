@@ -29,7 +29,7 @@ class MNServiceUserCreationForm(forms.ModelForm):
         label="Password",
         strip=False,
         help_text="This is the only time you will be able to see this password. Note it down now!",
-        initial=generate_password(24)
+        initial=lambda: generate_password(24)
     )
 
     class Meta:
