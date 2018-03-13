@@ -5,7 +5,6 @@
 import os
 import re
 import math
-import string
 from typing import Any, Dict, Sequence, Tuple, Optional, List
 
 import django.contrib.auth.forms as auth_forms
@@ -36,7 +35,6 @@ class MNServiceUserCreationForm(forms.ModelForm):
     class Meta:
         model = MNServiceUser
         fields = forms.ALL_FIELDS
-        readonly_fields = ('username',)
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -55,7 +53,6 @@ class MNServiceUserChangeForm(forms.ModelForm):
     class Meta:
         model = MNServiceUser
         fields = forms.ALL_FIELDS
-        readonly_fields = ('username',)
 
     def clean_password(self) -> str:
         # Regardless of what the user provides, return the initial value.

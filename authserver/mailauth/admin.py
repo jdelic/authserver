@@ -37,6 +37,8 @@ class MNServiceUserAdmin(admin.ModelAdmin):
     search_fields = ('user', 'username', 'description',)
     ordering = ('user',)
 
+    fields = ['username', 'password', 'description', 'user']
+
     def get_form(self, request: HttpRequest, obj: forms.ModelForm=None, **kwargs: Any) -> forms.ModelForm:
         """
         Use special form during user creation

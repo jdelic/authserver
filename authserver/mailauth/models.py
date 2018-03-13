@@ -267,7 +267,7 @@ class MNServiceUser(PasswordMaskMixin, models.Model):
         verbose_name_plural = "Service Users"
 
     user = models.ForeignKey(MNUser, on_delete=models.CASCADE)
-    username = models.UUIDField("Username", default=uuid.uuid4, editable=False, primary_key=True)
+    username = models.CharField("Username", default=uuid.uuid4, max_length=64)
     password = PretendHasherPasswordField("Password", max_length=128)
     description = models.CharField(max_length=255, blank=True, null=False, default='')
 
