@@ -2,19 +2,64 @@
 #
 # The forms in here are hooked up to Django admin via mailauth.admin
 #
+import os
 import re
+import math
+import uuid
 from typing import Any, Dict, Sequence, Tuple, Optional, List
 
 import django.contrib.auth.forms as auth_forms
 from Crypto.PublicKey import RSA
+from django import forms
 from django.contrib.admin import widgets
 from django.core.files.uploadedfile import UploadedFile
-from django.forms.models import ModelForm, ALL_FIELDS
 from django.forms.renderers import BaseRenderer
 from django.utils.html import format_html
 from django_select2.forms import Select2TagWidget
 
-from mailauth.models import MNUser, Domain, MailingList
+from mailauth.models import MNUser, Domain, MailingList, MNServiceUser
+
+
+def generate_password(pass_len):
+    symbols = "0123456789=-$%^&*()[]{}\\/!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    return ''.join([symbols[math.floor(int(x) / 256 * len(symbols))] for x in os.urandom(pass_len)])
+
+
+class MNServiceUserCreationForm(forms.ModelForm):
+    password = forms.CharField(
+        label="Password",
+        strip=False,
+        help_text="This is the only time you will be able to see this password. Note it down now!",
+        initial=lambda: generate_password(24)
+    )
+
+    class Meta:
+        model = MNServiceUser
+        fields = forms.ALL_FIELDS
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password"])
+        if commit:
+            user.save()
+        return user
+
+
+class MNServiceUserChangeForm(forms.ModelForm):
+    password = auth_forms.ReadOnlyPasswordHashField(
+        label="Password",
+        help_text="Password plaintext is never stored. To get a new password, please create a new service user."
+    )
+
+    class Meta:
+        model = MNServiceUser
+        fields = forms.ALL_FIELDS
+
+    def clean_password(self) -> str:
+        # Regardless of what the user provides, return the initial value.
+        # This is done here, rather than on the field, because the
+        # field does not have access to the initial value
+        return self.initial["password"]
 
 
 class MNUserCreationForm(auth_forms.UserCreationForm):
@@ -30,7 +75,7 @@ class MNUserChangeForm(auth_forms.UserChangeForm):
 
     class Meta:
         model = MNUser
-        fields = ALL_FIELDS
+        fields = forms.ALL_FIELDS
         field_classes = {'identifier': auth_forms.UsernameField}
 
 
@@ -64,11 +109,11 @@ class DomainKeyWidget(widgets.AdminTextareaWidget):
         return format_html("<div style=\"float: left\">{}</div>", ret)
 
 
-class DomainForm(ModelForm):
+class DomainForm(forms.ModelForm):
     class Meta:
         model = Domain
         widgets = {'dkimkey': DomainKeyWidget()}
-        fields = ALL_FIELDS
+        fields = forms.ALL_FIELDS
 
 
 class ArrayFieldWidget(Select2TagWidget):
@@ -84,8 +129,8 @@ class ArrayFieldWidget(Select2TagWidget):
         return [(None, subgroup, 0)]
 
 
-class MailingListForm(ModelForm):
+class MailingListForm(forms.ModelForm):
     class Meta:
         model = MailingList
         widgets = {'addresses': ArrayFieldWidget(attrs={"style": "width: 750px"})}
-        fields = ALL_FIELDS
+        fields = forms.ALL_FIELDS
