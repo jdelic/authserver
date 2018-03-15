@@ -53,7 +53,7 @@ def main() -> None:
                              "interface.")
     parser.add_argument("-u", "--url", dest="url", required=True,
                         help="The URL of the authserver endpoint to use to check the password.")
-    parser.add_argument("--no-ssl-validate", dest="validate_ssl", action="store_false", type=bool, default=True,
+    parser.add_argument("--no-ssl-validate", dest="validate_ssl", action="store_false", default=True,
                         help="Skip validation of the server's SSL certificate.")
     parser.add_argument("--ca-file", dest="ca_file", default=None,
                         help="Set a CA bundle to validate the server's SSL certificate againt")
