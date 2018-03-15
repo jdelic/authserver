@@ -72,6 +72,7 @@ setup(
         "console_scripts": [
             "dkimsigner = maildaemons.dkimsigner.server:main",
             "mailforwarder = maildaemons.forwarder.server:main",
+            "checkpassword = authclient.checkpassword:main",
         ],
     },
     install_requires=reqs,
