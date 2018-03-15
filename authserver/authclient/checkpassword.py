@@ -1,11 +1,13 @@
 #!/usr/bin/python -u
 # -* encoding: utf-8 *-
 import os
-import subprocess
 import sys
 import argparse
+import subprocess
 
-from typing import Tuple
+from typing import Tuple, Union
+
+import requests
 
 
 def readinput_checkpassword() -> Tuple[str, str]:
@@ -32,8 +34,9 @@ def readinput_authext() -> Tuple[str, str]:
     return username, password
 
 
-def validate(url: str, username: str, password: str) -> bool:
-    pass
+def validate(url: str, username: str, password: str, validate_ssl: Union[bool, str]=True) -> bool:
+    resp = requests.post(url, json={"username": username, "password": password}, verify=validate_ssl)
+    return resp.status_code == 200 and resp.json()['authenticated']
 
 
 def main() -> None:
@@ -50,6 +53,10 @@ def main() -> None:
                              "interface.")
     parser.add_argument("-u", "--url", dest="url", required=True,
                         help="The URL of the authserver endpoint to use to check the password.")
+    parser.add_argument("--no-ssl-validate", dest="validate_ssl", action="store_false", type=bool, default=True,
+                        help="Skip validation of the server's SSL certificate.")
+    parser.add_argument("--ca-file", dest="ca_file", default=None,
+                        help="Set a CA bundle to validate the server's SSL certificate againt")
     parser.add_argument("prog", nargs="*", help="The program to run as defined by the checkpassword interface "
                                                 "(optional).")
 
@@ -60,7 +67,7 @@ def main() -> None:
     else:
         username, password = readinput_authext()
 
-    if validate(_args.url, username, password):
+    if validate(_args.url, username, password, validate_ssl=_args.ca_file if _args.ca_file else _args.validate_ssl):
         if _args.mode == "checkpassword":
             # execute prog
             subprocess.call(_args.prog)
