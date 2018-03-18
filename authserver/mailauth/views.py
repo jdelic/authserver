@@ -8,7 +8,9 @@ from django.http import HttpResponseBadRequest
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse
 from django.shortcuts import render
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 from oauth2_provider.forms import AllowForm
 from oauth2_provider.models import get_application_model
 from oauth2_provider.views.base import AuthorizationView
@@ -67,6 +69,7 @@ class ScopeValidationAuthView(AuthorizationView):
         return resp
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class UserLoginAPIView(View):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
