@@ -28,7 +28,7 @@ version-parser=pep440
 version-action=bump-revision
 
 use-fpm=/usr/local/bin/fpm
-run-fpm=template:.gopythongo/fpm_opts
+run-fpm=[template:.gopythongo/fpm_opts, template:.gopythongo/fpm_opts.authclient]
 
 eatmydata
 eatmydata-path=/usr/bin/eatmydata
