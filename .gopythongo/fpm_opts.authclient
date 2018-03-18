@@ -12,4 +12,4 @@
 # script in the future
 --deb-no-default-config-files
 
-authserver/authclient/checkpassword.py=/usr/local/bin/authclient.py
+authserver/authclient/checkpassword.py=/usr/local/bin/mn-authclient.py
