@@ -130,7 +130,7 @@ class DomainKeyWidget(widgets.AdminTextareaWidget):
         ))
         else:
             ret += format_html("""
-            <a href="?_prefill_key=1" class="button">Generate new key</a>
+            <a href="?_prefill_key=1" class="button">Generate&nbsp;new&nbsp;key</a>
         """)
         return format_html("<div style=\"float: left\">{}</div>", ret)
 
