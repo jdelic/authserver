@@ -74,7 +74,8 @@ class ScopeValidationAuthView(AuthorizationView):
 class UserLoginAPIView(RatelimitMixin, View):
     ratelimit_key = 'ip'
     ratelimit_rate = '20/m'
-    
+    ratelimit_block = True
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
