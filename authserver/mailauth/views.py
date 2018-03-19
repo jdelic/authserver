@@ -80,7 +80,7 @@ class UserLoginAPIView(View):
 
         if request.content_type == "application/json":
             try:
-                data = json.loads(request.body)
+                data = json.loads(request.body.decode('utf-8'))
                 if "username" not in data or "password" not in data:
                     return HttpResponseBadRequest("Missing parameters")
                 username = data['username']
