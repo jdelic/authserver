@@ -14,6 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from oauth2_provider.forms import AllowForm
 from oauth2_provider.models import get_application_model
 from oauth2_provider.views.base import AuthorizationView
+from ratelimit.mixins import RatelimitMixin
 
 from mailauth.models import MNApplication
 from mailauth.models import MNUser
@@ -70,7 +71,10 @@ class ScopeValidationAuthView(AuthorizationView):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class UserLoginAPIView(View):
+class UserLoginAPIView(RatelimitMixin, View):
+    ratelimit_key = 'ip'
+    ratelimit_rate = '20/m'
+    
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
