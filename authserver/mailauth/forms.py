@@ -12,6 +12,7 @@ import django.contrib.auth.forms as auth_forms
 from Crypto.PublicKey import RSA
 from django import forms
 from django.contrib.admin import widgets
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.forms.renderers import BaseRenderer
 from django.utils.html import format_html
@@ -55,7 +56,11 @@ class MNServiceUserCreationForm(forms.ModelForm):
 
     def clean_username(self) -> str:
         # make sure nobody edits the hidden input field
-        return self.fields["username"].initial
+        try:
+            parsed = uuid.UUID(self.cleaned_data["username"], version=4)
+        except ValueError:
+            raise ValidationError("Username must be a valid UUID4. Stop editing the hidden field.")
+        return self.cleaned_data["username"]
 
 
 class MNServiceUserChangeForm(forms.ModelForm):
@@ -73,6 +78,14 @@ class MNServiceUserChangeForm(forms.ModelForm):
         # This is done here, rather than on the field, because the
         # field does not have access to the initial value
         return self.initial["password"]
+
+    def clean_username(self) -> str:
+        # make sure nobody edits the hidden input field
+        try:
+            parsed = uuid.UUID(self.cleaned_data["username"], version=4)
+        except ValueError:
+            raise ValidationError("Username must be a valid UUID4.")
+        return self.cleaned_data["username"]
 
 
 class MNUserCreationForm(auth_forms.UserCreationForm):
