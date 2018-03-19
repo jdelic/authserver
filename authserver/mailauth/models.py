@@ -266,13 +266,18 @@ class MNServiceUser(PasswordMaskMixin, models.Model):
         verbose_name = "Service User"
         verbose_name_plural = "Service Users"
 
-    user = models.ForeignKey(MNUser, on_delete=models.CASCADE)
+    user = models.ForeignKey(MNUser, on_delete=models.CASCADE, null=False, blank=False)
     username = models.CharField("Username", default=uuid.uuid4, max_length=64)
     password = PretendHasherPasswordField("Password", max_length=128)
     description = models.CharField(max_length=255, blank=True, null=False, default='')
 
     def set_password(self, raw_password: str) -> None:
         self.password = make_password(raw_password)
+
+    def clean(self) -> None:
+        # use user_id instead of self.user to avoid an ObjectDoesNotExist exception when self.user is None
+        if self.user_id is not None and self.user.delivery_mailbox is None:
+            raise ValidationError("Service users can only be added for users with a delivery mailbox")
 
     def __str__(self) -> str:
         return "%s (%s)" % (self.username, self.user.identifier,)

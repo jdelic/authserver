@@ -79,7 +79,7 @@ class UserLoginAPIView(RatelimitMixin, View):
         super().__init__(**kwargs)
 
     @method_decorator(csrf_exempt)
-    def dispatch(self, *args, **kwargs) -> HttpResponse:
+    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
         return super().dispatch(*args, **kwargs)
 
     def post(self, request: HttpRequest) -> HttpResponse:
@@ -107,6 +107,11 @@ class UserLoginAPIView(RatelimitMixin, View):
                 '{"authenticated": false}', content_type='application/json', status=401,
             )
         else:
+            if user.delivery_mailbox is None:
+                return HttpResponse(
+                    '{"authenticated": false}', content_type='application/json', status=401,
+                )
+
             return HttpResponse(
                 '{"username": "%s", "canonical_username": "%s@%s", "authenticated": true }' %
                 (username, user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),

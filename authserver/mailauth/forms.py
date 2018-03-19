@@ -12,6 +12,7 @@ import django.contrib.auth.forms as auth_forms
 from Crypto.PublicKey import RSA
 from django import forms
 from django.contrib.admin import widgets
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.forms.renderers import BaseRenderer
 from django.utils.html import format_html
@@ -25,7 +26,16 @@ def generate_password(pass_len):
     return ''.join([symbols[math.floor(int(x) / 256 * len(symbols))] for x in os.urandom(pass_len)])
 
 
+class DisplayHiddenInput(forms.HiddenInput):
+    template_name = "display_hidden_input.html"
+
+    @property
+    def is_hidden(self) -> bool:
+        return False
+
+
 class MNServiceUserCreationForm(forms.ModelForm):
+    username = forms.CharField(widget=DisplayHiddenInput, initial=uuid.uuid4)
     password = forms.CharField(
         label="Password",
         strip=False,
@@ -44,6 +54,14 @@ class MNServiceUserCreationForm(forms.ModelForm):
             user.save()
         return user
 
+    def clean_username(self) -> str:
+        # make sure nobody edits the hidden input field
+        try:
+            parsed = uuid.UUID(self.cleaned_data["username"], version=4)
+        except ValueError:
+            raise ValidationError("Username must be a valid UUID4. Stop editing the hidden field.")
+        return self.cleaned_data["username"]
+
 
 class MNServiceUserChangeForm(forms.ModelForm):
     password = auth_forms.ReadOnlyPasswordHashField(
@@ -60,6 +78,14 @@ class MNServiceUserChangeForm(forms.ModelForm):
         # This is done here, rather than on the field, because the
         # field does not have access to the initial value
         return self.initial["password"]
+
+    def clean_username(self) -> str:
+        # make sure nobody edits the hidden input field
+        try:
+            parsed = uuid.UUID(self.cleaned_data["username"], version=4)
+        except ValueError:
+            raise ValidationError("Username must be a valid UUID4.")
+        return self.cleaned_data["username"]
 
 
 class MNUserCreationForm(auth_forms.UserCreationForm):
@@ -104,7 +130,7 @@ class DomainKeyWidget(widgets.AdminTextareaWidget):
         ))
         else:
             ret += format_html("""
-            <a href="?_prefill_key=1" class="button">Generate new key</a>
+            <a href="?_prefill_key=1" class="button">Generate&nbsp;new&nbsp;key</a>
         """)
         return format_html("<div style=\"float: left\">{}</div>", ret)
 

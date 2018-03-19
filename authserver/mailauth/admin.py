@@ -1,7 +1,6 @@
 # -* encoding: utf-8 *-
 import functools
-from typing import Type, Any, List
-from typing import Union
+from typing import Type, Any, List, cast, Union, Tuple, Dict
 
 import django.contrib.auth.admin as auth_admin
 from Crypto.PublicKey import RSA
@@ -12,9 +11,6 @@ from django.db.models.fields import Field as _ModelField
 from django.forms.fields import Field as _FormField
 from django.http.request import HttpRequest
 from django.utils.html import format_html
-from typing import Tuple
-
-from typing import Dict
 
 from oauth2_provider.admin import ApplicationAdmin
 from oauth2_provider.models import get_application_model
@@ -37,7 +33,6 @@ class MNServiceUserAdmin(admin.ModelAdmin):
     ordering = ('user',)
 
     fields = ['username', 'password', 'description', 'user']
-    readonly_fields = ['username',]
 
     def get_form(self, request: HttpRequest, obj: forms.ModelForm=None, **kwargs: Any) -> forms.ModelForm:
         """
@@ -48,6 +43,11 @@ class MNServiceUserAdmin(admin.ModelAdmin):
             defaults['form'] = self.add_form
         defaults.update(kwargs)
         return super().get_form(request, obj, **defaults)
+
+    def formfield_for_foreignkey(self, db_field: forms.BoundField, request: HttpRequest, **kwargs: Any) -> forms.Field:
+        if db_field.name == "user":
+            kwargs['queryset'] = MNUser.objects.exclude(delivery_mailbox__isnull=True)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(MNUser)
