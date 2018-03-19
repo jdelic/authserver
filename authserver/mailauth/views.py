@@ -70,7 +70,6 @@ class ScopeValidationAuthView(AuthorizationView):
         return resp
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class UserLoginAPIView(RatelimitMixin, View):
     ratelimit_key = 'ip'
     ratelimit_rate = '20/m'
@@ -78,6 +77,10 @@ class UserLoginAPIView(RatelimitMixin, View):
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
+
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs) -> HttpResponse:
+        return super().dispatch(*args, **kwargs)
 
     def post(self, request: HttpRequest) -> HttpResponse:
         if not request.is_secure():
