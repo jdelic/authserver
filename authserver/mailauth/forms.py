@@ -25,7 +25,16 @@ def generate_password(pass_len):
     return ''.join([symbols[math.floor(int(x) / 256 * len(symbols))] for x in os.urandom(pass_len)])
 
 
+class DisplayHiddenInput(forms.HiddenInput):
+    template_name = "display_hidden_input.html"
+
+    @property
+    def is_hidden(self) -> bool:
+        return False
+
+
 class MNServiceUserCreationForm(forms.ModelForm):
+    username = forms.CharField(widget=DisplayHiddenInput, initial=uuid.uuid4)
     password = forms.CharField(
         label="Password",
         strip=False,
@@ -43,6 +52,10 @@ class MNServiceUserCreationForm(forms.ModelForm):
         if commit:
             user.save()
         return user
+
+    def clean_username(self) -> str:
+        # make sure nobody edits the hidden input field
+        return self.fields["username"].initial
 
 
 class MNServiceUserChangeForm(forms.ModelForm):

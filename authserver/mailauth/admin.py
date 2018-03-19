@@ -33,7 +33,6 @@ class MNServiceUserAdmin(admin.ModelAdmin):
     ordering = ('user',)
 
     fields = ['username', 'password', 'description', 'user']
-    readonly_fields = ['username',]
 
     def get_form(self, request: HttpRequest, obj: forms.ModelForm=None, **kwargs: Any) -> forms.ModelForm:
         """
