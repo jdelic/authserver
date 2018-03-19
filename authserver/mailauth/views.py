@@ -79,7 +79,7 @@ class UserLoginAPIView(RatelimitMixin, View):
         super().__init__(**kwargs)
 
     @method_decorator(csrf_exempt)
-    def dispatch(self, *args, **kwargs) -> HttpResponse:
+    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
         return super().dispatch(*args, **kwargs)
 
     def post(self, request: HttpRequest) -> HttpResponse:
