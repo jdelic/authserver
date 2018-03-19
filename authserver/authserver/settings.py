@@ -60,6 +60,7 @@ WSGI_APPLICATION = 'authserver.wsgi.application'
 
 LOGIN_URL = "authserver-login"
 LOGIN_REDIRECT_URL = "/"
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 DEBUG = False  # overridden by factorise() if defined
 
