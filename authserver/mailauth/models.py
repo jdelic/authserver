@@ -274,6 +274,10 @@ class MNServiceUser(PasswordMaskMixin, models.Model):
     def set_password(self, raw_password: str) -> None:
         self.password = make_password(raw_password)
 
+    def clean(self) -> None:
+        if self.user and self.user.delivery_mailbox is not None:
+            raise ValidationError("Service users can only be added for users with a delivery mailbox")
+
     def __str__(self) -> str:
         return "%s (%s)" % (self.username, self.user.identifier,)
 

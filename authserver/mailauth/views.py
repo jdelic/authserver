@@ -107,6 +107,11 @@ class UserLoginAPIView(RatelimitMixin, View):
                 '{"authenticated": false}', content_type='application/json', status=401,
             )
         else:
+            if user.delivery_mailbox is None:
+                return HttpResponse(
+                    '{"authenticated": false}', content_type='application/json', status=401,
+                )
+
             return HttpResponse(
                 '{"username": "%s", "canonical_username": "%s@%s", "authenticated": true }' %
                 (username, user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
