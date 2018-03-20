@@ -7,7 +7,7 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.postgres.fields.array import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
-from typing import Any, Optional
+from typing import Any, Optional, Set
 
 from oauth2_provider import models as oauth2_models
 
@@ -254,6 +254,15 @@ class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.Permissi
 
     def get_short_name(self) -> str:
         return self.identifier
+
+    def get_all_app_permissions(self) -> Set[MNApplicationPermission]:
+        user_permissions = set(self.app_permissions.all())
+        for group in self.app_groups.all():
+            user_permissions.update(group.group_permissions.all())
+        return user_permissions
+
+    def has_app_permission(self, perm: str) -> bool:
+        return perm in self.get_all_app_permissions()
 
 
 class MNServiceUser(PasswordMaskMixin, models.Model):

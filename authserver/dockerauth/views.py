@@ -11,14 +11,9 @@ import datetime
 import json
 import logging
 import base64
-from typing import List
-
-from typing import NamedTuple, Dict, Any, Union
+from typing import List, NamedTuple, Dict, Any, Union, Optional
 
 import pytz
-import jwt
-from Crypto.Hash import SHA256
-from Crypto.PublicKey import RSA
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.http.request import HttpRequest
@@ -26,11 +21,12 @@ from django.http.response import HttpResponse, HttpResponseNotFound, HttpRespons
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
-from typing import Optional
 
+from dockerauth.jwtutils import JWTViewHelperMixin
 from dockerauth.models import DockerRepo, DockerRegistry
 from dockerauth.permissions import TokenPermissions
 from mailauth.models import MNUser
+
 
 _TokenRequest = NamedTuple('_TokenRequest', [
     ('service', str),
@@ -52,56 +48,9 @@ def _tkr_parse(params: Dict[str, str]) -> _TokenRequest:
     )
 
 
-class DockerAuthView(View):
+class DockerAuthView(JWTViewHelperMixin, View):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-
-    def _create_jwt(self, claim: Dict[str, Any],  key_pemstr: str) -> str:
-        _log.debug("Encoding JWT response: %s", claim)
-
-        fp = base64.b32encode(
-            SHA256.new(
-                data=RSA.importKey(key_pemstr).publickey().exportKey(format="DER")
-            ).digest()[0:30]  # shorten to 240 bit presumably so no padding is necessary
-        ).decode('utf-8')
-
-        kid = ":".join([fp[i:i + 4] for i in range(0, len(fp), 4)])
-
-        jwtstr = jwt.encode(
-            claim,
-            headers={
-                "typ": "JWT",
-                "alg": "RS256",
-                "kid": kid,
-            },
-            key=key_pemstr,
-            algorithm="RS256",
-        ).decode('utf-8')
-
-        _log.debug("JWT response: %s", jwtstr)
-        return jwtstr
-
-    def _user_from_refresh_token(self, jwtstr: str, key_pemstr: str, expected_issuer: Optional[str]=None,
-                                 expected_audience: Optional[str]=None) -> Optional[MNUser]:
-        _log.debug("Received refresh token: %s", jwtstr)
-        try:
-            token = jwt.decode(jwtstr, key_pemstr, algorithms=["RS256"], leeway=10,
-                               issuer=expected_issuer, audience=expected_audience)
-        except (jwt.ExpiredSignatureError, jwt.InvalidAlgorithmError,
-                jwt.InvalidIssuerError, jwt.InvalidTokenError) as e:
-            _log.warning("Rejected refresh token because of %s", str(e))
-            return None
-
-        if "sub" not in token:
-            _log.error("BUG? Valid refresh token without user in subject. %s", jwtstr)
-            return None
-
-        try:
-            user = MNUser.objects.get(pk=token["sub"])  # type: MNUser
-        except MNUser.DoesNotExist:
-            _log.warning("No such user from valid JWT. %s", jwtstr)
-            return None
-        return user
 
     def _make_access_token(self, request: HttpRequest, tokenreq: _TokenRequest,
                            rightnow: datetime.datetime, perms: TokenPermissions, for_user: MNUser) -> Dict[str, Any]:
@@ -242,9 +191,9 @@ class DockerAuthView(View):
             except DockerRegistry.DoesNotExist:
                 return HttpResponseNotFound("No such registry/client from refresh token(%s)" % str(tr))
 
-            user = self._user_from_refresh_token(request.POST["refresh_token"], client.public_key_pem(),
-                                                 expected_issuer=request.get_host(),
-                                                 expected_audience=tr.service)
+            user = self._user_from_jwt(request.POST["refresh_token"], client.public_key_pem(),
+                                       expected_issuer=request.get_host(),
+                                       expected_audience=tr.service)
             if user:
                 try:
                     drepo = DockerRepo.objects.get(name=tp.path, registry_id=client.id)

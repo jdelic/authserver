@@ -16,6 +16,7 @@ from oauth2_provider.models import get_application_model
 from oauth2_provider.views.base import AuthorizationView
 from ratelimit.mixins import RatelimitMixin
 
+from dockerauth.jwtutils import JWTViewHelperMixin
 from mailauth.models import MNApplication
 from mailauth.models import MNUser
 from mailauth.permissions import find_missing_permissions
@@ -70,7 +71,7 @@ class ScopeValidationAuthView(AuthorizationView):
         return resp
 
 
-class UserLoginAPIView(RatelimitMixin, View):
+class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
     ratelimit_key = 'ip'
     ratelimit_rate = '20/m'
     ratelimit_block = True
@@ -86,6 +87,7 @@ class UserLoginAPIView(RatelimitMixin, View):
         if not request.is_secure():
             return HttpResponseBadRequest("This endpoint must be called securely")
 
+        scopes = None
         if request.content_type == "application/json":
             try:
                 data = json.loads(request.body.decode('utf-8'))
@@ -93,6 +95,8 @@ class UserLoginAPIView(RatelimitMixin, View):
                     return HttpResponseBadRequest("Missing parameters")
                 username = data['username']
                 password = data['password']
+                if "scopes" in data:
+                    scopes = data["scopes"]
             except json.JSONDecodeError:
                 return HttpResponseBadRequest("Invalid JSON")
         else:
@@ -100,6 +104,7 @@ class UserLoginAPIView(RatelimitMixin, View):
                 return HttpResponseBadRequest("Missing parameters")
             username = request.POST["username"]
             password = request.POST["password"]
+            scopes = request.POST["scopes"].split(",")
 
         user = authenticate(username=username, password=password)  # type: MNUser
         if user is None:
