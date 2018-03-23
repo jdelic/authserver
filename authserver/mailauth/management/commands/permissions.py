@@ -1,11 +1,60 @@
 import argparse
 
+import sys
 from django.core.management import BaseCommand, CommandParser
 from typing import Any
+
+from django.db import DatabaseError
+
+from mailauth import models
+from mailauth.models import MNApplicationPermission
 
 
 class Command(BaseCommand):
     requires_migrations_checks = True
+
+    def _create(self, **kwargs: Any) -> None:
+        # permission create --name=xyz scope
+        scope = None  # type: models.MNApplicationPermission
+        try:
+            scope = models.MNApplicationPermission.objects.create(
+                name=kwargs["name"],
+                scope_name=kwargs["scope"]
+            )
+        except DatabaseError as e:
+            self.stderr.write("Error while creating application permission scope: %s" % str(e))
+            sys.exit(1)
+
+        self.stderr.write(self.style.SUCCESS("Created scope %s (Human readable name: %s)") %
+                          (scope.scope_name, scope.name))
+
+    def _list(self, **kwargs: Any) -> None:
+        filter_args = {}
+        if "filter_scope" in kwargs:
+            filter_args.update({
+                "scope_name__icontains": kwargs["filter_scope"],
+            })
+        if "filter_name" in kwargs:
+            filter_args.update({
+                "name__icontains": kwargs["filter_name"],
+            })
+        if filter_args == {}:
+            scopes = list(MNApplicationPermission.objects.all())
+        else:
+            scopes = list(MNApplicationPermission.objects.filter(**filter_args))
+
+        sclen = 10
+        for sc in scopes:
+            if len(sc.scope_name) > sclen:
+                sclen = len(sc.scope_name)
+
+        if sclen > 30:
+            sclen = 30
+
+        print("SCOPE%sNAME" % (" " * sclen - 5))
+        print("-" * 78)
+        for scope in scopes:
+            pass
 
     def add_arguments(self, parser: CommandParser) -> None:
         cmd = self
@@ -76,4 +125,22 @@ class Command(BaseCommand):
 
 
     def handle(self, *args:Any, **options: Any) -> None:
-        pass
+        if options["scmd"] == "create":
+            self._create(**options)
+        elif options["scmd"] == "list":
+            self._list(**options)
+        elif options["scmd"] == "remove":
+            self._remove(**options)
+        elif options["scmd"] == "grant":
+            if options["gcmd"] == "user":
+                pass
+            elif options["gcmd"] == "group":
+                pass
+        elif options["scmd"] == "revoke":
+            if options["rcmd"] == "user":
+                pass
+            elif options["rcmd"] == "group":
+                pass
+        else:
+            self.stderr.write("Please specify a command.")
+            self.stderr.write("Use django-admin.py permission --settings=authserver.settings --help to get help.")
