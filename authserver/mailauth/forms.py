@@ -135,10 +135,37 @@ class DomainKeyWidget(widgets.AdminTextareaWidget):
         return format_html("<div style=\"float: left\">{}</div>", ret)
 
 
+class RSAKeyWidget(widgets.AdminTextareaWidget):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+    def render(self, name: str, value: str, attrs: Optional[Dict[str, str]]=None,
+               renderer: Optional[BaseRenderer]=None) -> str:
+        ret = super().render(name, value, attrs)
+        if value and value.startswith("-----BEGIN RSA PRIVATE KEY"):
+            key = RSA.importKey(value)
+            public_key = key.publickey().exportKey("PEM").decode('utf-8')
+            public_key = public_key.replace("RSA PUBLIC KEY", "PUBLIC KEY")
+            ret += format_html(
+                """
+<pre>
+{public_key}</pre>
+                """,
+                public_key=public_key)
+        else:
+            ret += format_html("""
+            <a href="?_prefill_key=name" class="button">Generate new key</a>
+        """)
+        return format_html("<div style=\"float: left\">{}</div>", ret)
+
+
 class DomainForm(forms.ModelForm):
     class Meta:
         model = Domain
-        widgets = {'dkimkey': DomainKeyWidget()}
+        widgets = {
+            'dkimkey': DomainKeyWidget(),
+            'jwtkey': RSAKeyWidget(),
+        }
         fields = forms.ALL_FIELDS
 
 

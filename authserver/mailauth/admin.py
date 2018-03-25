@@ -83,14 +83,14 @@ class DomainAdmin(admin.ModelAdmin):
     form = DomainForm
 
     def get_form(self, req: HttpRequest, obj: Domain=None, **kwargs: Any) -> type:
-        if req.GET.get("_prefill_key", "0") == "1":
+        if req.GET.get("_prefill_key", None) is not None:
             def formfield_callback(field: _ModelField, request: HttpRequest=None, **kwargs: Any) -> Type[_FormField]:
                 f = self.formfield_for_dbfield(field, request=request, **kwargs)  # type: _FormField
                 # f can be None if the dbfield does not get a FormField (like hidden fields
                 # or auto increment IDs). Only the dbfield has a .name attribute.
-                if f and field.name == "dkimkey":
+                if f and field.name == req.GET.get("_prefill_key"):
                     if obj:
-                        obj.dkimkey = RSA.generate(2048).exportKey("PEM").decode("utf-8")
+                        setattr(obj, field.name, RSA.generate(2048).exportKey("PEM").decode("utf-8"))
                     else:
                         f.initial = RSA.generate(2048).exportKey("PEM").decode("utf-8")
                 return f
