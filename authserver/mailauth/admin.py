@@ -1,16 +1,20 @@
 # -* encoding: utf-8 *-
-import functools
-from typing import Type, Any, List, cast, Union, Tuple, Dict
+import logging
+from typing import Any, Union, Tuple, Dict, Optional
 
 import django.contrib.auth.admin as auth_admin
 from Crypto.PublicKey import RSA
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
 from django.core import urlresolvers
-from django.db.models.fields import Field as _ModelField
-from django.forms.fields import Field as _FormField
+from django.http import HttpResponse, HttpResponseRedirect
 from django.http.request import HttpRequest
+from django.urls import reverse
+from django.utils.encoding import force_text
 from django.utils.html import format_html
+from django.utils.http import urlquote
+from django.utils.translation import gettext_lazy as _
 
 from oauth2_provider.admin import ApplicationAdmin
 from oauth2_provider.models import get_application_model
@@ -77,28 +81,74 @@ class MNUserAdmin(auth_admin.UserAdmin):
     filter_horizontal = ('groups', 'user_permissions', 'app_permissions', 'app_groups',)
 
 
+_log = logging.getLogger(__name__)
+
+
 @admin.register(Domain)
 class DomainAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     form = DomainForm
 
-    def get_form(self, req: HttpRequest, obj: Domain=None, **kwargs: Any) -> type:
-        if req.GET.get("_prefill_key", None) is not None:
-            def formfield_callback(field: _ModelField, request: HttpRequest=None, **kwargs: Any) -> Type[_FormField]:
-                f = self.formfield_for_dbfield(field, request=request, **kwargs)  # type: _FormField
-                # f can be None if the dbfield does not get a FormField (like hidden fields
-                # or auto increment IDs). Only the dbfield has a .name attribute.
-                if f and field.name == req.GET.get("_prefill_key"):
-                    if obj:
-                        setattr(obj, field.name, RSA.generate(2048).exportKey("PEM").decode("utf-8"))
-                    else:
-                        f.initial = RSA.generate(2048).exportKey("PEM").decode("utf-8")
-                return f
+    def response_add(self, request: HttpRequest, obj: Optional[Domain]=None, post_url_continue: str=None) -> \
+            HttpResponse:
+        opts = self.model._meta
+        pk_value = obj._get_pk_val()
+        preserved_filters = self.get_preserved_filters(request)
 
-            kwargs["formfield_callback"] = functools.partial(formfield_callback, request=req)
+        msg_dict = {
+            'name': force_text(opts.verbose_name),
+            'obj': format_html('<a href="{}">{}</a>', urlquote(request.path), obj),
+        }
+        obj_url = reverse(
+            'admin:%s_%s_change' % (opts.app_label, opts.model_name),
+            args=(urlquote(pk_value),),
+            current_app=self.admin_site.name,
+        )
 
-        form_t = super().get_form(req, obj, **kwargs)
-        return form_t
+        for key in request.POST.keys():
+            if key.startswith("_genkey-"):
+                if hasattr(obj, key[len("_genkey-"):]):
+                    setattr(obj, key[len("_genkey-"):], RSA.generate(2048).exportKey("PEM").decode("utf-8"))
+                    obj.save()
+                    msg = format_html(
+                        _('The {name} "{obj}" was changed successfully. You may edit it again below.'),
+                        **msg_dict
+                    )
+                    self.message_user(request, msg, messages.SUCCESS)
+                    if post_url_continue is None:
+                        post_url_continue = obj_url
+                    post_url_continue = add_preserved_filters(
+                        {'preserved_filters': preserved_filters, 'opts': opts},
+                        post_url_continue
+                    )
+                    return HttpResponseRedirect(post_url_continue)
+        return super().response_add(request, obj, post_url_continue)
+
+    def response_change(self, request: HttpRequest, obj: Optional[Domain]=None) -> HttpResponse:
+        opts = self.model._meta
+        pk_value = obj._get_pk_val()
+        preserved_filters = self.get_preserved_filters(request)
+
+        msg_dict = {
+            'name': force_text(opts.verbose_name),
+            'obj': format_html('<a href="{}">{}</a>', urlquote(request.path), obj),
+        }
+        for key in request.POST.keys():
+            if key.startswith("_genkey-"):
+                if hasattr(obj, key[len("_genkey-"):]):
+                    setattr(obj, key[len("_genkey-"):], RSA.generate(2048).exportKey("PEM").decode("utf-8"))
+                    obj.save()
+                    msg = format_html(
+                        _('The {name} "{obj}" was changed successfully. You may edit it again below.'),
+                        **msg_dict
+                    )
+                    self.message_user(request, msg, messages.SUCCESS)
+                    redirect_url = request.path
+                    redirect_url = add_preserved_filters({'preserved_filters': preserved_filters, 'opts': opts},
+                                                         redirect_url)
+                    return HttpResponseRedirect(redirect_url)
+
+        return super().response_change(request, obj)
 
 
 @admin.register(MailingList)

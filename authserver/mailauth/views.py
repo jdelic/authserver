@@ -87,6 +87,9 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
         if not request.is_secure():
             return HttpResponseBadRequest("This endpoint must be called securely")
 
+        req_domain = request.get_host()
+        raise Exception(req_domain)
+
         scopes = None
         if request.content_type == "application/json":
             try:
