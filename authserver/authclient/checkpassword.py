@@ -57,6 +57,11 @@ def main() -> None:
                         help="Skip validation of the server's SSL certificate.")
     parser.add_argument("--ca-file", dest="ca_file", default=None,
                         help="Set a CA bundle to validate the server's SSL certificate againt")
+    parser.add_argument("-s", "--scope", dest="scopes", action="append", default=[],
+                        help="One or more required scopes assigned to the user beyond being authenticated correctly.")
+    parser.add_argument("--jwtkey", dest="jwtkey", default=None,
+                        help="Path to a PEM encoded public key to verify the JWT claims and scopes returned by the "
+                             "server (i.e. the server's public key).")
     parser.add_argument("prog", nargs="*", help="The program to run as defined by the checkpassword interface "
                                                 "(optional).")
 
