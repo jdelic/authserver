@@ -1,5 +1,4 @@
 # -* encoding: utf-8 *-
-import logging
 from typing import Any, Union, Tuple, Dict, Optional
 
 import django.contrib.auth.admin as auth_admin
@@ -79,9 +78,6 @@ class MNUserAdmin(auth_admin.UserAdmin):
     search_fields = ('identifier', 'fullname')
     ordering = ('identifier',)
     filter_horizontal = ('groups', 'user_permissions', 'app_permissions', 'app_groups',)
-
-
-_log = logging.getLogger(__name__)
 
 
 @admin.register(Domain)
