@@ -18,10 +18,11 @@ from django.utils.translation import gettext_lazy as _
 from oauth2_provider.admin import ApplicationAdmin
 from oauth2_provider.models import get_application_model
 
-from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm, MailingListForm, MNServiceUserCreationForm, \
-    MNServiceUserChangeForm
+from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm, MailingListForm, \
+    MNServiceUserCreationForm, MNServiceUserChangeForm
 from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroup, MNApplication, MailingList, \
     MNServiceUser
+
 
 admin.site.unregister(auth_admin.Group)
 
