@@ -15,6 +15,7 @@ from oauth2_provider.forms import AllowForm
 from oauth2_provider.models import get_application_model
 from oauth2_provider.views.base import AuthorizationView
 from ratelimit.mixins import RatelimitMixin
+from typing import List
 
 from dockerauth.jwtutils import JWTViewHelperMixin
 from mailauth.models import MNApplication, Domain
@@ -108,7 +109,7 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
         if req_domain is None:
             return HttpResponseBadRequest("Not a valid authorization domain")
 
-        scopes = None
+        scopes = None  # type: List[str]
         if request.content_type == "application/json":
             try:
                 data = json.loads(request.body.decode('utf-8'))
@@ -116,7 +117,7 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
                     return HttpResponseBadRequest("Missing parameters")
                 username = data['username']
                 password = data['password']
-                if "scopes" in data:
+                if "scopes" in data and isinstance(data["scopes"], list):
                     scopes = data["scopes"]
             except json.JSONDecodeError:
                 return HttpResponseBadRequest("Invalid JSON")
