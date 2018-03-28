@@ -121,7 +121,7 @@ class MNGroup(models.Model):
         verbose_name = "OAuth2/CAS Groups"
         verbose_name_plural = "OAuth2/CAS Groups"
 
-    name = models.CharField("Group name", max_length=255)
+    name = models.CharField("Group name", max_length=255, unique=True)
 
     group_permissions = models.ManyToManyField(
         MNApplicationPermission,
