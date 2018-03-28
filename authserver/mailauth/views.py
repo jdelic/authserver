@@ -17,7 +17,7 @@ from oauth2_provider.views.base import AuthorizationView
 from ratelimit.mixins import RatelimitMixin
 
 from dockerauth.jwtutils import JWTViewHelperMixin
-from mailauth.models import MNApplication
+from mailauth.models import MNApplication, Domain
 from mailauth.models import MNUser
 from mailauth.permissions import find_missing_permissions
 
@@ -87,8 +87,26 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
         if not request.is_secure():
             return HttpResponseBadRequest("This endpoint must be called securely")
 
-        req_domain = request.get_host()
-        raise Exception(req_domain)
+        # results in ['sub.example.com', 'example.com', 'com']
+        req_domain = None
+        parts = request.get_host().split(".")
+        for domainstr in [".".join(parts[r:]) for r in range(0, len(parts))]:
+            try:
+                req_domain = Domain.objects.get(name=domainstr)
+            except Domain.DoesNotExist:
+                continue
+            else:
+                if req_domain.jwtkey is not None and req_domain.jwtkey != "":
+                    if domainstr == request.get_host() or req_domain.jwt_subdomains:
+                        break
+                    elif not req_domain.jwt_subdomains:
+                        # prevent the case where domainstr is the last str in parts, it matches, has a jwtkey but
+                        # is not valid for subdomains. req_domain would be != None in that case
+                        req_domain = None
+                        continue
+
+        if req_domain is None:
+            return HttpResponseBadRequest("Not a valid authorization domain")
 
         scopes = None
         if request.content_type == "application/json":

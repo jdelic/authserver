@@ -57,6 +57,7 @@ class Domain(models.Model):
                                     default="default")
     dkimkey = models.TextField(verbose_name="DKIM private key (PEM)", blank=True)
     jwtkey = models.TextField(verbose_name="JWT signing key (PEM)", blank=True)
+    jwt_subdomains = models.BooleanField(verbose_name="Use JWT key to sign for subdomains", default=False)
     redirect_to = models.CharField(verbose_name="Redirect all mail to domain", max_length=255, null=False, blank=True,
                                    default="")
 
