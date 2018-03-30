@@ -1,8 +1,10 @@
 # -* encoding: utf-8 *-
 import json
 import logging
+from datetime import datetime
 from typing import Any, Union, List, NamedTuple, Set
 
+import pytz
 from django.contrib.auth import authenticate
 from django.http import HttpResponseBadRequest
 from django.http.request import HttpRequest
@@ -174,11 +176,15 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
         else:
             # user is authenticated and authorized
             jwtstr = self._create_jwt(claim={
-                "username": userdesc.username,
+                "sub": userdesc.username,
                 "canonical_username": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
                 "authenticated": True,
                 "authorized": True,
                 "scopes": userdesc.scopes,
+                "nbf": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) - 5,
+                "exp": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) + 3600,
+                "iss": req_domain.name,
+                "aud": "net.maurus.authclient",
             }, key_pemstr=req_domain.jwtkey)
 
             return HttpResponse(
