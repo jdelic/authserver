@@ -1,9 +1,8 @@
 # -* encoding: utf-8 *-
 import json
 import logging
-from typing import Any, Union, List, NamedTuple, Dict
+from typing import Any, Union, List, NamedTuple, Set
 
-import jwt
 from django.contrib.auth import authenticate
 from django.http import HttpResponseBadRequest
 from django.http.request import HttpRequest
@@ -100,7 +99,7 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
     def _find_domain(self, fqdn: str) -> Union[Domain, None]:
         # results in ['sub.example.com', 'example.com', 'com']
         req_domain = None  # type: Domain
-        parts = request.get_host().split(".")
+        parts = fqdn.split(".")
         for domainstr in [".".join(parts[r:]) for r in range(0, len(parts))]:
             try:
                 req_domain = Domain.objects.get(name=domainstr)
@@ -108,7 +107,7 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
                 continue
             else:
                 if req_domain.jwtkey is not None and req_domain.jwtkey != "":
-                    if domainstr == request.get_host() or req_domain.jwt_subdomains:
+                    if domainstr == fqdn or req_domain.jwt_subdomains:
                         break
                     elif not req_domain.jwt_subdomains:
                         # prevent the case where domainstr is the last str in parts, it matches, has a jwtkey but
