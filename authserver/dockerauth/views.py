@@ -16,6 +16,7 @@ from typing import List, NamedTuple, Dict, Any, Union, Optional
 import pytz
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.http import QueryDict
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse, HttpResponseNotFound, HttpResponseForbidden, HttpResponseBadRequest
 from django.utils.decorators import method_decorator
@@ -39,7 +40,7 @@ _TokenRequest = NamedTuple('_TokenRequest', [
 _log = logging.getLogger(__name__)
 
 
-def _tkr_parse(params: Dict[str, str]) -> _TokenRequest:
+def _tkr_parse(params: Union[Dict[str, str], QueryDict]) -> _TokenRequest:
     return _TokenRequest(
         service=params.get("service", None),
         offline_token=params.get("offline_token", "false") == "true",
