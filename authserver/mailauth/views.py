@@ -1,7 +1,7 @@
 # -* encoding: utf-8 *-
 import json
 import logging
-from typing import Any, Optional, Union, List, NamedTuple
+from typing import Any, Union, List, NamedTuple, Dict
 
 from django.contrib.auth import authenticate
 from django.http import HttpResponseBadRequest
@@ -117,12 +117,12 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
 
         return req_domain
 
-    def _parse_request(self, request: HttpRequest) -> Dict[str, Union[str, List[str]]]:
+    def _parse_request(self, request: HttpRequest) -> _AuthRequest:
         scopes = None  # type: List[str]
         if request.content_type == "application/json":
             data = json.loads(request.body.decode('utf-8'))
             if "username" not in data or "password" not in data:
-                return HttpResponseBadRequest("Missing parameters")
+                raise InvalidAuthRequest()
             username = data['username']
             password = data['password']
             if "scopes" in data and isinstance(data["scopes"], list):
