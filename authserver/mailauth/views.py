@@ -3,6 +3,7 @@ import json
 import logging
 from typing import Any, Union, List, NamedTuple, Dict
 
+import jwt
 from django.contrib.auth import authenticate
 from django.http import HttpResponseBadRequest
 from django.http.request import HttpRequest
@@ -75,7 +76,7 @@ _AuthRequest = NamedTuple(
     "_AuthRequest", [
         ("username", str),
         ("password", str),
-        ("scopes", List[str]),
+        ("scopes", Set[str]),
     ]
 )
 
@@ -137,38 +138,51 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
         return _AuthRequest(
             username=username,
             password=password,
-            scopes=scopes,
+            scopes=set(scopes),
         )
 
     def post(self, request: HttpRequest) -> HttpResponse:
         if not request.is_secure():
-            return HttpResponseBadRequest("This endpoint must be called securely")
+            return HttpResponseBadRequest('{"error": "This endpoint must be called securely"}',
+                                          content_type="application/json")
 
         req_domain = self._find_domain(request.get_host())
 
         if req_domain is None:
-            return HttpResponseBadRequest("Not a valid authorization domain")
+            return HttpResponseBadRequest('{"error": "Not a valid authorization domain"}',
+                                          content_type="application/json")
 
         try:
             userdesc = self._parse_request(request)
         except json.JSONDecodeError:
-            return HttpResponseBadRequest("Invalid JSON")
+            return HttpResponseBadRequest('{"error": "Invalid JSON"}', content_type="application/json")
         except InvalidAuthRequest:
-            return HttpResponseBadRequest("Missing parameters")
+            return HttpResponseBadRequest('{"error": "Missing parameters"}', content_type="application/json")
 
         user = authenticate(username=userdesc.username, password=userdesc.password)  # type: MNUser
         if user is None:
             return HttpResponse(
-                '{"authenticated": false}', content_type='application/json', status=401,
+                '{"authenticated": false, "authorized": false}', content_type="application/json", status=401,
+            )
+        elif user.delivery_mailbox is None:
+            return HttpResponse(
+                '{"authenticated": false, "authorized": false}', content_type="application/json", status=401,
+            )
+        elif not user.has_app_permissions(userdesc.scopes):
+            return HttpResponse(
+                '{"authenticated": true, "authorized": false}', content_type="application/json", status=401,
             )
         else:
-            if user.delivery_mailbox is None:
-                return HttpResponse(
-                    '{"authenticated": false}', content_type='application/json', status=401,
-                )
+            # user is authenticated and authorized
+            jwtstr = self._create_jwt(claim={
+                "username": userdesc.username,
+                "canonical_username": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
+                "authenticated": True,
+                "authorized": True,
+                "scopes": userdesc.scopes,
+            }, key_pemstr=req_domain.jwtkey)
 
             return HttpResponse(
-                '{"username": "%s", "canonical_username": "%s@%s", "authenticated": true }' %
-                (userdesc.username, user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
-                content_type='application/json', status=200
+                jwtstr,
+                content_type="application/jwt", status=200
             )
