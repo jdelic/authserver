@@ -31,7 +31,7 @@ class Command(BaseCommand):
         try:
             domobj = models.Domain.objects.get(name=domain)
         except models.Domain.DoesNotExist:
-            sys.stderr.write("Error: Domain %s does not exist" % domain)
+            sys.stderr.write("Error: Domain %s does not exist\n" % domain)
             sys.exit(1)
 
         if key == "jwt":
@@ -39,16 +39,16 @@ class Command(BaseCommand):
         elif key == "dkim":
             attr = "dkimkey"
         else:
-            sys.stderr.write("Unknown key type: %s" % key)
+            sys.stderr.write("Unknown key type: %s\n" % key)
             sys.exit(1)
 
-        if getattr(domobj, attr, None) is None:
+        if getattr(domobj, attr, "") == "":
             if create_key:
                 privkey = RSA.generate(2048)
                 setattr(domobj, attr, privkey.exportKey("PEM").decode("utf-8"))
                 domobj.save()
             else:
-                sys.stderr.write("Error: Domain %s has no private key of type %s and --create-key is not set" %
+                sys.stderr.write("Error: Domain %s has no private key of type %s and --create-key is not set\n" %
                                  (domain, key))
                 sys.exit(1)
         else:
@@ -113,5 +113,5 @@ class Command(BaseCommand):
         elif options["scmd"] == "list":
             self._list(**options)
         else:
-            self.stderr.write("Please specify a command:")
-            self.stderr.write("Use django-admin.py domain --settings=authserver.settings --help to get help.")
+            self.stderr.write("Please specify a command:\n")
+            self.stderr.write("Use django-admin.py domain --settings=authserver.settings --help to get help.\n")
