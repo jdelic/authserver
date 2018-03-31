@@ -105,11 +105,12 @@ class JWTPublicKeyView(RatelimitMixin, View):
             return HttpResponseBadRequest('{"error": "This endpoint must be called securely"}',
                                           content_type="application/json")
 
-        if "domain" not in request.GET:
-            return HttpResponseBadRequest('{"error": "Not a valid authorization domain"}',
-                                          content_type="application/json")
+        if "domain" in request.GET:
+            fqdn = request.GET["domain"]
+        else:
+            fqdn = request.get_host()
 
-        req_domain = utils.find_parent_domain(request.GET["domain"])
+        req_domain = utils.find_parent_domain(fqdn)
         if req_domain is None:
             return HttpResponseNotFound('{"error": "Not a valid authorization domain"}',
                                         content_type="application/json")
