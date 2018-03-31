@@ -42,7 +42,7 @@ class Command(BaseCommand):
             sys.stderr.write("Unknown key type: %s" % key)
             sys.exit(1)
 
-        if getattr(domobj, attr, default=None) is None:
+        if getattr(domobj, attr, None) is None:
             if create_key:
                 privkey = RSA.generate(2048)
                 setattr(domobj, attr, privkey.exportKey("PEM").decode("utf-8"))
