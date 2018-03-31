@@ -59,7 +59,7 @@ class Command(BaseCommand):
         with stdout_or_file(output) as f:
             print(public_key, file=f)
 
-    def _list(self, contains: str) -> None:
+    def _list(self, contains: str, **kwargs: Any) -> None:
         if contains:
             qs = models.Domain.objects.filter(name__icontains=contains)
         else:
@@ -98,7 +98,7 @@ class Command(BaseCommand):
         domain_pubkey.add_argument("domain",
                                    help="The domain to export public keys from")
 
-        domain_list.add_argument("contains",
+        domain_list.add_argument("contains", nargs="?",
                                  help="Filer list by this string")
 
     def handle(self, *args:Any, **options: Any) -> None:
