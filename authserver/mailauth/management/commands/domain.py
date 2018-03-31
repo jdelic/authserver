@@ -10,8 +10,9 @@ from django.core.management import BaseCommand, CommandParser
 from typing import Any, TextIO, Union
 
 from django.db import DatabaseError
+from django.db.models.query import QuerySet
 
-from mailauth import models
+from mailauth import models, utils
 
 
 @contextlib.contextmanager
@@ -59,14 +60,21 @@ class Command(BaseCommand):
         with stdout_or_file(output) as f:
             print(public_key, file=f)
 
-    def _list(self, contains: str, **kwargs: Any) -> None:
-        if contains:
+    def _list(self, contains: str, find_parent_domain: bool=False, **kwargs: Any) -> None:
+        if contains and find_parent_domain:
+            dom = utils.find_parent_domain(contains, require_jwt_subdomains_set=False)
+            qs = [dom] if dom is not None else []  # type: Union[QuerySet, models.Domain]
+        elif contains and not find_parent_domain:
             qs = models.Domain.objects.filter(name__icontains=contains)
         else:
             qs = models.Domain.objects.all()
 
-        for domain in qs:
-            print("%s%s - %s" % (" " * (4 - len(str(domain.id))), domain.id, domain.name))
+        if qs:
+            for domain in qs:
+                print("%s%s - %s" % (" " * (4 - len(str(domain.id))), domain.id, domain.name))
+        else:
+            sys.stderr.write("No results.\n")
+            sys.exit(1)
 
     def add_arguments(self, parser: CommandParser) -> None:
         cmd = self
@@ -89,6 +97,9 @@ class Command(BaseCommand):
         domain_pubkey = subparsers.add_parser("pubkey", help="Export public keys")
         domain_list = subparsers.add_parser("list", help="List domains")
 
+        domain_create.add_argument("domain",
+                                   help="The domain FQDN to create")
+
         domain_pubkey.add_argument("--key", dest="key", choices=["jwt", "dkim"], default="jwt",
                                    help="Choose which domain key to export")
         domain_pubkey.add_argument("--create-key", dest="create_key", default=False, action="store_true",
@@ -98,6 +109,8 @@ class Command(BaseCommand):
         domain_pubkey.add_argument("domain",
                                    help="The domain to export public keys from")
 
+        domain_list.add_argument("--find-parent-domain", dest="find_parent_domain", action="store_true",
+                                 default=False, help="Return a parent domain if such a domain exists")
         domain_list.add_argument("contains", nargs="?",
                                  help="Filer list by this string")
 

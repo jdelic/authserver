@@ -19,6 +19,7 @@ from oauth2_provider.views.base import AuthorizationView
 from ratelimit.mixins import RatelimitMixin
 
 from dockerauth.jwtutils import JWTViewHelperMixin
+from mailauth import utils
 from mailauth.models import MNApplication, Domain
 from mailauth.models import MNUser
 from mailauth.permissions import find_missing_permissions
@@ -98,27 +99,6 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
     def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
         return super().dispatch(*args, **kwargs)
 
-    def _find_domain(self, fqdn: str) -> Union[Domain, None]:
-        # results in ['sub.example.com', 'example.com', 'com']
-        req_domain = None  # type: Domain
-        parts = fqdn.split(".")
-        for domainstr in [".".join(parts[r:]) for r in range(0, len(parts))]:
-            try:
-                req_domain = Domain.objects.get(name=domainstr)
-            except Domain.DoesNotExist:
-                continue
-            else:
-                if req_domain.jwtkey is not None and req_domain.jwtkey != "":
-                    if domainstr == fqdn or req_domain.jwt_subdomains:
-                        break
-                    elif not req_domain.jwt_subdomains:
-                        # prevent the case where domainstr is the last str in parts, it matches, has a jwtkey but
-                        # is not valid for subdomains. req_domain would be != None in that case and the loop would exit
-                        req_domain = None
-                        continue
-
-        return req_domain
-
     def _parse_request(self, request: HttpRequest) -> _AuthRequest:
         scopes = None  # type: List[str]
         if request.content_type == "application/json":
@@ -147,7 +127,7 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
             return HttpResponseBadRequest('{"error": "This endpoint must be called securely"}',
                                           content_type="application/json")
 
-        req_domain = self._find_domain(request.get_host())
+        req_domain = utils.find_parent_domain(request.get_host(), require_jwt_subdomains_set=True)
 
         if req_domain is None:
             return HttpResponseBadRequest('{"error": "Not a valid authorization domain"}',
