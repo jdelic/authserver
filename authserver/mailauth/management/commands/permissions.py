@@ -1,3 +1,4 @@
+# -* encoding: utf-8 *-
 import argparse
 
 import sys
@@ -7,7 +8,6 @@ from typing import Any
 from django.db import DatabaseError
 
 from mailauth import models
-from mailauth.models import MNApplicationPermission
 
 
 class Command(BaseCommand):
@@ -39,9 +39,9 @@ class Command(BaseCommand):
                 "name__icontains": kwargs["filter_name"],
             })
         if filter_args == {}:
-            scopes = list(MNApplicationPermission.objects.all())
+            scopes = list(models.MNApplicationPermission.objects.all())
         else:
-            scopes = list(MNApplicationPermission.objects.filter(**filter_args))
+            scopes = list(models.MNApplicationPermission.objects.filter(**filter_args))
 
         sclen = 10
         for sc in scopes:
@@ -122,7 +122,6 @@ class Command(BaseCommand):
                                 help="The name of the group whose permission is being revoked")
         revoke_gsp.add_argument("scopes", nargs="*",
                                 help="The scopes to remove from the group")
-
 
     def handle(self, *args:Any, **options: Any) -> None:
         if options["scmd"] == "create":
