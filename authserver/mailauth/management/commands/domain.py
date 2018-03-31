@@ -1,6 +1,7 @@
 # -* encoding: utf-8 *-
 import argparse
 import contextlib
+import re
 
 import sys
 from io import TextIOWrapper
@@ -13,6 +14,9 @@ from django.db import DatabaseError
 from django.db.models.query import QuerySet
 
 from mailauth import models, utils
+
+
+KEY_CHOICES = ["jwt", "dkim"]
 
 
 @contextlib.contextmanager
@@ -28,7 +32,8 @@ def stdout_or_file(path: str) -> Union[TextIOWrapper, TextIO]:
 class Command(BaseCommand):
     requires_migrations_checks = True
 
-    def _pubkey(self, domain: str, output: str, key: str="jwt", create_key: bool=False, **kwargs: Any) -> None:
+    def _pubkey(self, domain: str, output: str, key: str="jwt", create_key: bool=False, format: str="pem",
+                **kwargs: Any) -> None:
         try:
             domobj = models.Domain.objects.get(name=domain)
         except models.Domain.DoesNotExist:
@@ -58,7 +63,15 @@ class Command(BaseCommand):
         public_key = privkey.publickey().exportKey("PEM").decode('utf-8')
         public_key = public_key.replace("RSA PUBLIC KEY", "PUBLIC KEY")
         with stdout_or_file(output) as f:
-            print(public_key, file=f)
+            if format == "pem":
+                print(public_key, file=f)
+            elif format == "dkimdns":
+                outstr = "\"v=DKIM1\; k=rsa\; p=\" {split_key}".format(
+                    split_key="\n".join(
+                        ['"%s"' % line for line in
+                         re.search("--\n(.*?)\n--", public_key, re.DOTALL).group(1).split("\n")])
+                )
+                print(outstr, file=f)
 
     def _list(self, contains: str, find_parent_domain: bool=False, **kwargs: Any) -> None:
         if contains and find_parent_domain:
@@ -90,25 +103,36 @@ class Command(BaseCommand):
         )  # type: argparse._SubParsersAction
 
         domain_create = subparsers.add_parser("create", help="Create domain entries")
+        domain_create.add_argument("--jwt-allow-subdomain-signing", dest="jwt_allow_subdomain_signing",
+                                   action="store_true", default=False,
+                                   help="Allow this domain's JWT signing key to be used for subdomains")
+        domain_create.add_argument("--redirect-all-email-to", dest="redirect_to", metavar="FQDN",
+                                   default="", help="Redirect all email sent to this domain to FQDN")
+        domain_create.add_argument("--create-key", dest="create_keys", choices=KEY_CHOICES, action="append", default=[],
+                                   help="Create these keys when creating the domain")
+        domain_create.add_argument("--dkim-selector", dest="dkim_selector", default="",
+                                   help="The DKIM selector to print in the DKIM records (for the pubkey command, for "
+                                        "example)")
         domain_create.add_argument("domain",
-                                   help="The domain name to create, should be a FQDN.")
+                                   help="The domain name to create as FQDN")
+
         domain_remove = subparsers.add_parser("remove", help="Remove domain entries")
         domain_manage = subparsers.add_parser("manage", help="Manage domain entries")
+
         domain_pubkey = subparsers.add_parser("pubkey", help="Export public keys")
-        domain_list = subparsers.add_parser("list", help="List domains")
-
-        domain_create.add_argument("domain",
-                                   help="The domain FQDN to create")
-
-        domain_pubkey.add_argument("--key", dest="key", choices=["jwt", "dkim"], default="jwt",
+        domain_pubkey.add_argument("--key", dest="key", choices=KEY_CHOICES, default="jwt",
                                    help="Choose which domain key to export")
         domain_pubkey.add_argument("--create-key", dest="create_key", default=False, action="store_true",
                                    help="Create key on domain if it doesn't exist yet (Default: False)")
+        domain_pubkey.add_argument("--format", choices=["dkimdns", "pem"], default="pem",
+                                   help="The output format: either 'dkimdns' or 'pem' (Default: 'pem'). 'dkimdns' is "
+                                        "suitable for being added to a DNS TXT entry")
         domain_pubkey.add_argument("-o", "--output", dest="output", default="-",
                                    help="Output filename (or '-' for stdout)")
         domain_pubkey.add_argument("domain",
                                    help="The domain to export public keys from")
 
+        domain_list = subparsers.add_parser("list", help="List domains")
         domain_list.add_argument("--find-parent-domain", dest="find_parent_domain", action="store_true",
                                  default=False, help="Return a parent domain if such a domain exists")
         domain_list.add_argument("contains", nargs="?",
