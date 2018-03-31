@@ -5,8 +5,9 @@ import sys
 import argparse
 import subprocess
 
-from typing import Tuple, Union
+from typing import Tuple, Union, Set
 
+import jwt
 import requests
 
 
@@ -34,9 +35,29 @@ def readinput_authext() -> Tuple[str, str]:
     return username, password
 
 
-def validate(url: str, username: str, password: str, validate_ssl: Union[bool, str]=True) -> bool:
+def validate(url: str, username: str, password: str, jwtkey: str, scopes: Set[str],
+             validate_ssl: Union[bool, str]=True) -> bool:
     resp = requests.post(url, json={"username": username, "password": password}, verify=validate_ssl)
-    return resp.status_code == 200 and resp.json()['authenticated']
+
+    if resp.status_code == 200 and resp.headers["content-type"] == "application/jwt":
+        try:
+            token = jwt.decode(resp.text, jwtkey, algorithms=["RS256"], leeway=10, audience="net.maurus.authclient")
+        except (jwt.ExpiredSignatureError, jwt.InvalidAlgorithmError,
+                jwt.InvalidIssuerError, jwt.InvalidTokenError) as e:
+            return False
+
+        if "authenticated" in token and token["authenticated"] and \
+           "authorized" in token and token["authorized"] and \
+           "scopes" in token and isinstance(token["scopes"], list) and scopes.issubset(set(token["scopes"])):
+            return True
+        else:
+            return False
+    elif resp.status_code != 200 and resp.headers["content-type"] == "application/json":
+        js = resp.json()
+        if "error" in js:
+            print("ERROR Server returned: %s %s" % (resp.status_code, js["error"]))
+    else:
+        print("ERROR Server returned code %s" % resp.status_code)
 
 
 def main() -> None:
@@ -56,7 +77,12 @@ def main() -> None:
     parser.add_argument("--no-ssl-validate", dest="validate_ssl", action="store_false", default=True,
                         help="Skip validation of the server's SSL certificate.")
     parser.add_argument("--ca-file", dest="ca_file", default=None,
-                        help="Set a CA bundle to validate the server's SSL certificate againt")
+                        help="Set a CA bundle to validate the server's SSL certificate against")
+    parser.add_argument("-s", "--scope", dest="scopes", action="append", default=[],
+                        help="One or more required scopes assigned to the user beyond being authenticated correctly.")
+    parser.add_argument("--jwtkey", dest="jwtkey", required=True,
+                        help="Path to a PEM encoded public key to verify the JWT claims and scopes returned by the "
+                             "server (i.e. the server's public key).")
     parser.add_argument("prog", nargs="*", help="The program to run as defined by the checkpassword interface "
                                                 "(optional).")
 

@@ -7,7 +7,7 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.postgres.fields.array import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
-from typing import Any, Optional
+from typing import Any, Optional, Set, Iterable
 
 from oauth2_provider import models as oauth2_models
 
@@ -56,6 +56,8 @@ class Domain(models.Model):
     dkimselector = models.CharField(verbose_name="DKIM DNS selector", max_length=255, null=False, blank=True,
                                     default="default")
     dkimkey = models.TextField(verbose_name="DKIM private key (PEM)", blank=True)
+    jwtkey = models.TextField(verbose_name="JWT signing key (PEM)", blank=True)
+    jwt_subdomains = models.BooleanField(verbose_name="Use JWT key to sign for subdomains", default=False)
     redirect_to = models.CharField(verbose_name="Redirect all mail to domain", max_length=255, null=False, blank=True,
                                    default="")
 
@@ -254,6 +256,18 @@ class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.Permissi
 
     def get_short_name(self) -> str:
         return self.identifier
+
+    def get_all_app_permissions(self) -> Set[MNApplicationPermission]:
+        user_permissions = set(self.app_permissions.all())
+        for group in self.app_groups.all():
+            user_permissions.update(group.group_permissions.all())
+        return user_permissions
+
+    def has_app_permission(self, perm: str) -> bool:
+        return perm in self.get_all_app_permissions()
+
+    def has_app_permissions(self, perms: Iterable[str]) -> bool:
+        return self.get_all_app_permissions().issuperset(perms)
 
 
 class MNServiceUser(PasswordMaskMixin, models.Model):

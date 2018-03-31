@@ -1,8 +1,10 @@
 # -* encoding: utf-8 *-
 import json
 import logging
-from typing import Any
+from datetime import datetime
+from typing import Any, Union, List, NamedTuple, Set
 
+import pytz
 from django.contrib.auth import authenticate
 from django.http import HttpResponseBadRequest
 from django.http.request import HttpRequest
@@ -16,7 +18,8 @@ from oauth2_provider.models import get_application_model
 from oauth2_provider.views.base import AuthorizationView
 from ratelimit.mixins import RatelimitMixin
 
-from mailauth.models import MNApplication
+from dockerauth.jwtutils import JWTViewHelperMixin
+from mailauth.models import MNApplication, Domain
 from mailauth.models import MNUser
 from mailauth.permissions import find_missing_permissions
 
@@ -70,7 +73,20 @@ class ScopeValidationAuthView(AuthorizationView):
         return resp
 
 
-class UserLoginAPIView(RatelimitMixin, View):
+_AuthRequest = NamedTuple(
+    "_AuthRequest", [
+        ("username", str),
+        ("password", str),
+        ("scopes", Set[str]),
+    ]
+)
+
+
+class InvalidAuthRequest(Exception):
+    pass
+
+
+class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
     ratelimit_key = 'ip'
     ratelimit_rate = '20/m'
     ratelimit_block = True
@@ -82,38 +98,96 @@ class UserLoginAPIView(RatelimitMixin, View):
     def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
         return super().dispatch(*args, **kwargs)
 
-    def post(self, request: HttpRequest) -> HttpResponse:
-        if not request.is_secure():
-            return HttpResponseBadRequest("This endpoint must be called securely")
-
-        if request.content_type == "application/json":
+    def _find_domain(self, fqdn: str) -> Union[Domain, None]:
+        # results in ['sub.example.com', 'example.com', 'com']
+        req_domain = None  # type: Domain
+        parts = fqdn.split(".")
+        for domainstr in [".".join(parts[r:]) for r in range(0, len(parts))]:
             try:
-                data = json.loads(request.body.decode('utf-8'))
-                if "username" not in data or "password" not in data:
-                    return HttpResponseBadRequest("Missing parameters")
-                username = data['username']
-                password = data['password']
-            except json.JSONDecodeError:
-                return HttpResponseBadRequest("Invalid JSON")
+                req_domain = Domain.objects.get(name=domainstr)
+            except Domain.DoesNotExist:
+                continue
+            else:
+                if req_domain.jwtkey is not None and req_domain.jwtkey != "":
+                    if domainstr == fqdn or req_domain.jwt_subdomains:
+                        break
+                    elif not req_domain.jwt_subdomains:
+                        # prevent the case where domainstr is the last str in parts, it matches, has a jwtkey but
+                        # is not valid for subdomains. req_domain would be != None in that case and the loop would exit
+                        req_domain = None
+                        continue
+
+        return req_domain
+
+    def _parse_request(self, request: HttpRequest) -> _AuthRequest:
+        scopes = None  # type: List[str]
+        if request.content_type == "application/json":
+            data = json.loads(request.body.decode('utf-8'))
+            if "username" not in data or "password" not in data:
+                raise InvalidAuthRequest()
+            username = data['username']
+            password = data['password']
+            if "scopes" in data and isinstance(data["scopes"], list):
+                scopes = data["scopes"]
         else:
             if "username" not in request.POST or "password" not in request.POST:
-                return HttpResponseBadRequest("Missing parameters")
+                raise InvalidAuthRequest()
             username = request.POST["username"]
             password = request.POST["password"]
+            scopes = request.POST["scopes"].split(",")
 
-        user = authenticate(username=username, password=password)  # type: MNUser
+        return _AuthRequest(
+            username=username,
+            password=password,
+            scopes=set(scopes),
+        )
+
+    def post(self, request: HttpRequest) -> HttpResponse:
+        if not request.is_secure():
+            return HttpResponseBadRequest('{"error": "This endpoint must be called securely"}',
+                                          content_type="application/json")
+
+        req_domain = self._find_domain(request.get_host())
+
+        if req_domain is None:
+            return HttpResponseBadRequest('{"error": "Not a valid authorization domain"}',
+                                          content_type="application/json")
+
+        try:
+            userdesc = self._parse_request(request)
+        except json.JSONDecodeError:
+            return HttpResponseBadRequest('{"error": "Invalid JSON"}', content_type="application/json")
+        except InvalidAuthRequest:
+            return HttpResponseBadRequest('{"error": "Missing parameters"}', content_type="application/json")
+
+        user = authenticate(username=userdesc.username, password=userdesc.password)  # type: MNUser
         if user is None:
             return HttpResponse(
-                '{"authenticated": false}', content_type='application/json', status=401,
+                '{"authenticated": false, "authorized": false}', content_type="application/json", status=401,
+            )
+        elif user.delivery_mailbox is None:
+            return HttpResponse(
+                '{"authenticated": false, "authorized": false}', content_type="application/json", status=401,
+            )
+        elif not user.has_app_permissions(userdesc.scopes):
+            return HttpResponse(
+                '{"authenticated": true, "authorized": false}', content_type="application/json", status=401,
             )
         else:
-            if user.delivery_mailbox is None:
-                return HttpResponse(
-                    '{"authenticated": false}', content_type='application/json', status=401,
-                )
+            # user is authenticated and authorized
+            jwtstr = self._create_jwt(claim={
+                "sub": userdesc.username,
+                "canonical_username": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
+                "authenticated": True,
+                "authorized": True,
+                "scopes": userdesc.scopes,
+                "nbf": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) - 5,
+                "exp": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) + 3600,
+                "iss": req_domain.name,
+                "aud": "net.maurus.authclient",
+            }, key_pemstr=req_domain.jwtkey)
 
             return HttpResponse(
-                '{"username": "%s", "canonical_username": "%s@%s", "authenticated": true }' %
-                (username, user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
-                content_type='application/json', status=200
+                jwtstr,
+                content_type="application/jwt", status=200
             )
