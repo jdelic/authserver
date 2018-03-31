@@ -143,6 +143,13 @@ class Command(BaseCommand):
                                    help="The domain name to create as FQDN")
 
         domain_remove = subparsers.add_parser("remove", help="Remove domain entries")
+        domain_remove.add_argument("--remove-multiple", dest="delete_multiple", action="store_true", default=False,
+                                   help="If multiple domains are matched, remove all of them")
+        domain_remove.add_argument("--yes", dest="approved", action="store_true", default=False,
+                                   help="Do not ask for confirmation on removal")
+        domain_remove.add_argument("contains",
+                                   help="A string matching the domain(s) to remove")
+
         domain_manage = subparsers.add_parser("manage", help="Manage domain entries")
 
         domain_pubkey = subparsers.add_parser("pubkey", help="Export public keys")
@@ -168,9 +175,11 @@ class Command(BaseCommand):
         if options["scmd"] == "create":
             self._create(**options)
         elif options["scmd"] == "remove":
-            pass
+            sys.stderr.write("Not implemented yet.\n")
+            sys.exit(1)
         elif options["scmd"] == "manage":
-            pass
+            sys.stderr.write("Not implemented yet.\n")
+            sys.exit(1)
         elif options["scmd"] == "pubkey":
             self._pubkey(**options)
         elif options["scmd"] == "list":

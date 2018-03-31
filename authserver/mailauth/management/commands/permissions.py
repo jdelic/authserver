@@ -28,15 +28,15 @@ class Command(BaseCommand):
         self.stderr.write(self.style.SUCCESS("Created scope %s (Human readable name: %s)\n") %
                           (scope.scope_name, scope.name))
 
-    def _list(self, **kwargs: Any) -> None:
+    def _list(self, filter_scope: str=None, filter_name: str=None, **kwargs: Any) -> None:
         filter_args = {}
-        if "filter_scope" in kwargs:
+        if filter_scope:
             filter_args.update({
                 "scope_name__icontains": kwargs["filter_scope"],
             })
-        if "filter_name" in kwargs:
+        if filter_name:
             filter_args.update({
-                "name__icontains": kwargs["filter_name"],
+                "name__icontains": filter_name,
             })
         if filter_args == {}:
             scopes = list(models.MNApplicationPermission.objects.all())
@@ -51,10 +51,16 @@ class Command(BaseCommand):
         if sclen > 30:
             sclen = 30
 
-        print("SCOPE%sNAME" % (" " * sclen - 5))
-        print("-" * 78)
-        for scope in scopes:
-            pass
+        if len(scopes) > 0:
+            print("SCOPE%sNAME" % (" " * (sclen - 5)))
+            print("-" * 78)
+            for scope in scopes:
+                print("%s%s%s" % (scope.scope_name,
+                                  (" " * (sclen - len(scope.scope_name)) if sclen - len(scope.scope_name) < 30 else " "),
+                                  scope.name))
+        else:
+            sys.stderr.write("No matching scopes found.\n")
+            sys.exit(1)
 
     def add_arguments(self, parser: CommandParser) -> None:
         cmd = self
@@ -132,14 +138,18 @@ class Command(BaseCommand):
             self._remove(**options)
         elif options["scmd"] == "grant":
             if options["gcmd"] == "user":
-                pass
+                sys.stderr.write("Not implemented yet.\n")
+                sys.exit(1)
             elif options["gcmd"] == "group":
-                pass
+                sys.stderr.write("Not implemented yet.\n")
+                sys.exit(1)
         elif options["scmd"] == "revoke":
             if options["rcmd"] == "user":
-                pass
+                sys.stderr.write("Not implemented yet.\n")
+                sys.exit(1)
             elif options["rcmd"] == "group":
-                pass
+                sys.stderr.write("Not implemented yet.\n")
+                sys.exit(1)
         else:
             self.stderr.write("Please specify a command.\n")
             self.stderr.write("Use django-admin.py permission --settings=authserver.settings --help to get help.\n\n")
