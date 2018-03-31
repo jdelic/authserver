@@ -14,20 +14,19 @@ from mailauth import models
 class Command(BaseCommand):
     requires_migrations_checks = True
 
-    def _create(self, **kwargs: Any) -> None:
+    def _create(self, name: str, scope: str, **kwargs: Any) -> None:
         # permission create --name=xyz scope
-        scope = None  # type: models.MNApplicationPermission
         try:
-            scope = models.MNApplicationPermission.objects.create(
-                name=kwargs["name"],
-                scope_name=kwargs["scope"]
-            )
+            scobj = models.MNApplicationPermission.objects.create(
+                name=name,
+                scope_name=scope,
+            )  # type: models.MNApplicationPermission
         except DatabaseError as e:
             self.stderr.write("Error while creating application permission scope: %s\n" % str(e))
             sys.exit(1)
 
         self.stderr.write(self.style.SUCCESS("Created scope %s (Human readable name: %s)\n") %
-                          (scope.scope_name, scope.name))
+                          (scobj.scope_name, scobj.name))
 
     def _list(self, filter_scope: str=None, filter_name: str=None, format: str="table", **kwargs: Any) -> None:
         filter_args = {}
