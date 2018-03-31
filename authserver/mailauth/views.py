@@ -5,8 +5,9 @@ from datetime import datetime
 from typing import Any, Union, List, NamedTuple, Set
 
 import pytz
+from Crypto.PublicKey import RSA
 from django.contrib.auth import authenticate
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponseBadRequest, HttpResponseNotFound
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse
 from django.shortcuts import render
@@ -85,6 +86,49 @@ _AuthRequest = NamedTuple(
 
 class InvalidAuthRequest(Exception):
     pass
+
+
+class JWTPublicKeyView(RatelimitMixin, View):
+    ratelimit_key = 'ip'
+    ratelimit_rate = '5/m'
+    ratelimit_block = True
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
+        return super().dispatch(*args, **kwargs)
+
+    def get(self, request: HttpRequest) -> HttpResponse:
+        if not request.is_secure():
+            return HttpResponseBadRequest('{"error": "This endpoint must be called securely"}',
+                                          content_type="application/json")
+
+        if "domain" not in request.GET:
+            return HttpResponseBadRequest('{"error": "Not a valid authorization domain"}',
+                                          content_type="application/json")
+
+        req_domain = utils.find_parent_domain(request.GET["domain"])
+        if req_domain is None:
+            return HttpResponseNotFound('{"error": "Not a valid authorization domain"}',
+                                        content_type="application/json")
+
+        if req_domain.jwtkey is None or req_domain.jwtkey == "":
+            return HttpResponseNotFound('{"error": "Domain is not JWT enabled"}',
+                                        content_type="application/json")
+
+        try:
+            privkey = RSA.import_key(req_domain.jwtkey)
+        except ValueError:
+            return HttpResponseNotFound('{"error": "Domain is not JWT enabled"}',
+                                        content_type="application/json")
+
+        public_key = privkey.publickey().exportKey("PEM").decode('utf-8').replace("RSA PUBLIC KEY", "PUBLIC KEY")
+        resp = {
+            "public_key_pem": public_key.split("\n")
+        }
+        return HttpResponse(json.dumps(resp), content_type="application/json", status=200)
 
 
 class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
