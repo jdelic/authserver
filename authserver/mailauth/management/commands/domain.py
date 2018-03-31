@@ -8,7 +8,7 @@ from io import TextIOWrapper
 
 from Crypto.PublicKey import RSA
 from django.core.management import BaseCommand, CommandParser
-from typing import Any, TextIO, Union
+from typing import Any, TextIO, Union, List
 
 from django.db import DatabaseError
 from django.db.models.query import QuerySet
@@ -31,6 +31,29 @@ def stdout_or_file(path: str) -> Union[TextIOWrapper, TextIO]:
 
 class Command(BaseCommand):
     requires_migrations_checks = True
+
+    def _create(self, domain: str, create_keys: List[str]=None, dkim_selector: str="", redirect_to: str="",
+                jwt_allow_subdomain_signing: bool=False, **kwargs: Any) -> None:
+        try:
+            domobj = models.Domain.objects.get(name__iexact=domain)
+        except models.Domain.DoesNotExist:
+            pass
+        else:
+            sys.stderr.write("Error: Domain %s already exists\n" % domain)
+            sys.exit(1)
+
+        domobj = models.Domain.objects.create(name=domain, dkim_selector=dkim_selector, redirect_to=redirect_to,
+                                              jwt_subdomains=jwt_allow_subdomain_signing)
+        if create_keys is None:
+            create_keys = []
+
+        if "jwt" in create_keys:
+            domobj.jwtkey = RSA.generate(2048).exportKey("PEM").decode("utf-8")
+        if "dkim" in create_keys:
+            domobj.dkimkey = RSA.generate(2048).exportKey("PEM").decode("utf-8")
+        domobj.save()
+
+        sys.stderr.write("Domain %s created" % domain)
 
     def _pubkey(self, domain: str, output: str, key: str="jwt", create_key: bool=False, format: str="pem",
                 **kwargs: Any) -> None:
@@ -72,6 +95,9 @@ class Command(BaseCommand):
                          re.search("--\n(.*?)\n--", public_key, re.DOTALL).group(1).split("\n")])
                 )
                 print(outstr, file=f)
+
+        if output != "-":
+            sys.stderr.write("Public key exported to %s\n" % output)
 
     def _list(self, contains: str, find_parent_domain: bool=False, **kwargs: Any) -> None:
         if contains and find_parent_domain:
@@ -140,7 +166,7 @@ class Command(BaseCommand):
 
     def handle(self, *args:Any, **options: Any) -> None:
         if options["scmd"] == "create":
-            pass
+            self._create(**options)
         elif options["scmd"] == "remove":
             pass
         elif options["scmd"] == "manage":
