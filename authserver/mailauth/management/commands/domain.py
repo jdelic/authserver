@@ -1,6 +1,7 @@
 # -* encoding: utf-8 *-
 import argparse
 import contextlib
+import json
 import re
 
 import sys
@@ -99,7 +100,7 @@ class Command(BaseCommand):
         if output != "-":
             sys.stderr.write("Public key exported to %s\n" % output)
 
-    def _list(self, contains: str, find_parent_domain: bool=False, **kwargs: Any) -> None:
+    def _list(self, contains: str, find_parent_domain: bool=False, format: str="list", **kwargs: Any) -> None:
         if contains and find_parent_domain:
             dom = utils.find_parent_domain(contains, require_jwt_subdomains_set=False)
             qs = [dom] if dom is not None else []  # type: Union[QuerySet, models.Domain]
@@ -109,11 +110,26 @@ class Command(BaseCommand):
             qs = models.Domain.objects.all()
 
         if qs:
+            export = []
             for domain in qs:
-                print("%s%s - %s" % (" " * (4 - len(str(domain.id))), domain.id, domain.name))
+                if format == "list":
+                    print("%s%s   %s" % (" " * (4 - len(str(domain.id))), domain.id, domain.name))
+                else:
+                    export.append({
+                        "name": domain.name,
+                        "id": domain.id,
+                        "jwt_sign_subdomains": domain.jwt_subdomains,
+                        "dkimselector": domain.dkimselector,
+                    })
+            if format == "json":
+                print(json.dumps(export))
         else:
-            sys.stderr.write("No results.\n")
-            sys.exit(1)
+            if format == "list":
+                sys.stderr.write("No results.\n")
+                sys.exit(1)
+            else:
+                print("[]")
+                sys.exit(0)
 
     def add_arguments(self, parser: CommandParser) -> None:
         cmd = self
@@ -168,6 +184,8 @@ class Command(BaseCommand):
         domain_list = subparsers.add_parser("list", help="List domains")
         domain_list.add_argument("--find-parent-domain", dest="find_parent_domain", action="store_true",
                                  default=False, help="Return a parent domain if such a domain exists")
+        domain_list.add_argument("--format", dest="format", choices=["json", "list"], default="list",
+                                 help="The output format for the results")
         domain_list.add_argument("contains", nargs="?",
                                  help="Filer list by this string")
 

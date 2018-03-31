@@ -1,5 +1,6 @@
 # -* encoding: utf-8 *-
 import argparse
+import json
 
 import sys
 from django.core.management import BaseCommand, CommandParser
@@ -28,7 +29,7 @@ class Command(BaseCommand):
         self.stderr.write(self.style.SUCCESS("Created scope %s (Human readable name: %s)\n") %
                           (scope.scope_name, scope.name))
 
-    def _list(self, filter_scope: str=None, filter_name: str=None, **kwargs: Any) -> None:
+    def _list(self, filter_scope: str=None, filter_name: str=None, format: str="table", **kwargs: Any) -> None:
         filter_args = {}
         if filter_scope:
             filter_args.update({
@@ -52,15 +53,32 @@ class Command(BaseCommand):
             sclen = 30
 
         if len(scopes) > 0:
-            print("SCOPE%sNAME" % (" " * (sclen - 5)))
-            print("-" * 78)
+            if format == "table":
+                print("SCOPE%sNAME" % (" " * (sclen - 5)))
+                print("-" * 78)
+            export = []
             for scope in scopes:
-                print("%s%s%s" % (scope.scope_name,
-                                  (" " * (sclen - len(scope.scope_name)) if sclen - len(scope.scope_name) < 30 else " "),
-                                  scope.name))
+                if format == "table":
+                    print("%s%s%s" % (
+                        scope.scope_name,
+                        (" " * (sclen - len(scope.scope_name)) if sclen - len(scope.scope_name) < 30 else " "),
+                        scope.name
+                    ))
+                else:
+                    export.append({
+                        "scope_name": scope.scope_name,
+                        "name": scope.name,
+                        "id": scope.id,
+                    })
+            if format == "json":
+                print(json.dumps(export))
         else:
-            sys.stderr.write("No matching scopes found.\n")
-            sys.exit(1)
+            if format == "table":
+                sys.stderr.write("No matching scopes found.\n")
+                sys.exit(1)
+            else:
+                print("[]")
+                sys.exit(0)
 
     def add_arguments(self, parser: CommandParser) -> None:
         cmd = self
@@ -86,6 +104,8 @@ class Command(BaseCommand):
                              help="Filter the list for scopes containing this string")
         list_sp.add_argument("--filter-name", dest="filter_name", metavar="CONTAINS",
                              help="Filter the list for permission names containing this string")
+        list_sp.add_argument("--format", dest="format", choices=["json", "table"], default="table",
+                             help="The output format for the results")
 
         remove_sp = subparsers.add_parser("remove", help="Remove application permissions")
         remove_sp.add_argument("scope",
