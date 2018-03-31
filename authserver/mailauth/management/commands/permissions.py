@@ -22,10 +22,10 @@ class Command(BaseCommand):
                 scope_name=kwargs["scope"]
             )
         except DatabaseError as e:
-            self.stderr.write("Error while creating application permission scope: %s" % str(e))
+            self.stderr.write("Error while creating application permission scope: %s\n" % str(e))
             sys.exit(1)
 
-        self.stderr.write(self.style.SUCCESS("Created scope %s (Human readable name: %s)") %
+        self.stderr.write(self.style.SUCCESS("Created scope %s (Human readable name: %s)\n") %
                           (scope.scope_name, scope.name))
 
     def _list(self, **kwargs: Any) -> None:
@@ -141,5 +141,5 @@ class Command(BaseCommand):
             elif options["rcmd"] == "group":
                 pass
         else:
-            self.stderr.write("Please specify a command.")
-            self.stderr.write("Use django-admin.py permission --settings=authserver.settings --help to get help.")
+            self.stderr.write("Please specify a command.\n")
+            self.stderr.write("Use django-admin.py permission --settings=authserver.settings --help to get help.\n\n")
