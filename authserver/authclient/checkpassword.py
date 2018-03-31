@@ -68,12 +68,16 @@ def main() -> None:
                     "return exitcode 0 if the username and password are correct."
     )
 
-    parser.add_argument("-m", "--mode", dest="mode", choices=["checkpassword", "authext"], default="checkpassword",
+    parser.add_argument("-m", "--mode", dest="mode", choices=["checkpassword", "authext", "init"],
+                        default="checkpassword",
                         help="Tells the program what mode to operate in. 'authext' is compatible with Apache2 "
                              "mod_auth_ext and 'checkpassword' is compatible with the qmail checkpassword "
-                             "interface.")
+                             "interface. 'init' is used to download the public key from the authentication server and"
+                             "write it to stdout (URL must then be the server's getkey endpoint).")
     parser.add_argument("-u", "--url", dest="url", required=True,
-                        help="The URL of the authserver endpoint to use to check the password.")
+                        help="The URL of the authserver endpoint to use to check the password. Usually this should "
+                             "point to the server's 'checkpassword' REST API, unless mode is 'init' in which case "
+                             "it should point to the servers 'getkey' REST API endpoint")
     parser.add_argument("--no-ssl-validate", dest="validate_ssl", action="store_false", default=True,
                         help="Skip validation of the server's SSL certificate.")
     parser.add_argument("--ca-file", dest="ca_file", default=None,
@@ -88,14 +92,21 @@ def main() -> None:
 
     _args = parser.parse_args()
 
-    if _args.mode == "checkpassword":
+    if _args.mode == "init":
+        # TODO: implement me
+        pass
+    elif _args.mode == "checkpassword":
         username, password = readinput_checkpassword()
-    else:
+    elif _args.mode == "authext":
         username, password = readinput_authext()
+    else:
+        print("Unknown mode")
+        sys.exit(1)
 
     if validate(_args.url, username, password, validate_ssl=_args.ca_file if _args.ca_file else _args.validate_ssl):
         if _args.mode == "checkpassword":
             # execute prog
+            # TODO: check if this shouldn't exit with prog's exit code?
             subprocess.call(_args.prog)
         sys.exit(0)
     else:
