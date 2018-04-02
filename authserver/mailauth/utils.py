@@ -32,7 +32,7 @@ def find_parent_domain(fqdn: str, require_jwt_subdomains_set: bool=True) -> Unio
 
 @contextlib.contextmanager
 def stdout_or_file(path: str) -> Union[TextIOWrapper, TextIO]:
-    if path == "-":
+    if path is None or path == "" or path == "-":
         yield sys.stdout
     else:
         fd = open(path, mode="w")
