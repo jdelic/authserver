@@ -90,7 +90,7 @@ def loadkey(url: str, jwtkey: str=None, check: bool=False, validate_ssl: Union[b
             sys.stderr.write("Check successful.\n")
         else:
             with stdout_or_file(jwtkey) as out:
-                print(resp.json()["public_key_pem"], file=out)
+                print("\n".join(resp.json()["public_key_pem"]), file=out)
 
             if jwtkey != "-":
                 sys.stderr.write("Key written to %s\n" % jwtkey)
