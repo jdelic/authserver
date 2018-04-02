@@ -141,7 +141,8 @@ def main() -> None:
     _args = parser.parse_args()
 
     if _args.mode in ["init", "check"]:
-        loadkey(_args.url, check=(_args.mode == "check"))
+        loadkey(_args.url, check=(_args.mode == "check"), jwtkey=_args.jwtkey,
+                validate_ssl=_args.ca_file if _args.ca_file else _args.validate_ssl)
         return
     elif _args.mode == "checkpassword":
         username, password = readinput_checkpassword()
@@ -151,7 +152,8 @@ def main() -> None:
         print("Unknown mode")
         sys.exit(1)
 
-    if validate(_args.url, username, password, validate_ssl=_args.ca_file if _args.ca_file else _args.validate_ssl):
+    if validate(_args.url, username, password, jwtkey=_args.jwtkey, scopes=_args.scopes,
+                validate_ssl=_args.ca_file if _args.ca_file else _args.validate_ssl):
         if _args.mode == "checkpassword":
             # execute prog
             subprocess.call(_args.prog)
