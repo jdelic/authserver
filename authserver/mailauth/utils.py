@@ -4,12 +4,13 @@ import contextlib
 from io import TextIOWrapper
 from typing import Union, TextIO
 
-from mailauth.models import Domain
 
-
-def find_parent_domain(fqdn: str, require_jwt_subdomains_set: bool=True) -> Union[Domain, None]:
-    # results in ['sub.example.com', 'example.com', 'com']
+def find_parent_domain(fqdn: str, require_jwt_subdomains_set: bool=True) -> Union['Domain', None]:
+    # import mailauth.models.Domain here so importing this module does not depend on Django to be initialized
+    from mailauth.models import Domain
     req_domain = None  # type: Domain
+
+    # results in ['sub.example.com', 'example.com', 'com']
     parts = fqdn.split(".")
     for domainstr in [".".join(parts[r:]) for r in range(0, len(parts))]:
         try:
