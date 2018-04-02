@@ -1,33 +1,20 @@
 # -* encoding: utf-8 *-
 import argparse
-import contextlib
 import json
 import re
 
 import sys
-from io import TextIOWrapper
 
 from Crypto.PublicKey import RSA
 from django.core.management import BaseCommand, CommandParser
-from typing import Any, TextIO, Union, List
+from typing import Any, Union, List
 
-from django.db import DatabaseError
 from django.db.models.query import QuerySet
 
 from mailauth import models, utils
 
 
 KEY_CHOICES = ["jwt", "dkim"]
-
-
-@contextlib.contextmanager
-def stdout_or_file(path: str) -> Union[TextIOWrapper, TextIO]:
-    if path == "-":
-        yield sys.stdout
-    else:
-        fd = open(path, mode="w")
-        yield fd
-        fd.close()
 
 
 class Command(BaseCommand):
@@ -86,7 +73,7 @@ class Command(BaseCommand):
 
         public_key = privkey.publickey().exportKey("PEM").decode('utf-8')
         public_key = public_key.replace("RSA PUBLIC KEY", "PUBLIC KEY")
-        with stdout_or_file(output) as f:
+        with utils.stdout_or_file(output) as f:
             if format == "pem":
                 print(public_key, file=f)
             elif format == "dkimdns":

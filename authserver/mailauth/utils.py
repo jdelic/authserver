@@ -1,5 +1,8 @@
 # -* encoding: utf-8 *-
-from typing import Union
+import sys
+import contextlib
+from io import TextIOWrapper
+from typing import Union, TextIO
 
 from mailauth.models import Domain
 
@@ -24,3 +27,13 @@ def find_parent_domain(fqdn: str, require_jwt_subdomains_set: bool=True) -> Unio
                     continue
 
     return req_domain
+
+
+@contextlib.contextmanager
+def stdout_or_file(path: str) -> Union[TextIOWrapper, TextIO]:
+    if path == "-":
+        yield sys.stdout
+    else:
+        fd = open(path, mode="w")
+        yield fd
+        fd.close()
