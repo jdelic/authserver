@@ -116,7 +116,7 @@ def main() -> None:
                         default="checkpassword",
                         help="Tells the program what mode to operate in. 'authext' is compatible with Apache2 "
                              "mod_auth_ext and 'checkpassword' is compatible with the qmail checkpassword "
-                             "interface. 'init' is used to download the public key from the authentication server and"
+                             "interface. 'init' is used to download the public key from the authentication server and "
                              "write it to stdout (URL must then be the server's getkey endpoint). 'check' behaves "
                              "like 'init' but makes no changes. 'check' and 'init' return error code 0 for success, "
                              "error code 1 if the domain has no key, error code 2 for connection problems and error "
@@ -133,7 +133,7 @@ def main() -> None:
                         help="One or more required scopes assigned to the user beyond being authenticated correctly.")
     parser.add_argument("--jwtkey", dest="jwtkey", required=True,
                         help="Path to a PEM encoded public key to verify the JWT claims and scopes returned by the "
-                             "server (i.e. the server's public key). Mode 'init' writes the key to this file. Use '-'"
+                             "server (i.e. the server's public key). Mode 'init' writes the key to this file. Use '-' "
                              "to write the key to stdout in 'init' mode.")
     parser.add_argument("prog", nargs="*", help="The program to run as defined by the checkpassword interface "
                                                 "(optional).")
