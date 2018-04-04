@@ -21,7 +21,7 @@ from ratelimit.mixins import RatelimitMixin
 
 from dockerauth.jwtutils import JWTViewHelperMixin
 from mailauth import utils
-from mailauth.models import MNApplication, Domain
+from mailauth.models import MNApplication, Domain, UnresolvableUserException
 from mailauth.models import MNUser
 from mailauth.permissions import find_missing_permissions
 
@@ -140,10 +140,6 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
-    @method_decorator(csrf_exempt)
-    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
-        return super().dispatch(*args, **kwargs)
-
     def _parse_request(self, request: HttpRequest) -> _AuthRequest:
         scopes = None  # type: List[str]
         if request.content_type == "application/json":
@@ -167,6 +163,10 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
             scopes=set(scopes),
         )
 
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
+        return super().dispatch(*args, **kwargs)
+
     def post(self, request: HttpRequest) -> HttpResponse:
         if not request.is_secure():
             return HttpResponseBadRequest('{"error": "This endpoint must be called securely"}',
@@ -185,7 +185,16 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
         except InvalidAuthRequest:
             return HttpResponseBadRequest('{"error": "Missing parameters"}', content_type="application/json")
 
-        user = authenticate(username=userdesc.username, password=userdesc.password)  # type: MNUser
+        if userdesc.password:
+            user = authenticate(username=userdesc.username, password=userdesc.password)  # type: MNUser
+            authenticated = True
+        else:
+            authenticated = False
+            try:
+                user = MNUser.objects.resolve_user(userdesc.username)
+            except UnresolvableUserException:
+                user = None
+
         if user is None:
             return HttpResponse(
                 '{"authenticated": false, "authorized": false}', content_type="application/json", status=401,
@@ -194,18 +203,19 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
             return HttpResponse(
                 '{"authenticated": false, "authorized": false}', content_type="application/json", status=401,
             )
-        elif not user.has_app_permissions(userdesc.scopes):
+        elif userdesc.scopes and not user.has_app_permissions(userdesc.scopes):
             return HttpResponse(
-                '{"authenticated": true, "authorized": false}', content_type="application/json", status=401,
+                '{"authenticated": %s, "authorized": false}' %
+                "true" if authenticated else "false", content_type="application/json", status=401,
             )
         else:
-            # user is authenticated and authorized
+            # user is possibly authenticated and authorized
             jwtstr = self._create_jwt(claim={
                 "sub": userdesc.username,
                 "canonical_username": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
-                "authenticated": True,
-                "authorized": True,
-                "scopes": userdesc.scopes,
+                "authenticated": authenticated,
+                "authorized": userdesc.scopes and user.has_app_permissions(userdesc.scopes),
+                "scopes": list(user.get_all_app_permissions()),
                 "nbf": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) - 5,
                 "exp": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) + 3600,
                 "iss": req_domain.name,

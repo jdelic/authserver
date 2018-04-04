@@ -5,7 +5,7 @@ import sys
 import argparse
 import subprocess
 
-from typing import Tuple, Union, Set
+from typing import Tuple, Union, Set, List, Sequence
 
 import jwt
 import requests
@@ -37,9 +37,34 @@ def readinput_authext() -> Tuple[str, str]:
     return username, password
 
 
-def validate(url: str, username: str, password: str, jwtkey: str, scopes: Set[str],
-             validate_ssl: Union[bool, str]=True) -> bool:
-    resp = requests.post(url, json={"username": username, "password": password}, verify=validate_ssl)
+def readinput_groups() -> Tuple[str, List[str]]:
+    username = sys.stdin.readline().strip()
+    groups = sys.stdin.readline().strip().split(' ')
+    return username, groups
+
+
+def validate(url: str, username: str, password: str, jwtkeyfile: str, scopes: Set[str],
+             validate_ssl: Union[bool, str]=True, require_authnz: bool=True) -> bool:
+    if os.path.exists(jwtkeyfile) and os.access(jwtkeyfile, os.R_OK):
+        try:
+            with open(jwtkeyfile, "rt") as keyfile:
+                jwtkey = keyfile.readlines()
+        except IOError as e:
+            sys.stderr.write("ERROR Can't read JWT file %s: %s" % (jwtkeyfile, str(e)))
+            sys.exit(2)
+    else:
+        sys.stderr.write("ERROR JWT key file %s does not exist.\n" % jwtkeyfile)
+        sys.exit(2)
+
+    try:
+        resp = requests.post(url, json={"username": username, "password": password}, verify=validate_ssl)
+    except requests.exceptions.SSLError as sslerr:
+        sys.stderr.write("Unverifiable server certificate or SSL error while connecting to %s: %s\n" %
+                         (url, str(sslerr)))
+        sys.exit(2)
+    except requests.exceptions.ConnectionError as sslerr:
+        sys.stderr.write("Connection error while connecting to %s: %s\n" % (url, sslerr))
+        sys.exit(2)
 
     if resp.status_code == 200 and resp.headers["content-type"] == "application/jwt":
         try:
@@ -48,8 +73,8 @@ def validate(url: str, username: str, password: str, jwtkey: str, scopes: Set[st
                 jwt.InvalidIssuerError, jwt.InvalidTokenError) as e:
             return False
 
-        if "authenticated" in token and token["authenticated"] and \
-           "authorized" in token and token["authorized"] and \
+        if ("authenticated" in token and token["authenticated"] or not require_authnz) and \
+           ("authorized" in token and token["authorized"] or not require_authnz) and \
            "scopes" in token and isinstance(token["scopes"], list) and scopes.issubset(set(token["scopes"])):
             return True
         else:
@@ -57,15 +82,17 @@ def validate(url: str, username: str, password: str, jwtkey: str, scopes: Set[st
     elif resp.status_code != 200 and resp.headers["content-type"] == "application/json":
         js = resp.json()
         if "error" in js:
-            print("ERROR Server returned: %s %s" % (resp.status_code, js["error"]))
+            sys.stderr.write("ERROR Server returned: %s %s\n" % (resp.status_code, js["error"]))
+            return False
     else:
-        print("ERROR Server returned code %s" % resp.status_code)
+        sys.stderr.write("ERROR Server returned code %s\n" % resp.status_code)
+        return False
 
 
-def loadkey(url: str, jwtkey: str=None, check: bool=False, validate_ssl: Union[bool, str]=True) -> None:
-    if jwtkey and jwtkey != "-":
-        if os.path.exists(jwtkey):
-            sys.stderr.write("Path %s already exist. Doing nothing." % jwtkey)
+def loadkey(url: str, jwtkeyfile: str=None, check: bool=False, validate_ssl: Union[bool, str]=True) -> None:
+    if jwtkeyfile and jwtkeyfile != "-":
+        if os.path.exists(jwtkeyfile):
+            sys.stderr.write("Path %s already exist. Doing nothing." % jwtkeyfile)
             sys.exit(0)
 
     try:
@@ -89,11 +116,11 @@ def loadkey(url: str, jwtkey: str=None, check: bool=False, validate_ssl: Union[b
         if check:
             sys.stderr.write("Check successful.\n")
         else:
-            with stdout_or_file(jwtkey) as out:
+            with stdout_or_file(jwtkeyfile) as out:
                 print("\n".join(resp.json()["public_key_pem"]), file=out)
 
-            if jwtkey != "-":
-                sys.stderr.write("Key written to %s\n" % jwtkey)
+            if jwtkeyfile != "-":
+                sys.stderr.write("Key written to %s\n" % jwtkeyfile)
         sys.exit(0)
     else:
         sys.stderr.write("Server returned status code %s\n" % resp.status_code)
@@ -112,12 +139,13 @@ def main() -> None:
                     "return exitcode 0 if the username and password are correct."
     )
 
-    parser.add_argument("-m", "--mode", dest="mode", choices=["checkpassword", "authext", "init", "check"],
-                        default="checkpassword",
+    parser.add_argument("-m", "--mode", dest="mode", default="checkpassword",
+                        choices=["checkpassword", "authext", "authextgroup", "init", "check"],
                         help="Tells the program what mode to operate in. 'authext' is compatible with Apache2 "
-                             "mod_auth_ext and 'checkpassword' is compatible with the qmail checkpassword "
-                             "interface. 'init' is used to download the public key from the authentication server and "
-                             "write it to stdout (URL must then be the server's getkey endpoint). 'check' behaves "
+                             "mod_authnz_ext and 'checkpassword' is compatible with the qmail checkpassword "
+                             "interface. 'authextgroup' supports checking groups against scopes as supported by "
+                             "mod_authnz_ext. 'init' is used to download the public key from the authentication server "
+                             "and write it to stdout (URL must then be the server's getkey endpoint). 'check' behaves "
                              "like 'init' but makes no changes. 'check' and 'init' return error code 0 for success, "
                              "error code 1 if the domain has no key, error code 2 for connection problems and error "
                              "code 3 for everything else.")
@@ -141,19 +169,23 @@ def main() -> None:
     _args = parser.parse_args()
 
     if _args.mode in ["init", "check"]:
-        loadkey(_args.url, check=(_args.mode == "check"), jwtkey=_args.jwtkey,
+        loadkey(_args.url, check=(_args.mode == "check"), jwtkeyfile=_args.jwtkey,
                 validate_ssl=_args.ca_file if _args.ca_file else _args.validate_ssl)
         return
     elif _args.mode == "checkpassword":
         username, password = readinput_checkpassword()
     elif _args.mode == "authext":
         username, password = readinput_authext()
+    elif _args.mode == "authextgroup":
+        username, groups = readinput_groups()
+        password = None
     else:
         print("Unknown mode")
         sys.exit(1)
 
-    if validate(_args.url, username, password, jwtkey=_args.jwtkey, scopes=_args.scopes,
-                validate_ssl=_args.ca_file if _args.ca_file else _args.validate_ssl):
+    if validate(_args.url, username, password, jwtkeyfile=_args.jwtkey, scopes=_args.scopes,
+                validate_ssl=_args.ca_file if _args.ca_file else _args.validate_ssl,
+                require_authnz=not _args.mode == "authextgroup"):
         if _args.mode == "checkpassword":
             # execute prog
             subprocess.call(_args.prog)

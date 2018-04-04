@@ -7,7 +7,7 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.postgres.fields.array import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
-from typing import Any, Optional, Set, Iterable
+from typing import Any, Optional, Set, Iterable, Union
 
 from oauth2_provider import models as oauth2_models
 
@@ -137,6 +137,10 @@ class MNGroup(models.Model):
         return self.name
 
 
+class UnresolvableUserException(Exception):
+    pass
+
+
 class MNUserManager(base_user.BaseUserManager):
     # serializes Manager into migrations. I set this here because it's set on the default UserManager
     use_in_migrations = True
@@ -162,6 +166,34 @@ class MNUserManager(base_user.BaseUserManager):
         extrafields.setdefault("is_superuser", False)
         extrafields.setdefault("is_staff", False)
         return self._create_user(identifier, fullname, password, **extrafields)
+
+    def resolve_user(self, username: str) -> Union['MNUser', None]:
+        if "@" not in username or username.count("@") > 1:
+            user = None  # type: Union[MNUser, MNServiceUser]
+            try:
+                service_user = MNServiceUser.objects.get(username=username)
+            except (MNServiceUser.DoesNotExist, ValidationError):
+                try:
+                    user = MNUser.objects.get(identifier=username)
+                except MNUser.DoesNotExist as e:
+                    raise UnresolvableUserException() from e
+            else:
+                # It's a valid MNServiceUser
+                user = service_user.user
+        else:
+            mailprefix, domain = username.split("@")
+
+            try:
+                Domain.objects.get(name=domain)
+            except Domain.DoesNotExist as e:
+                raise UnresolvableUserException() from e
+
+            try:
+                user = EmailAlias.objects.get(mailprefix__istartswith=mailprefix, domain__name=domain).user
+            except EmailAlias.DoesNotExist as e:
+                raise UnresolvableUserException() from e
+
+        return user
 
 
 class PasswordMaskMixin:
