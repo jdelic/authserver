@@ -5,7 +5,7 @@ import sys
 import argparse
 import subprocess
 
-from typing import Tuple, Union, Set, List, Sequence
+from typing import Tuple, Union, Set, List
 
 import jwt
 import requests

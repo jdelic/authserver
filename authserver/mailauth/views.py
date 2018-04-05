@@ -79,7 +79,7 @@ _AuthRequest = NamedTuple(
     "_AuthRequest", [
         ("username", str),
         ("password", str),
-        ("scopes", Set[str]),
+        ("scopes", List[str]),
     ]
 )
 
@@ -141,7 +141,7 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
         super().__init__(**kwargs)
 
     def _parse_request(self, request: HttpRequest) -> _AuthRequest:
-        scopes = None  # type: List[str]
+        scopes = []  # type: List[str]
         if request.content_type == "application/json":
             data = json.loads(request.body.decode('utf-8'))
             if "username" not in data or "password" not in data:
@@ -160,7 +160,7 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
         return _AuthRequest(
             username=username,
             password=password,
-            scopes=set(scopes),
+            scopes=list(set(scopes)),
         )
 
     @method_decorator(csrf_exempt)
@@ -214,7 +214,7 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
                 "sub": userdesc.username,
                 "canonical_username": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
                 "authenticated": authenticated,
-                "authorized": userdesc.scopes and user.has_app_permissions(userdesc.scopes),
+                "authorized": bool(userdesc.scopes) and user.has_app_permissions(userdesc.scopes),
                 "scopes": list(user.get_all_app_permissions()),
                 "nbf": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) - 5,
                 "exp": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) + 3600,
