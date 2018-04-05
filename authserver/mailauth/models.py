@@ -7,7 +7,7 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.postgres.fields.array import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
-from typing import Any, Optional, Set, Iterable, Union
+from typing import Any, Optional, Set, Iterable, Union, List
 
 from oauth2_provider import models as oauth2_models
 
@@ -295,11 +295,14 @@ class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.Permissi
             user_permissions.update(group.group_permissions.all())
         return user_permissions
 
+    def get_all_app_permission_strings(self) -> List[str]:
+        return [p.scope_name for p in self.get_all_app_permissions()]
+
     def has_app_permission(self, perm: str) -> bool:
         return perm in self.get_all_app_permissions()
 
     def has_app_permissions(self, perms: Iterable[str]) -> bool:
-        return self.get_all_app_permissions().issuperset(perms)
+        return set(self.get_all_app_permission_strings()).issuperset(set(perms))
 
 
 class MNServiceUser(PasswordMaskMixin, models.Model):

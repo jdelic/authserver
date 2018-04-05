@@ -144,10 +144,10 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
         scopes = []  # type: List[str]
         if request.content_type == "application/json":
             data = json.loads(request.body.decode('utf-8'))
-            if "username" not in data or "password" not in data:
+            if "username" not in data:
                 raise InvalidAuthRequest()
             username = data['username']
-            password = data['password']
+            password = data['password'] if "password" in data else None
             if "scopes" in data and isinstance(data["scopes"], list):
                 scopes = data["scopes"]
         else:
@@ -205,8 +205,9 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
             )
         elif userdesc.scopes and not user.has_app_permissions(userdesc.scopes):
             return HttpResponse(
-                '{"authenticated": %s, "authorized": false}' %
-                "true" if authenticated else "false", content_type="application/json", status=401,
+                '{"authenticated": %s, "authorized": false, "requested": "[%s]"}' %
+                ("true" if authenticated else "false", user.get_all_app_permission_strings()),
+                content_type="application/json", status=401,
             )
         else:
             # user is possibly authenticated and authorized
@@ -215,7 +216,7 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
                 "canonical_username": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
                 "authenticated": authenticated,
                 "authorized": bool(userdesc.scopes) and user.has_app_permissions(userdesc.scopes),
-                "scopes": list(user.get_all_app_permissions()),
+                "scopes": list(user.get_all_app_permission_strings()),
                 "nbf": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) - 5,
                 "exp": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) + 3600,
                 "iss": req_domain.name,
