@@ -92,7 +92,7 @@ def validate(url: str, username: str, password: str, jwtkeyfile: str, scopes: Se
 def loadkey(url: str, jwtkeyfile: str=None, check: bool=False, validate_ssl: Union[bool, str]=True) -> None:
     if jwtkeyfile and jwtkeyfile != "-":
         if os.path.exists(jwtkeyfile):
-            sys.stderr.write("Path %s already exist. Doing nothing." % jwtkeyfile)
+            sys.stderr.write("Path %s already exists. Doing nothing.\n" % jwtkeyfile)
             sys.exit(0)
 
     try:
