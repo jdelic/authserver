@@ -178,6 +178,7 @@ and create a cross-signature configuration for the other CA using the
     export APTLY_DISTRIBUTION=mn-nightly
     export APTLY_PUBLISH_ENDPOINT=s3:maurusnet:nightly/stretch
     export GNUPGHOME=/etc/gpg-managed-keyring/
+    export VAULTWRAPPER_READ_PATH=secret/gpg/packaging_passphrase
     /opt/gopythongo/bin/gopythongo -v /usr/local/authserver /path/to/source
 
 
