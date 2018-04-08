@@ -87,11 +87,12 @@ class Command(BaseCommand):
         if output != "-":
             sys.stderr.write("Public key exported to %s\n" % output)
 
-    def _list(self, contains: str, find_parent_domain: bool=False, format: str="list", **kwargs: Any) -> None:
-        if contains and find_parent_domain:
-            dom = utils.find_parent_domain(contains, require_jwt_subdomains_set=False)
+    def _list(self, contains: str, include_parent_domain: bool=False, format: str="list",
+              require_jwt_subdomains: bool=True, **kwargs: Any) -> None:
+        if contains and include_parent_domain:
+            dom = utils.find_parent_domain(contains, require_jwt_subdomains_set=require_jwt_subdomains)
             qs = [dom] if dom is not None else []  # type: Union[QuerySet, models.Domain]
-        elif contains and not find_parent_domain:
+        elif contains and not include_parent_domain:
             qs = models.Domain.objects.filter(name__icontains=contains)
         else:
             qs = models.Domain.objects.all()
@@ -169,10 +170,13 @@ class Command(BaseCommand):
                                    help="The domain to export public keys from")
 
         domain_list = subparsers.add_parser("list", help="List domains")
-        domain_list.add_argument("--find-parent-domain", dest="find_parent_domain", action="store_true",
+        domain_list.add_argument("--include-parent-domain", dest="include_parent_domain", action="store_true",
                                  default=False, help="Return a parent domain if such a domain exists")
         domain_list.add_argument("--format", dest="format", choices=["json", "list"], default="list",
                                  help="The output format for the results")
+        domain_list.add_argument("--no-require-subdomain-signing", dest="require_jwt_subdomains", action="store_false",
+                                 default=True,
+                                 help="Only find parent domains if they can sign for subdomains")
         domain_list.add_argument("contains", nargs="?",
                                  help="Filer list by this string")
 
