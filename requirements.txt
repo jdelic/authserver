@@ -1,7 +1,7 @@
 12factor-vault==0.1.20
 # cryptography is an optional dependency of pyjwt for RSA support
-cryptography==2.1.4
-Django==1.11.11  # rq.filter: <2.0.0
+cryptography==2.2.2
+Django==1.11.12  # rq.filter: <2.0.0
 django-cors-headers==2.2.0
 django-dbconn-retry==0.1.5
 django-mama-cas==2.3.0
@@ -10,12 +10,12 @@ django-postgresql-setrole==1.0.10
 django-ratelimit==1.1.0
 # select2 6.0.0 drops support for Python 3.5 which we need
 django-select2==5.11.1  # rq.filter: <6.0.0
-envdir==0.7
+envdir==1.0.1
 gunicorn==19.7.1
 hvac==0.5.0
 passlib==1.7.1
 psycopg2-binary==2.7.4
-pycryptodome==3.5.1
+pycryptodome==3.6.0
 pyjwt==1.6.1
 python-consul==0.7.2
 python-json-logger==0.1.8
@@ -32,7 +32,7 @@ python-daemon==2.1.2
 
 # vendored dependencies from django12factor
 dj-database-url==0.5.0
-dj-email-url==0.0.10
+dj-email-url==0.1.0
 django-cache-url==2.0.0
 six==1.11.0
 

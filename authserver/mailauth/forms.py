@@ -105,8 +105,9 @@ class MNUserChangeForm(auth_forms.UserChangeForm):
         field_classes = {'identifier': auth_forms.UsernameField}
 
 
-class DomainKeyWidget(widgets.AdminTextareaWidget):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+class RSAKeyWidget(widgets.AdminTextareaWidget):
+    def __init__(self, *args: Any, show_dkim: bool=False, **kwargs: Any) -> None:
+        self.show_dkim = show_dkim
         super().__init__(*args, **kwargs)
 
     def render(self, name: str, value: str, attrs: Optional[Dict[str, str]]=None,
@@ -116,29 +117,35 @@ class DomainKeyWidget(widgets.AdminTextareaWidget):
             key = RSA.importKey(value)
             public_key = key.publickey().exportKey("PEM").decode('utf-8')
             public_key = public_key.replace("RSA PUBLIC KEY", "PUBLIC KEY")
+
             ret += format_html(
                 """
 <pre>
-{public_key}</pre>
+{public_key}</pre>""",
+                public_key=public_key)
+            if self.show_dkim:
+                ret += format_html("""
 <pre>
 "v=DKIM1\; k=rsa\; p=" {split_key}</pre>
                 """,
-                public_key=public_key,
-                split_key="\n".join(
-                    ['"%s"' % line for line in
-                        re.search("--\n(.*?)\n--", public_key, re.DOTALL).group(1).split("\n")]
-        ))
+                    split_key="\n".join(
+                        ['"%s"' % line for line in
+                            re.search("--\n(.*?)\n--", public_key, re.DOTALL).group(1).split("\n")])
+                )
         else:
             ret += format_html("""
-            <a href="?_prefill_key=1" class="button">Generate&nbsp;new&nbsp;key</a>
-        """)
+            <input type="submit" name="_genkey-{name}" value="Generate&nbsp;new&nbsp;key" class="button"/>
+        """, name=name)
         return format_html("<div style=\"float: left\">{}</div>", ret)
 
 
 class DomainForm(forms.ModelForm):
     class Meta:
         model = Domain
-        widgets = {'dkimkey': DomainKeyWidget()}
+        widgets = {
+            'dkimkey': RSAKeyWidget(show_dkim=True),
+            'jwtkey': RSAKeyWidget(),
+        }
         fields = forms.ALL_FIELDS
 
 

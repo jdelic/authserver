@@ -20,9 +20,6 @@
 --deb-no-default-config-files
 
 {{basedir}}
-.gopythongo/etc/appconfig/authserver/files/=/etc/appconfig/authserver/files/
-.gopythongo/etc/appconfig/dkimsigner/files/=/etc/appconfig/dkimsigner/files/
-.gopythongo/etc/appconfig/mailforwarder/files/=/etc/appconfig/mailforwarder/files/
 .gopythongo/etc/appconfig/authserver/env/=/etc/appconfig/authserver/env/
 .gopythongo/etc/appconfig/dkimsigner/env/=/etc/appconfig/dkimsigner/env/
 .gopythongo/etc/appconfig/mailforwarder/env/=/etc/appconfig/mailforwarder/env/
