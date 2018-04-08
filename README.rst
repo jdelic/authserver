@@ -273,8 +273,8 @@ systems.
 
 ``checkpassword.py`` can operate in 5 modes:
 
-* ``-m init`` uses the getkey API to load a RSA public key and output it to
-  stdout or into a file.
+* ``-m init`` uses the getkey API to load a RSA public key for the authserver's
+  domain and output it to stdout or into a file.
 * ``-m check`` behaves like ``init`` but makes no changes, it's useful to check
   whether a domain has a JWT key to export or that key is readable to
   checkpassword on the file system.

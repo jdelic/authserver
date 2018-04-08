@@ -21,6 +21,10 @@ def find_parent_domain(fqdn: str, require_jwt_subdomains_set: bool=True) -> Unio
             if req_domain.jwtkey is not None and req_domain.jwtkey != "":
                 if domainstr == fqdn or (req_domain.jwt_subdomains and require_jwt_subdomains_set):
                     break
+                elif not require_jwt_subdomains_set:
+                    # we have a domain which has a jwtkey and we don't require jwt_subdomains to be True, so
+                    # we return the current result
+                    break
                 elif require_jwt_subdomains_set and not req_domain.jwt_subdomains:
                     # prevent the case where domainstr is the last str in parts, it matches, has a jwtkey but
                     # is not valid for subdomains. req_domain would be != None in that case and the loop would exit
