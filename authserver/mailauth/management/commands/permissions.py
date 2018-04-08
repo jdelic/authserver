@@ -45,8 +45,8 @@ class Command(BaseCommand):
 
         sclen = 10
         for sc in scopes:
-            if len(sc.scope_name) > sclen:
-                sclen = len(sc.scope_name)
+            if len(sc.scope_name) + 2 > sclen:
+                sclen = len(sc.scope_name) + 2
 
         if sclen > 30:
             sclen = 30
