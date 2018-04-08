@@ -7,7 +7,7 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.postgres.fields.array import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
-from typing import Any, Optional
+from typing import Any, Optional, Set, Iterable, Union, List
 
 from oauth2_provider import models as oauth2_models
 
@@ -56,6 +56,8 @@ class Domain(models.Model):
     dkimselector = models.CharField(verbose_name="DKIM DNS selector", max_length=255, null=False, blank=True,
                                     default="default")
     dkimkey = models.TextField(verbose_name="DKIM private key (PEM)", blank=True)
+    jwtkey = models.TextField(verbose_name="JWT signing key (PEM)", blank=True)
+    jwt_subdomains = models.BooleanField(verbose_name="Use JWT key to sign for subdomains", default=False)
     redirect_to = models.CharField(verbose_name="Redirect all mail to domain", max_length=255, null=False, blank=True,
                                    default="")
 
@@ -135,6 +137,10 @@ class MNGroup(models.Model):
         return self.name
 
 
+class UnresolvableUserException(Exception):
+    pass
+
+
 class MNUserManager(base_user.BaseUserManager):
     # serializes Manager into migrations. I set this here because it's set on the default UserManager
     use_in_migrations = True
@@ -160,6 +166,34 @@ class MNUserManager(base_user.BaseUserManager):
         extrafields.setdefault("is_superuser", False)
         extrafields.setdefault("is_staff", False)
         return self._create_user(identifier, fullname, password, **extrafields)
+
+    def resolve_user(self, username: str) -> Union['MNUser', None]:
+        if "@" not in username or username.count("@") > 1:
+            user = None  # type: Union[MNUser, MNServiceUser]
+            try:
+                service_user = MNServiceUser.objects.get(username=username)
+            except (MNServiceUser.DoesNotExist, ValidationError):
+                try:
+                    user = MNUser.objects.get(identifier=username)
+                except MNUser.DoesNotExist as e:
+                    raise UnresolvableUserException() from e
+            else:
+                # It's a valid MNServiceUser
+                user = service_user.user
+        else:
+            mailprefix, domain = username.split("@")
+
+            try:
+                Domain.objects.get(name=domain)
+            except Domain.DoesNotExist as e:
+                raise UnresolvableUserException() from e
+
+            try:
+                user = EmailAlias.objects.get(mailprefix__istartswith=mailprefix, domain__name=domain).user
+            except EmailAlias.DoesNotExist as e:
+                raise UnresolvableUserException() from e
+
+        return user
 
 
 class PasswordMaskMixin:
@@ -254,6 +288,21 @@ class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.Permissi
 
     def get_short_name(self) -> str:
         return self.identifier
+
+    def get_all_app_permissions(self) -> Set[MNApplicationPermission]:
+        user_permissions = set(self.app_permissions.all())
+        for group in self.app_groups.all():
+            user_permissions.update(group.group_permissions.all())
+        return user_permissions
+
+    def get_all_app_permission_strings(self) -> List[str]:
+        return [p.scope_name for p in self.get_all_app_permissions()]
+
+    def has_app_permission(self, perm: str) -> bool:
+        return perm in self.get_all_app_permissions()
+
+    def has_app_permissions(self, perms: Iterable[str]) -> bool:
+        return set(self.get_all_app_permission_strings()).issuperset(set(perms))
 
 
 class MNServiceUser(PasswordMaskMixin, models.Model):

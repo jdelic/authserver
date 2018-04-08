@@ -33,10 +33,12 @@ Planned features
 * OAuth2 applications can use a SSL client certificate to authenticate for a
   non-standard HTTP API to register as an OAuth2 client and get their OAuth2
   credentials, cutting down on manual configuration.
-  
+
 * OpenID Connect support
 
-* Command-line authentication helper
+* Command-line authentication helper (the first version of this has landed with
+  the ``permissions``, ``domain``, ``dockerauth`` and ``oauth2`` commands for
+  ``manage.py``)
 
 * Service-specific username and passwords for systems that don't support
   OAuth2/OIDC
@@ -151,7 +153,7 @@ Certificate
 ==============  ==============================================================
 vault.crt       The CA chain used to access Vault for database credentials (if
                 used)
-postgresql.crt  The CA chain used to access PostgreSQL with a client 
+postgresql.crt  The CA chain used to access PostgreSQL with a client
                 certificate (if used)
 ==============  ==============================================================
 
@@ -225,6 +227,85 @@ N   Function Name                        Description
 ==  ===================================  =====================================
 
 
+OAuth2
+------
+authserver delivers OAuth2 support over the following endpoints:
+
+* ``/o2/authorize/``
+* ``/o2/token/``
+* ``/o2/revoke_token/``
+
+You can create client applications and authorization scopes via the Django
+admin interface or ``manage.py oauth2|permissions`` and assign scopes to users
+and groups respectively. The authorization view will list the scopes for the
+user to approve unless automatic authorization is turned on for the OAuth2
+client.
+
+
+Docker Auth
+-----------
+authserver supports Docker-compatible JWTs using the "resource owner" OAuth2
+flow via ``docker login`` at ``https://your.authserver.domain/docker/token/``.
+You can generally just use ``docker login https://your.authserver.domain/`` and
+create Docker registry instances and access rights to namespaces on that
+registry via the Django admin interface or the ``manage.py dockerauth``
+command.
+
+
+Propietary endpoints and mod_authnz_external
+--------------------------------------------
+The ``checkpassword.py`` command-line script, also shipped in the
+``authclient`` Debian package is compatible with djb checkpassword and Apache2
+mod_authnz_external. It uses two proprietary API endpoints:
+
+* ``/checkpassword/`` which takes a username and optionally a list of
+  scopes and password (for something akin to the "resource owner" OAuth2 flow)
+  and issues a JWT that has the user's assigned scopes and validates the
+  password (if transmitted).
+
+* ``/getkey/`` exports a RSA public key for a domain registered with authserver
+  to allow a client to validate an issued JWT.
+
+You should prefer OAuth2 where possible as this solution will bring the client
+into possession of the user's password. However, if you trust the client this
+is an alternative solution. Obviously it's also an easy way to integrate legacy
+systems.
+
+``checkpassword.py`` can operate in 5 modes:
+
+* ``-m init`` uses the getkey API to load a RSA public key for the authserver's
+  domain and output it to stdout or into a file.
+* ``-m check`` behaves like ``init`` but makes no changes, it's useful to check
+  whether a domain has a JWT key to export or that key is readable to
+  checkpassword on the file system.
+* ``-m authext`` and ``-m checkpassword`` read username and password from stdin
+  (either in the way specified by mod_authnz_external or djb checkpassword) and
+  send them to the server to be validated. The program then either exits with
+  exit code ``0`` (success), ``1`` if the auth domain is invalid, ``2`` if
+  there are API connection problems and ``3`` for anything else.
+* ``-m authextgroup`` validates a list of scopes for a username. This does
+  **not** validate the user's password. This is useful for
+  mod_authnz_external's ``GroupExternal`` configuration, but you must
+  additionally authenticate the user.
+
+The API endpoints respond with a JSON Web Token (JWT) with the following
+claims:
+
+.. code-block:: json
+
+    {
+        "sub": "the provided username"
+        "canonical_username": "the user's delivery_mailbox name"
+        "authenticated": true or false depending on the status of the password check
+        "authorized": true or false depending on whether the user has all submitted scopes,
+        "scopes": ["a list of", "all the scopes", "assigned to this user"],
+        "nbf": int(Unix Epoch timestamp of now minus 5 seconds),
+        "exp": int(Unix Epoch timestamp of now plus 3600 seconds),
+        "iss": "the auth domain name",
+        "aud": "net.maurus.authclient"
+    }
+
+
 TODO
 ====
 
@@ -241,8 +322,8 @@ This program includes a copy of
 `django12factor <django12factor_>`__ which is licensed under The MIT License
 (MIT) Copyright (c) 2013-2017 Kristian Glass.
 
-This program includes a copy of 
-`Select2 JavaScript library <select2_>`__ which is licensed user the MIT 
+This program includes a copy of
+`Select2 JavaScript library <select2_>`__ which is licensed user the MIT
 License (MIT)
 Copyright (c) 2012-2017 Kevin Brown, Igor Vaynberg, and Select2 contributors
 
