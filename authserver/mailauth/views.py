@@ -210,7 +210,7 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
                 "sub": userdesc.username,
                 "canonical_username": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
                 "authenticated": authenticated,
-                "authorized": bool(userdesc.scopes) and user.has_app_permissions(userdesc.scopes),
+                "authorized": user.has_app_permissions(userdesc.scopes or set()),
                 "scopes": list(user.get_all_app_permission_strings()),
                 "nbf": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) - 5,
                 "exp": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) + 3600,
