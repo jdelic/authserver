@@ -183,7 +183,7 @@ def main() -> None:
         print("Unknown mode")
         sys.exit(1)
 
-    if validate(_args.url, username, password, jwtkeyfile=_args.jwtkey, scopes=_args.scopes,
+    if validate(_args.url, username, password, jwtkeyfile=_args.jwtkey, scopes=set(_args.scopes),
                 validate_ssl=_args.ca_file if _args.ca_file else _args.validate_ssl,
                 require_authnz=not _args.mode == "authextgroup"):
         if _args.mode == "checkpassword":
