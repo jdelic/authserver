@@ -48,7 +48,7 @@ def validate(url: str, username: str, password: str, jwtkeyfile: str, scopes: Se
     if os.path.exists(jwtkeyfile) and os.access(jwtkeyfile, os.R_OK):
         try:
             with open(jwtkeyfile, "rt") as keyfile:
-                jwtkey = keyfile.readlines()
+                jwtkey = "".join(keyfile.readlines())
         except IOError as e:
             sys.stderr.write("ERROR Can't read JWT file %s: %s" % (jwtkeyfile, str(e)))
             sys.exit(2)
