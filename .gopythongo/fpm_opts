@@ -21,8 +21,6 @@
 
 {{basedir}}
 .gopythongo/etc/appconfig/authserver/env/=/etc/appconfig/authserver/env/
-.gopythongo/etc/appconfig/dkimsigner/env/=/etc/appconfig/dkimsigner/env/
-.gopythongo/etc/appconfig/mailforwarder/env/=/etc/appconfig/mailforwarder/env/
 .gopythongo/etc/appconfig/authserver/env/SECRET_KEY=/etc/appconfig/dkimsigner/env/SECRET_KEY
 .gopythongo/etc/appconfig/authserver/env/SECRET_KEY=/etc/appconfig/mailforwarder/env/SECRET_KEY
 .gopythongo/authserver.tmpfilesd.conf=/usr/lib/tmpfiles.d/authserver.conf
