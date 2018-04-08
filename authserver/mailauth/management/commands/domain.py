@@ -30,7 +30,7 @@ class Command(BaseCommand):
             sys.stderr.write("Error: Domain %s already exists\n" % domain)
             sys.exit(1)
 
-        domobj = models.Domain.objects.create(name=domain, dkim_selector=dkim_selector, redirect_to=redirect_to,
+        domobj = models.Domain.objects.create(name=domain, dkimselector=dkim_selector, redirect_to=redirect_to,
                                               jwt_subdomains=jwt_allow_subdomain_signing)
         if create_keys is None:
             create_keys = []
