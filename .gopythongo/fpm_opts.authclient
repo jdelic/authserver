@@ -5,6 +5,7 @@
 -m "Jonas Maurus"
 -d python3
 -d python3-requests
+-d python3-jwt
 --after-install .gopythongo/post_install.authclient.sh
 
 # this prevents the marking of files in /etc as config files allowing dpkg to overwrite
