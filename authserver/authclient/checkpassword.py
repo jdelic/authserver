@@ -1,16 +1,26 @@
 #!/usr/bin/python3 -u
 # -* encoding: utf-8 *-
+import contextlib
 import os
 import sys
 import argparse
 import subprocess
+from io import TextIOWrapper
 
-from typing import Tuple, Union, Set, List
+from typing import Tuple, Union, Set, List, TextIO
 
 import jwt
 import requests
 
-from mailauth.utils import stdout_or_file
+
+@contextlib.contextmanager
+def stdout_or_file(path: str) -> Union[TextIOWrapper, TextIO]:
+    if path is None or path == "" or path == "-":
+        yield sys.stdout
+    else:
+        fd = open(path, mode="w")
+        yield fd
+        fd.close()
 
 
 def readinput_checkpassword() -> Tuple[str, str]:
