@@ -18,6 +18,10 @@ def find_parent_domain(fqdn: str, require_jwt_subdomains_set: bool=True) -> Unio
         except Domain.DoesNotExist:
             continue
         else:
+            if req_domain is None or req_domain.jwtkey == "":
+                req_domain = None
+                continue
+
             if req_domain.jwtkey is not None and req_domain.jwtkey != "":
                 if domainstr == fqdn or (req_domain.jwt_subdomains and require_jwt_subdomains_set):
                     break
