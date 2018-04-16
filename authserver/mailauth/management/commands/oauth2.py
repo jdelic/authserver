@@ -109,9 +109,12 @@ class Command(BaseCommand):
                 maxlen = len(cl.name)
         maxlen += 1
 
-        self.stdout.write("NAME%sID" % ((maxlen - 2) * " "))
-        for cl in clients:
-            self.stdout.write("%s%s%s" % (cl.name, (maxlen - len(cl.name) + 2) * " ", cl.client_id))
+        if clients:
+            self.stdout.write("NAME%sID" % ((maxlen - 2) * " "))
+            for cl in clients:
+                self.stdout.write("%s%s%s" % (cl.name, (maxlen - len(cl.name) + 2) * " ", cl.client_id))
+        else:
+            self.stderr.write("No clients registered (yet)")
 
     def _publish(self, **kwargs: Any) -> None:
         clients = list(appmodel.objects.all())
