@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 import consul
 import hvac
+import hvac.exceptions
 from consul.base import ConsulException
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -76,13 +77,19 @@ def _handle_client_registration(client: OT, mgr: CMDT, **options: Any) -> bool:
 
     if options["publish_to_vault"]:
         try:
-            cl = settings.VAULT.authenticated_client()  # type: hvac.Client
+            cl = settings.VAULT.authenticated_client(
+                url=settings.VAULT_ADDRESS,
+                verify=os.getenv("VAULT_CA", "https" in settings.VAULT_ADDRESS)
+            )  # type: hvac.Client
             cl.write(
                 options["publish_to_vault"],
                 **credentials
             )
         except VaultCredentialProviderException as e:
             mgr.stderr.write(mgr.style.ERROR("Can't create Vault credentials: %s" % str(e)))
+            return False
+        except hvac.exceptions.VaultError as e:
+            mgr.stderr.write(mgr.style.ERROR("Can't write to Vault: %s" % str(e)))
             return False
 
         mgr.stderr.write(mgr.style.SUCCESS("INFO: Client credentials published to Vault"))

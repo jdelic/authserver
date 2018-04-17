@@ -5,6 +5,7 @@ import sys
 from typing import List
 
 from django.core.management.base import BaseCommand, CommandParser
+from django.db import transaction
 from django.db.models.query_utils import Q
 from django.db.utils import DatabaseError
 from oauth2_provider import models as oauth2_models
@@ -65,26 +66,27 @@ class Command(BaseCommand):
 
     def _create(self, **kwargs: Any) -> None:
         client = None
-        try:
-            client = appmodel.objects.get(name=kwargs["client_name"])
-        except appmodel.DoesNotExist:
+        with transaction.atomic():
             try:
-                client = appmodel.objects.create(
-                    name=kwargs["client_name"],
-                    redirect_uris="\n".join(kwargs["redirect_uris"]),
-                    skip_authorization=kwargs["skip_authorization"],
-                    authorization_grant_type=kwargs["grant_type"],
-                )
-            except DatabaseError as e:
-                self.stderr.write("Error while creating oauth2 client: %s" % str(e))
-                sys.exit(1)
+                client = appmodel.objects.get(name=kwargs["client_name"])
+            except appmodel.DoesNotExist:
+                try:
+                    client = appmodel.objects.create(
+                        name=kwargs["client_name"],
+                        redirect_uris="\n".join(kwargs["redirect_uris"]),
+                        skip_authorization=kwargs["skip_authorization"],
+                        authorization_grant_type=kwargs["grant_type"],
+                    )
+                except DatabaseError as e:
+                    self.stderr.write("Error while creating oauth2 client: %s" % str(e))
+                    sys.exit(1)
+
+            if not _handle_client_registration(client, self, **kwargs):
+                self.stderr.write(self.style.WARNING("OAuth2 client was created, but not registered"))
+                sys.exit(2)
 
         self.stderr.write(self.style.SUCCESS("Created client %s (ID: %s)") % (kwargs["client_name"],
                                                                               client.client_id))
-
-        if not _handle_client_registration(client, self, **kwargs):
-            self.stderr.write(self.style.WARNING("OAuth2 client was created, but not registered with Consul"))
-            sys.exit(2)
 
     def _list(self, **kwargs: Any) -> None:
         clients = []  # type: List[oauth2_models.Application]
