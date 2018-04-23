@@ -93,7 +93,8 @@ Run ``django-admin.py`` like this:
 Managed configuration
 +++++++++++++++++++++
 These environment variables must be placed in the appconfig folder manually (or
-through configuration management).
+through configuration management). You can just leave ``VAULT_*`` empty and set
+``DATABASE_URL`` if you're not planning on using Vault.
 
 ====================  ========================================================
 Variable              Description
@@ -109,7 +110,11 @@ DATABASE_NAME         The name of the database to connect to (only used with
                       Vault).
 SPAPI_DBUSERS         A comma-separated list of database users which are being
                       granted access to the stored procedure API in migration
-                      ``0003_opensmtpd_access``.
+                      ``0003_opensmtpd_access``. You probably want to create
+                      a user for your SMTP server (e.g. OpenSMTPD) and your
+                      IMAP server (e.g. dovecot). Both can query authserver's
+                      database through these stored procedures as their user
+                      databases.
 DATABASE_URL          When client SSL certificates or usernames and passwords
                       are used to connect to the database instead of Vault,
                       then this URL (parsed by dj-database-url) is used to
