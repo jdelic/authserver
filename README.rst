@@ -50,8 +50,22 @@ Planned features
 
 Installation
 ------------
-There is no widely available Docker container or Debian package available yet,
-but you can install from this repository.
+There is no widely available Docker container available yet, but you can install
+from this repository:
+
+.. code-block: shell
+
+    $ virtualenv -p python3 authserver
+    $ authserver/bin/pip install net.maurus.authserver
+
+
+Or for Debian 9.0 Stretch:
+
+.. code-block: shell
+
+    $ echo "deb http://repo.maurus.net/release/stretch mn-release main" >> /etc/apt/sources.list.d/maurusnet.list
+    $ apt update
+    $ apt install authserver authclient
 
 
 APPCONFIG FOLDER
