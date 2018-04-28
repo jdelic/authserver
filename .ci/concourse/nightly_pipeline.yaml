@@ -30,10 +30,7 @@ jobs:
           - task: gopythongo
             file: authserver/.ci/concourse/gopythongo.yaml
             params:
-                GNUPGHOME: /etc/gpg-managed-keyring/
                 APTLY_PUBLISH_ENDPOINT: s3:maurusnet:nightly/stretch
                 APTLY_DISTRIBUTION: mn-nightly
                 REPO: authserver
                 VAULTWRAPPER_READ_PATH: secret/gpg/packaging_passphrase
-                VGC_OVERWRITE: 0
-                VGC_XSIGN_CACERTS: postgresql.crt=/etc/concourse/cacerts/
