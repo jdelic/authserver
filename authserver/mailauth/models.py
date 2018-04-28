@@ -3,10 +3,11 @@ import uuid
 
 from django.contrib.auth import models as auth_models, base_user
 from django.conf import settings
+from django.contrib.auth.hashers import make_password
 from django.contrib.postgres.fields.array import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
-from typing import Any, Optional
+from typing import Any, Optional, Set, Iterable, Union, List
 
 from oauth2_provider import models as oauth2_models
 
@@ -55,6 +56,8 @@ class Domain(models.Model):
     dkimselector = models.CharField(verbose_name="DKIM DNS selector", max_length=255, null=False, blank=True,
                                     default="default")
     dkimkey = models.TextField(verbose_name="DKIM private key (PEM)", blank=True)
+    jwtkey = models.TextField(verbose_name="JWT signing key (PEM)", blank=True)
+    jwt_subdomains = models.BooleanField(verbose_name="Use JWT key to sign for subdomains", default=False)
     redirect_to = models.CharField(verbose_name="Redirect all mail to domain", max_length=255, null=False, blank=True,
                                    default="")
 
@@ -119,7 +122,7 @@ class MNGroup(models.Model):
         verbose_name = "OAuth2/CAS Groups"
         verbose_name_plural = "OAuth2/CAS Groups"
 
-    name = models.CharField("Group name", max_length=255)
+    name = models.CharField("Group name", max_length=255, unique=True)
 
     group_permissions = models.ManyToManyField(
         MNApplicationPermission,
@@ -132,6 +135,10 @@ class MNGroup(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class UnresolvableUserException(Exception):
+    pass
 
 
 class MNUserManager(base_user.BaseUserManager):
@@ -160,15 +167,81 @@ class MNUserManager(base_user.BaseUserManager):
         extrafields.setdefault("is_staff", False)
         return self._create_user(identifier, fullname, password, **extrafields)
 
+    def resolve_user(self, username: str) -> Union['MNUser', None]:
+        if "@" not in username or username.count("@") > 1:
+            user = None  # type: Union[MNUser, MNServiceUser]
+            try:
+                service_user = MNServiceUser.objects.get(username=username)
+            except (MNServiceUser.DoesNotExist, ValidationError):
+                try:
+                    user = MNUser.objects.get(identifier=username)
+                except MNUser.DoesNotExist as e:
+                    raise UnresolvableUserException() from e
+            else:
+                # It's a valid MNServiceUser
+                user = service_user.user
+        else:
+            mailprefix, domain = username.split("@")
 
-class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
+            try:
+                Domain.objects.get(name=domain)
+            except Domain.DoesNotExist as e:
+                raise UnresolvableUserException() from e
+
+            try:
+                user = EmailAlias.objects.get(mailprefix__istartswith=mailprefix, domain__name=domain).user
+            except EmailAlias.DoesNotExist as e:
+                raise UnresolvableUserException() from e
+
+        return user
+
+
+class PasswordMaskMixin:
+    def _get_sha256_password(self) -> str:
+        # pretend to return a Django crypt format password string
+        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
+        attr = super().__getattribute__('password')
+        if isinstance(attr, str):
+            if attr.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
+                return attr
+            else:
+                return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, attr)
+        return attr
+
+    def _set_sha256_password(self, value: Any) -> None:
+        # pretend to be a standard CharField
+        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
+        if isinstance(value, str):
+            if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
+                # call superclass __setattr__ to avoid infinite recursion
+                super().__setattr__('password', value[len(UnixCryptCompatibleSHA256Hasher.algorithm):])
+                return
+        super().__setattr__('password', value)
+
+    # hacky hacky this will breaky at some point in the future
+    # but it's the solution that allows the most code reuse from django.contrib.auth
+    # without having two password columns in the database table
+    def __setattr__(self, key: str, value: Any) -> None:
+        if key == "password":
+            self._set_sha256_password(value)
+        else:
+            super().__setattr__(key, value)
+
+    def __getattribute__(self, item: str) -> Any:
+        if item == "password":
+            return self._get_sha256_password()
+        else:
+            return super().__getattribute__(item)
+
+
+class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.PermissionsMixin):
     class Meta:
         verbose_name_plural = "User accounts"
 
     uuid = models.UUIDField("Shareable ID", default=uuid.uuid4, editable=False, primary_key=True)
     identifier = models.CharField("User ID", max_length=255, unique=True, db_index=True)
-    fullname = models.CharField("Full name", max_length=255)
     password = PretendHasherPasswordField("Password", max_length=128)
+    fullname = models.CharField("Full name", max_length=255)
     delivery_mailbox = models.OneToOneField(EmailAlias, on_delete=models.PROTECT, null=True)
 
     pgp_key_id = models.CharField("PGP Key ID", max_length=64, blank=True, default="")
@@ -210,47 +283,53 @@ class MNUser(base_user.AbstractBaseUser, auth_models.PermissionsMixin):
 
     objects = MNUserManager()
 
-    def _get_sha256_password(self) -> str:
-        # pretend to return a Django crypt format password string
-        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
-        attr = super().__getattribute__('password')
-        if isinstance(attr, str):
-            if attr.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
-                return attr
-            else:
-                return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, attr)
-        return attr
-
-    def _set_sha256_password(self, value: Any) -> None:
-        # pretend to be a standard CharField
-        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
-        if isinstance(value, str):
-            if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
-                # call superclass __setattr__ to avoid infinite recursion
-                super().__setattr__('password', value[len(UnixCryptCompatibleSHA256Hasher.algorithm):])
-                return
-        super().__setattr__('password', value)
-
-    # hacky hacky this will breaky at some point in the future
-    # but it's the solution that allows the most code reuse from django.contrib.auth
-    # without having two password columns in the database table
-    def __setattr__(self, key: str, value: Any) -> None:
-        if key == "password":
-            self._set_sha256_password(value)
-        else:
-            super().__setattr__(key, value)
-
-    def __getattribute__(self, item: str) -> Any:
-        if item == "password":
-            return self._get_sha256_password()
-        else:
-            return super().__getattribute__(item)
-
     def get_full_name(self) -> str:
         return "%s %s" % (self.firstname, self.lastname)
 
     def get_short_name(self) -> str:
         return self.identifier
+
+    def get_all_app_permissions(self) -> Set[MNApplicationPermission]:
+        user_permissions = set(self.app_permissions.all())
+        for group in self.app_groups.all():
+            user_permissions.update(group.group_permissions.all())
+        return user_permissions
+
+    def get_all_app_permission_strings(self) -> List[str]:
+        return [p.scope_name for p in self.get_all_app_permissions()]
+
+    def has_app_permission(self, perm: str) -> bool:
+        return perm in self.get_all_app_permissions()
+
+    def has_app_permissions(self, perms: Iterable[str]) -> bool:
+        return set(self.get_all_app_permission_strings()).issuperset(set(perms))
+
+
+class MNServiceUser(PasswordMaskMixin, models.Model):
+    """
+    Service users are usernames and passwords that alias a valid user. This is useful when usernames
+    and passwords must be shared with a service that doesn't support OAuth2/OpenID connect or requires
+    the Resource Owner flow, but isn't always used from a trustworthy client.
+    """
+    class Meta:
+        verbose_name = "Service User"
+        verbose_name_plural = "Service Users"
+
+    user = models.ForeignKey(MNUser, on_delete=models.CASCADE, null=False, blank=False)
+    username = models.CharField("Username", default=uuid.uuid4, max_length=64)
+    password = PretendHasherPasswordField("Password", max_length=128)
+    description = models.CharField(max_length=255, blank=True, null=False, default='')
+
+    def set_password(self, raw_password: str) -> None:
+        self.password = make_password(raw_password)
+
+    def clean(self) -> None:
+        # use user_id instead of self.user to avoid an ObjectDoesNotExist exception when self.user is None
+        if self.user_id is not None and self.user.delivery_mailbox is None:
+            raise ValidationError("Service users can only be added for users with a delivery mailbox")
+
+    def __str__(self) -> str:
+        return "%s (%s)" % (self.username, self.user.identifier,)
 
 
 class MNApplication(oauth2_models.AbstractApplication):

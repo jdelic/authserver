@@ -4,11 +4,16 @@ from collections import OrderedDict
 from typing import Tuple, Dict, Optional
 
 from django.contrib.auth import hashers
+from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
+from typing import Union
 
-from mailauth.models import Domain, EmailAlias, MNUser
+from mailauth.models import Domain, EmailAlias, MNUser, MNServiceUser
 # noinspection PyUnresolvedReferences
 from passlib.hash import sha256_crypt
+
+
+_log = logging.getLogger(__name__)
 
 
 class UnixCryptCompatibleSHA256Hasher(object):
@@ -103,38 +108,51 @@ class MNUserAuthenticationBackend(object):
     def authenticate(self, username: str, password: str) -> Optional[MNUser]:
         # the argument names must be 'username' and 'password' because the authenticator interface is tightly coupled
         # to the parameter names between login forms and authenticators
+
+        tocheck_password = None  # type: str
         if "@" not in username or username.count("@") > 1:
+            user = None  # type: Union[MNUser, MNServiceUser]
             try:
-                user = MNUser.objects.get(identifier=username)  # type: MNUser
-            except MNUser.DoesNotExist:
-                logging.debug("No user found %s for identifier login", username)
+                service_user = MNServiceUser.objects.get(username=username)
+            except (MNServiceUser.DoesNotExist, ValidationError):
+                try:
+                    user = MNUser.objects.get(identifier=username)
+                except MNUser.DoesNotExist:
+                    _log.debug("No user found %s for identifier login", username)
+                    return None
+
+                # if the user is a staff user, they may also log in using their identifier
+                if user.is_staff:
+                    _log.debug("User %s is staff, allowing identifier login", username)
+                    if hashers.check_password(password, user.password):
+                        _log.debug("User %s logged in with correct password", username)
+                        return user
+                    else:
+                        _log.debug("Incorrect password for user %s (%s)", username, user.password)
+                else:
+                    _log.debug("Must provide an email address. %s is not an email address", username)
+                    return None
+            else:
+                # It's a valid MNServiceUser
+                _log.debug("Logging in service user %s as %s", service_user.username, service_user.user.identifier)
+                tocheck_password = service_user.password
+                user = service_user.user
+        else:
+            _log.debug("logging in email alis %s", username)
+            mailprefix, domain = username.split("@")
+
+            if Domain.objects.filter(name=domain).count() == 0:
+                _log.debug("Domain %s does not exist", domain)
                 return None
 
-            # if the user is a staff user, they may also log in using their identifier
-            if user.is_staff:
-                logging.debug("User %s is staff, allowing identifier login", username)
-                if hashers.check_password(password, user.password):
-                    logging.debug("User %s logged in with correct password", username)
-                    return user
-                else:
-                    logging.debug("Incorrect password for user %s (%s)", username, user.password)
+            try:
+                user = EmailAlias.objects.get(mailprefix__istartswith=mailprefix, domain__name=domain).user
+            except EmailAlias.DoesNotExist:
+                return None
+            else:
+                tocheck_password = user.password
 
-            logging.debug("Must provide an email address. %s is not an email address", username)
-            return None
-
-        logging.debug("logging user %s in as email alias", username)
-        mailprefix, domain = username.split("@")
-
-        if Domain.objects.filter(name=domain).count() == 0:
-            logging.debug("Domain %s does not exist", domain)
-            return None
-
-        try:
-            user = EmailAlias.objects.get(mailprefix__istartswith=mailprefix, domain__name=domain).user
-        except EmailAlias.DoesNotExist:
-            return None
-
-        if hashers.check_password(password, user.password):
+        if hashers.check_password(password, tocheck_password):
             return user
         else:
             return None

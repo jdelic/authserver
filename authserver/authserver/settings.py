@@ -60,6 +60,7 @@ WSGI_APPLICATION = 'authserver.wsgi.application'
 
 LOGIN_URL = "authserver-login"
 LOGIN_REDIRECT_URL = "/"
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 DEBUG = False  # overridden by factorise() if defined
 
@@ -72,11 +73,14 @@ from authserver.gunicorn_conf import LOGGING
 if DEBUG:
     SECRET_KEY = "secretsekrit"  # FOR DEBUG ONLY!
 
+VAULT_ADDRESS = os.getenv("VAULT_ADDR", "https://vault.local:8200/")
+VAULT_CA = os.getenv("VAULT_CA", None)
+
 if VaultAuth12Factor.has_envconfig() and os.getenv("VAULT_DATABASE_PATH"):
     VAULT = VaultAuth12Factor.fromenv()
-    CREDS = VaultCredentialProvider(os.getenv("VAULT_ADDR", "https://vault.local:8200/"), VAULT,
+    CREDS = VaultCredentialProvider(VAULT_ADDRESS, VAULT,
                                     os.getenv("VAULT_DATABASE_PATH"),
-                                    os.getenv("VAULT_CA", None), True,
+                                    VAULT_CA, True,
                                     DEBUG)
 
     DATABASES = {

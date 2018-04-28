@@ -33,4 +33,8 @@ urlpatterns = [
 
     # debug
     url(r'^debug/error/$', base_views.test_error),
+
+    # user authentication api
+    url(r'^checkpassword/$', mail_views.UserLoginAPIView.as_view(), name="checkpassword"),
+    url(r'^getkey/$', mail_views.JWTPublicKeyView.as_view(), name="getkey"),
 ]

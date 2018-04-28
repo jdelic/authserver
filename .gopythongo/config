@@ -1,12 +1,12 @@
 builder=noisolation
 
-assembler=[certifybuild, django]
+assembler=[django]
 
 django-gen-secret-key=.gopythongo/etc/appconfig/authserver/env/SECRET_KEY
 django-settings=authserver.settings
+django-settings-envfile=.gopythongo/etc/appconfig/authserver/env/DJANGO_SETTINGS_MODULE
+envfile-mode=envdir
 collect-static
-
-vaultgetcert-config=[.gopythongo/authserver.vgc, .gopythongo/dkimsigner.vgc, .gopythongo/mailforwarder.vgc]
 
 # local build options
 install-pkg=[libssl-dev, libffi-dev, libpq-dev]
@@ -25,7 +25,7 @@ version-parser=pep440
 version-action=bump-revision
 
 use-fpm=/usr/local/bin/fpm
-run-fpm=template:.gopythongo/fpm_opts
+run-fpm=[template:.gopythongo/fpm_opts, template:.gopythongo/fpm_opts.authclient]
 
 eatmydata
 eatmydata-path=/usr/bin/eatmydata

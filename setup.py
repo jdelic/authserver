@@ -4,11 +4,21 @@ import re
 import time
 
 from setuptools import setup, find_packages
-from pip.req import parse_requirements
-from pip.download import PipSession
+
+
+try:
+    from pip._internal.req import parse_requirements
+except ImportError:
+    from pip.req import parse_requirements
+
+try:
+    from pip._internal.download import PipSession
+except ImportError:
+    from pip.download import PipSession
 
 
 _INCLUDE = re.compile("\.(txt|gif|jpg|png|css|html|js|xml|po|mo)$")
+_HERE = os.path.abspath(os.path.dirname(__file__))
 
 
 def get_package_data() -> 'Dict[str, List[str]]':
@@ -35,7 +45,7 @@ def create_paths(root_dir: str) -> 'List[str]':
 
 
 def read_version() -> str:
-    fn = os.path.join(os.path.abspath(os.path.dirname(__file__)), "authserver", "authserver", "__init__.py")
+    fn = os.path.join(_HERE, "authserver", "authserver", "__init__.py")
     with open(fn, "rt", encoding="utf-8") as vf:
         lines = vf.readlines()
 
@@ -51,6 +61,11 @@ if version.endswith(".dev"):
     _version = "%s%s" % (version, int(time.time()))
 else:
     _version = version
+
+try:
+    long_description = open(os.path.join(_HERE, 'README.rst')).read()
+except IOError:
+    long_description = None
 
 _packages = find_packages(where='authserver', exclude=["*.tests", "*.tests.*", "tests.*", "tests"])
 
@@ -72,8 +87,11 @@ setup(
         "console_scripts": [
             "dkimsigner = maildaemons.dkimsigner.server:main",
             "mailforwarder = maildaemons.forwarder.server:main",
+            "checkpassword = authclient.checkpassword:main",
         ],
     },
     install_requires=reqs,
     package_data=get_package_data(),
+    description="A Python 3 Django-based OAuth2/Docker Auth/JWT SSO server with additional mail routing.",
+    long_description=long_description,
 )

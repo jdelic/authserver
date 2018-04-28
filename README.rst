@@ -34,6 +34,15 @@ Planned features
   non-standard HTTP API to register as an OAuth2 client and get their OAuth2
   credentials, cutting down on manual configuration.
 
+* OpenID Connect support
+
+* Command-line authentication helper (the first version of this has landed with
+  the ``permissions``, ``domain``, ``dockerauth`` and ``oauth2`` commands for
+  ``manage.py``)
+
+* Service-specific username and passwords for systems that don't support
+  OAuth2/OIDC
+
 * CAS support through ``mama-cas``
 
 * add Google Authenticator support via ``django-otp``
@@ -41,8 +50,22 @@ Planned features
 
 Installation
 ------------
-There is no widely available Docker container or Debian package available yet,
-but you can install from this repository.
+There is no widely available Docker container available yet, but you can install
+from this repository:
+
+.. code-block:: shell
+
+    $ virtualenv -p python3 authserver
+    $ authserver/bin/pip install net.maurus.authserver
+
+
+Or for Debian 9.0 Stretch:
+
+.. code-block:: shell
+
+    $ echo "deb http://repo.maurus.net/release/stretch mn-release main" >> /etc/apt/sources.list.d/maurusnet.list
+    $ apt update
+    $ apt install authserver authclient
 
 
 APPCONFIG FOLDER
@@ -70,7 +93,8 @@ Run ``django-admin.py`` like this:
 Managed configuration
 +++++++++++++++++++++
 These environment variables must be placed in the appconfig folder manually (or
-through configuration management).
+through configuration management). You can just leave ``VAULT_*`` empty and set
+``DATABASE_URL`` if you're not planning on using Vault.
 
 ====================  ========================================================
 Variable              Description
@@ -86,7 +110,11 @@ DATABASE_NAME         The name of the database to connect to (only used with
                       Vault).
 SPAPI_DBUSERS         A comma-separated list of database users which are being
                       granted access to the stored procedure API in migration
-                      ``0003_opensmtpd_access``.
+                      ``0003_opensmtpd_access``. You probably want to create
+                      a user for your SMTP server (e.g. OpenSMTPD) and your
+                      IMAP server (e.g. dovecot). Both can query authserver's
+                      database through these stored procedures as their user
+                      databases.
 DATABASE_URL          When client SSL certificates or usernames and passwords
                       are used to connect to the database instead of Vault,
                       then this URL (parsed by dj-database-url) is used to
@@ -114,65 +142,17 @@ Smartstack registration and loadbalancing
 Building
 ========
 
-Build configuration
--------------------
-These entries in the appconfig folder are generated during build time using
-`GoPythonGo tools <gopythongo_>`__ and are then meant to be shipped with the
-application.
-
-==============  ==============================================================
-Variable        Description
-==============  ==============================================================
-VAULT_SSLCERT   The client certificate to be used to connect to Vault to
-                retrieve database credentials.
-VAULT_SSLKEY    The client key to be used to connect to Vault to retrieve
-                database credentials.
-SECRET_KEY      The Django settings.SECRET_KEY value to be used.
-DB_SSLCERT      An alternative way for connecting to the database. If Vault
-                isn't used to manage database access, this can be set to a
-                SSL client certificate to authenticate with the database.
-DB_SSLKEY       The private key for ``DB_SSLCERT``.
-==============  ==============================================================
-
-The ``vaultgetcert`` configurations in ``.gopythongo`` refer to the following
-certificate + CA chain bundles. If you're building for an environment that
-uses `Certified Build <certified_builds_>`__ then ``VGC_XSIGN_CACERT`` should
-contain the following bundles:
-
-==============  ==============================================================
-Certificate
-==============  ==============================================================
-vault.crt       The CA chain used to access Vault for database credentials (if
-                used)
-postgresql.crt  The CA chain used to access PostgreSQL with a client 
-                certificate (if used)
-==============  ==============================================================
-
-
 Build script
 ------------
-This application is meant to be built using `GoPythonGo <gopythongo_>`__ using
-gopythongo's ``vaultgetcert`` tool to create a number of SSL client
-certificates (see "Environment configuration" above).
-
-If you plan on deploying authserver with usernames and passwords, you can
-just comment out the ``vaultgetcert-config`` line in ``.gopythongo/config``.
-Otherwise, set up intermediate CAs for your deployment environment and the
-``authserver`` application and install one of them in Vault, as described in
-`Certified Builds <certified_builds_>`__
-and create a cross-signature configuration for the other CA using the
-``VGC_XSIGN_CACERT`` environment variable like so:
+This application is meant to be built using `GoPythonGo <gopythongo_>`__.
 
 .. code-block:: shell
 
-    export VGC_XSIGN_CACERT=postgresql.crt=/etc/concourse/cacerts/env-dev-ca.crt,vault.crt=/etc/concourse/cacerts/cas-ca.crt
     export REPO=maurusnet
     export APTLY_DISTRIBUTION=mn-nightly
     export APTLY_PUBLISH_ENDPOINT=s3:maurusnet:nightly/stretch
-    export VGC_VAULT_PKI=casserver-ca/issue/build
-    export VAULTWRAPPER_READ_PATH=secret/gpg/packaging_passphrase
-    export VGC_OVERWRITE=True
     export GNUPGHOME=/etc/gpg-managed-keyring/
+    export VAULTWRAPPER_READ_PATH=secret/gpg/packaging_passphrase
     /opt/gopythongo/bin/gopythongo -v /usr/local/authserver /path/to/source
 
 
@@ -218,6 +198,85 @@ N   Function Name                        Description
 ==  ===================================  =====================================
 
 
+OAuth2
+------
+authserver delivers OAuth2 support over the following endpoints:
+
+* ``/o2/authorize/``
+* ``/o2/token/``
+* ``/o2/revoke_token/``
+
+You can create client applications and authorization scopes via the Django
+admin interface or ``manage.py oauth2|permissions`` and assign scopes to users
+and groups respectively. The authorization view will list the scopes for the
+user to approve unless automatic authorization is turned on for the OAuth2
+client.
+
+
+Docker Auth
+-----------
+authserver supports Docker-compatible JWTs using the "resource owner" OAuth2
+flow via ``docker login`` at ``https://your.authserver.domain/docker/token/``.
+You can generally just use ``docker login https://your.authserver.domain/`` and
+create Docker registry instances and access rights to namespaces on that
+registry via the Django admin interface or the ``manage.py dockerauth``
+command.
+
+
+Propietary endpoints and mod_authnz_external
+--------------------------------------------
+The ``checkpassword.py`` command-line script, also shipped in the
+``authclient`` Debian package is compatible with djb checkpassword and Apache2
+mod_authnz_external. It uses two proprietary API endpoints:
+
+* ``/checkpassword/`` which takes a username and optionally a list of
+  scopes and password (for something akin to the "resource owner" OAuth2 flow)
+  and issues a JWT that has the user's assigned scopes and validates the
+  password (if transmitted).
+
+* ``/getkey/`` exports a RSA public key for a domain registered with authserver
+  to allow a client to validate an issued JWT.
+
+You should prefer OAuth2 where possible as this solution will bring the client
+into possession of the user's password. However, if you trust the client this
+is an alternative solution. Obviously it's also an easy way to integrate legacy
+systems.
+
+``checkpassword.py`` can operate in 5 modes:
+
+* ``-m init`` uses the getkey API to load a RSA public key for the authserver's
+  domain and output it to stdout or into a file.
+* ``-m check`` behaves like ``init`` but makes no changes, it's useful to check
+  whether a domain has a JWT key to export or that key is readable to
+  checkpassword on the file system.
+* ``-m authext`` and ``-m checkpassword`` read username and password from stdin
+  (either in the way specified by mod_authnz_external or djb checkpassword) and
+  send them to the server to be validated. The program then either exits with
+  exit code ``0`` (success), ``1`` if the auth domain is invalid, ``2`` if
+  there are API connection problems and ``3`` for anything else.
+* ``-m authextgroup`` validates a list of scopes for a username. This does
+  **not** validate the user's password. This is useful for
+  mod_authnz_external's ``GroupExternal`` configuration, but you must
+  additionally authenticate the user.
+
+The API endpoints respond with a JSON Web Token (JWT) with the following
+claims:
+
+.. code-block:: json
+
+    {
+        "sub": "the provided username"
+        "canonical_username": "the user's delivery_mailbox name"
+        "authenticated": true or false depending on the status of the password check
+        "authorized": true or false depending on whether the user has all submitted scopes,
+        "scopes": ["a list of", "all the scopes", "assigned to this user"],
+        "nbf": int(Unix Epoch timestamp of now minus 5 seconds),
+        "exp": int(Unix Epoch timestamp of now plus 3600 seconds),
+        "iss": "the auth domain name",
+        "aud": "net.maurus.authclient"
+    }
+
+
 TODO
 ====
 
@@ -233,6 +292,11 @@ source code is licensed.
 This program includes a copy of
 `django12factor <django12factor_>`__ which is licensed under The MIT License
 (MIT) Copyright (c) 2013-2017 Kristian Glass.
+
+This program includes a copy of
+`Select2 JavaScript library <select2_>`__ which is licensed user the MIT
+License (MIT)
+Copyright (c) 2012-2017 Kevin Brown, Igor Vaynberg, and Select2 contributors
 
 
 .. _12factor: https://12factor.net/
@@ -250,3 +314,5 @@ This program includes a copy of
 .. _opensmtpd_spapi:
    https://github.com/jdelic/saltshaker/blob/master/srv/salt/opensmtpd/
    postgresql.table.jinja.conf
+.. _select2:
+   https://github.com/select2/select2/
