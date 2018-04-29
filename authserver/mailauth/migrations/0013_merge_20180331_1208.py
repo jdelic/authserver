@@ -3,6 +3,7 @@
 from __future__ import unicode_literals
 
 from django.db import migrations
+from typing import List
 
 
 class Migration(migrations.Migration):
@@ -13,4 +14,4 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-    ]
+    ]  # type: List[str]
