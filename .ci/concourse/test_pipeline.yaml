@@ -10,8 +10,8 @@ resources:
     - name: authserver
       type: git
       source:
-          uri: git@github.com:jdelic/authserver.git
-          branch: develop
+          uri: https://github.com/jdelic/authserver.git
+          branch: feature/concourse
 
     - name: github-status
       type: github-status

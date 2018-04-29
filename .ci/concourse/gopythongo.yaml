@@ -14,7 +14,6 @@ inputs:
 
 params:
     APTLY_PASSPHRASE: ((aptly_gpg_passphrase.passphrase))
-    VAULT_TOKEN: ((vaultgetcert.vault_token))
 
 
 run:
