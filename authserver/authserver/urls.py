@@ -6,6 +6,7 @@ from oauth2_provider import views as oauth2_views
 from authserver import base_views
 from mailauth import views as mail_views
 from dockerauth import views as docker_views
+from authserver import views as shared_views
 
 
 urlpatterns = [
@@ -36,5 +37,5 @@ urlpatterns = [
 
     # user authentication api
     url(r'^checkpassword/$', mail_views.UserLoginAPIView.as_view(), name="checkpassword"),
-    url(r'^getkey/$', mail_views.JWTPublicKeyView.as_view(), name="getkey"),
+    url(r'^getkey/$', shared_views.JWTPublicKeyView.as_view(), name="getkey"),
 ]
