@@ -27,12 +27,6 @@ class PretendHasherPasswordField(models.CharField):
     Django sidesteps the Model instance which has a property below and instantiates the Field class
     directly.
     """
-    def value_from_object(self, obj: 'PretendHasherPasswordField') -> str:
-        if hasattr(obj, 'actual_password'):
-            return getattr(obj, 'actual_password')
-        else:
-            return getattr(obj, self.attname)
-
     def get_prep_value(self, value: str) -> str:
         # we might get a value previously modified by the password getter below. In that case we remove
         # the unwanted prefix.

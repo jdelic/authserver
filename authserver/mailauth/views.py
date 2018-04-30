@@ -115,7 +115,7 @@ class JWTPublicKeyView(RatelimitMixin, View):
                                         content_type="application/json")
 
         try:
-            privkey = RSA.import_key(req_domain.jwtkey)
+            privkey = RSA.import_key(req_domain.jwtkey)  # type: ignore  # mypy doesn't see import_key for some reason
         except ValueError:
             return HttpResponseNotFound('{"error": "Domain is not JWT enabled"}',
                                         content_type="application/json")

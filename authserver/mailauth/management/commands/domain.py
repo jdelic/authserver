@@ -7,7 +7,7 @@ import sys
 
 from Crypto.PublicKey import RSA
 from django.core.management import BaseCommand, CommandParser
-from typing import Any, Union, List
+from typing import Any, Union, List, cast, IO
 
 from django.db.models.query import QuerySet
 
@@ -75,14 +75,14 @@ class Command(BaseCommand):
         public_key = public_key.replace("RSA PUBLIC KEY", "PUBLIC KEY")
         with utils.stdout_or_file(output) as f:
             if format == "pem":
-                print(public_key, file=f)
+                print(public_key, file=cast(IO[str], f))
             elif format == "dkimdns":
                 outstr = "\"v=DKIM1\; k=rsa\; p=\" {split_key}".format(
                     split_key="\n".join(
                         ['"%s"' % line for line in
                          re.search("--\n(.*?)\n--", public_key, re.DOTALL).group(1).split("\n")])
                 )
-                print(outstr, file=f)
+                print(outstr, file=cast(IO[str], f))
 
         if output != "-":
             sys.stderr.write("Public key exported to %s\n" % output)
