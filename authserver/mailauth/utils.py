@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from mailauth.models import Domain
 
 
-def find_parent_domain(fqdn: str, require_jwt_subdomains_set: bool=True) -> Union[Domain, None]:
+def find_parent_domain(fqdn: str, require_jwt_subdomains_set: bool=True) -> Union['Domain', None]:
     # import mailauth.models.Domain here so importing this module does not depend on Django to be initialized
     from mailauth.models import Domain
     req_domain = None  # type: Domain
