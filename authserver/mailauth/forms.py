@@ -21,9 +21,9 @@ from django_select2.forms import Select2TagWidget
 from mailauth.models import MNUser, Domain, MailingList, MNServiceUser
 
 
-def generate_password(pass_len):
+def generate_password(pass_len: int) -> str:
     symbols = "0123456789=-$%^&*()[]{}\\/!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    return ''.join([symbols[math.floor(int(x) / 256 * len(symbols))] for x in os.urandom(pass_len)])
+    return ''.join([symbols[int(math.floor(int(x) / 256 * len(symbols)))] for x in os.urandom(pass_len)])
 
 
 class DisplayHiddenInput(forms.HiddenInput):
@@ -47,7 +47,7 @@ class MNServiceUserCreationForm(forms.ModelForm):
         model = MNServiceUser
         fields = forms.ALL_FIELDS
 
-    def save(self, commit=True):
+    def save(self, commit: bool=True) -> 'MNUser':
         user = super().save(commit=False)
         user.set_password(self.cleaned_data["password"])
         if commit:

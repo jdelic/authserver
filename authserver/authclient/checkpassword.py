@@ -7,14 +7,14 @@ import argparse
 import subprocess
 from io import TextIOWrapper
 
-from typing import Tuple, Union, Set, List, TextIO
+from typing import Tuple, Union, Set, List, TextIO, Generator, cast, IO
 
 import jwt
 import requests
 
 
 @contextlib.contextmanager
-def stdout_or_file(path: str) -> Union[TextIOWrapper, TextIO]:
+def stdout_or_file(path: str) -> Generator[Union[TextIOWrapper, TextIO], None, None]:
     if path is None or path == "" or path == "-":
         yield sys.stdout
     else:
@@ -127,7 +127,7 @@ def loadkey(url: str, jwtkeyfile: str=None, check: bool=False, validate_ssl: Uni
             sys.stderr.write("Check successful.\n")
         else:
             with stdout_or_file(jwtkeyfile) as out:
-                print("\n".join(resp.json()["public_key_pem"]), file=out)
+                print("\n".join(resp.json()["public_key_pem"]), file=cast(IO[str], out))
 
             if jwtkeyfile != "-":
                 sys.stderr.write("Key written to %s\n" % jwtkeyfile)

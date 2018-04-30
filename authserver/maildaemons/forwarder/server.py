@@ -10,7 +10,7 @@ import sys
 import os
 
 from types import FrameType
-from typing import Tuple, Sequence, Any, Union, Optional, List
+from typing import Tuple, Sequence, Any, Union, Optional, List, Dict
 from concurrent.futures import ThreadPoolExecutor as Pool
 
 import daemon
@@ -46,7 +46,7 @@ class ForwarderServer(SaneSMTPServer):
         remaining_rcpttos = list(rcpttos)  # ensure that new_rcpttos is a mutable list
         combined_rcptto = {}  # type: Dict[str, List[str]]  # { new_mailfrom: [recipients] }
 
-        def add_rcptto(mfrom: str, rcpt: Union[str, List]):
+        def add_rcptto(mfrom: str, rcpt: Union[str, List]) -> None:
             if mailfrom in combined_rcptto:
                 if isinstance(rcpt, list):
                     combined_rcptto[mfrom] += rcpt
