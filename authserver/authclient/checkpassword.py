@@ -98,6 +98,8 @@ def validate(url: str, username: str, password: str, jwtkeyfile: str, scopes: Se
         sys.stderr.write("ERROR Server returned code %s\n" % resp.status_code)
         return False
 
+    return False
+
 
 def loadkey(url: str, jwtkeyfile: str=None, check: bool=False, validate_ssl: Union[bool, str]=True) -> None:
     if jwtkeyfile and jwtkeyfile != "-":

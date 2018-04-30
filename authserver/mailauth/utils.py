@@ -2,10 +2,13 @@
 import sys
 import contextlib
 from io import TextIOWrapper
-from typing import Union, TextIO
+from typing import Union, TextIO, TYPE_CHECKING, Generator
+
+if TYPE_CHECKING:
+    from mailauth.models import Domain
 
 
-def find_parent_domain(fqdn: str, require_jwt_subdomains_set: bool=True) -> Union['Domain', None]:
+def find_parent_domain(fqdn: str, require_jwt_subdomains_set: bool=True) -> Union[Domain, None]:
     # import mailauth.models.Domain here so importing this module does not depend on Django to be initialized
     from mailauth.models import Domain
     req_domain = None  # type: Domain
@@ -39,7 +42,7 @@ def find_parent_domain(fqdn: str, require_jwt_subdomains_set: bool=True) -> Unio
 
 
 @contextlib.contextmanager
-def stdout_or_file(path: str) -> Union[TextIOWrapper, TextIO]:
+def stdout_or_file(path: str) -> Generator[Union[TextIOWrapper, TextIO], None, None]:
     if path is None or path == "" or path == "-":
         yield sys.stdout
     else:
