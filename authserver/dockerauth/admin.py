@@ -55,7 +55,7 @@ class DockerRepoAdmin(DockerPermissionAdminMixin, admin.ModelAdmin):
 @admin.register(DockerRegistry)
 class DockerRegistryAdmin(DockerPermissionAdminMixin, admin.ModelAdmin):
     search_fields = ('name', 'client_id',)
-    fields = ('name', 'client_id', 'sign_key', 'unauthenticated_pull', 'unauthenticated_push',
+    fields = ('name', 'client_id', 'domain', 'unauthenticated_pull', 'unauthenticated_push',
               'user_pull_access', 'user_push_access', 'group_pull_access', 'group_push_access',)
     form = DockerRegistryForm
     list_display = ('name', 'client_id',)
