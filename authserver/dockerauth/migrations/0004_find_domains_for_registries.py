@@ -59,6 +59,10 @@ def find_registry_defaults(apps: 'Apps', schema_editor: 'BaseDatabaseSchemaEdito
                 name=registry.client_id,
                 jwtkey=registry.sign_key,
             )
+        else:
+            if connect_to.jwtkey is None or connect_to.jwtkey == "":
+                connect_to.jwtkey = registry.sign_key
+                connect_to.save()
         registry.domain = connect_to
         registry.save()
 
