@@ -104,7 +104,7 @@ class DockerRegistry(DockerPermissionBase):
         max_length=100, unique=True, default=generate_client_id, db_index=True
     )
 
-    domain = models.ForeignKey(Domain, on_delete=models.PROTECT, null=False, blank=False)
+    domain = models.ForeignKey(Domain, on_delete=models.PROTECT)
 
     def private_key_pem(self) -> str:
         return self.domain.jwtkey
