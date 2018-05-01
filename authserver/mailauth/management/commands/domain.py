@@ -11,7 +11,8 @@ from typing import Any, Union, List, cast, IO
 
 from django.db.models.query import QuerySet
 
-from mailauth import models, utils
+from mailauth.utils import stdout_or_file
+from mailauth.models import Domain
 
 
 KEY_CHOICES = ["jwt", "dkim"]
@@ -23,14 +24,14 @@ class Command(BaseCommand):
     def _create(self, domain: str, create_keys: List[str]=None, dkim_selector: str="", redirect_to: str="",
                 jwt_allow_subdomain_signing: bool=False, **kwargs: Any) -> None:
         try:
-            domobj = models.Domain.objects.get(name__iexact=domain)
-        except models.Domain.DoesNotExist:
+            domobj = Domain.objects.get(name__iexact=domain)
+        except Domain.DoesNotExist:
             pass
         else:
             sys.stderr.write("Error: Domain %s already exists\n" % domain)
             sys.exit(1)
 
-        domobj = models.Domain.objects.create(name=domain, dkimselector=dkim_selector, redirect_to=redirect_to,
+        domobj = Domain.objects.create(name=domain, dkimselector=dkim_selector, redirect_to=redirect_to,
                                               jwt_subdomains=jwt_allow_subdomain_signing)
         if create_keys is None:
             create_keys = []
@@ -46,8 +47,8 @@ class Command(BaseCommand):
     def _pubkey(self, domain: str, output: str, key: str="jwt", create_key: bool=False, format: str="pem",
                 **kwargs: Any) -> None:
         try:
-            domobj = models.Domain.objects.get(name=domain)
-        except models.Domain.DoesNotExist:
+            domobj = Domain.objects.get(name=domain)
+        except Domain.DoesNotExist:
             sys.stderr.write("Error: Domain %s does not exist\n" % domain)
             sys.exit(1)
 
@@ -73,7 +74,7 @@ class Command(BaseCommand):
 
         public_key = privkey.publickey().exportKey("PEM").decode('utf-8')
         public_key = public_key.replace("RSA PUBLIC KEY", "PUBLIC KEY")
-        with utils.stdout_or_file(output) as f:
+        with stdout_or_file(output) as f:
             if format == "pem":
                 print(public_key, file=cast(IO[str], f))
             elif format == "dkimdns":
@@ -90,12 +91,15 @@ class Command(BaseCommand):
     def _list(self, contains: str, include_parent_domain: bool=False, format: str="list",
               require_jwt_subdomains: bool=True, **kwargs: Any) -> None:
         if contains and include_parent_domain:
-            dom = utils.find_parent_domain(contains, require_jwt_subdomains_set=require_jwt_subdomains)
-            qs = [dom] if dom is not None else []  # type: Union[QuerySet, models.Domain]
+            try:
+                dom = Domain.objects.find_parent_domain(contains, require_jwt_subdomains_set=require_jwt_subdomains)
+            except Domain.DoesNotExist:
+                dom = None
+            qs = [dom] if dom is not None else []  # type: Union[QuerySet, Domain]
         elif contains and not include_parent_domain:
-            qs = models.Domain.objects.filter(name__icontains=contains)
+            qs = Domain.objects.filter(name__icontains=contains)
         else:
-            qs = models.Domain.objects.all()
+            qs = Domain.objects.all()
 
         if qs:
             export = []

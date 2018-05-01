@@ -1,6 +1,6 @@
 # -* encoding: utf-8 *-
 import json
-from typing import Any, Union
+from typing import Any
 
 from Crypto.PublicKey import RSA
 from Crypto.PublicKey.RSA import RsaKey
@@ -11,7 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from ratelimit.mixins import RatelimitMixin
 
 from dockerauth.models import DockerRegistry
-from mailauth import utils
+from mailauth.models import Domain
 
 
 class InvalidKeyRequest(Exception):
@@ -33,13 +33,13 @@ class JWTPublicKeyView(RatelimitMixin, View):
         return super().dispatch(*args, **kwargs)
 
     def _get_domain_key(self, fqdn: str) -> RsaKey:
-        req_domain = utils.find_parent_domain(fqdn)
-
-        if req_domain is None:
+        try:
+            req_domain = Domain.objects.find_parent_domain(fqdn)
+        except Domain.DoesNotExist:
             raise InvalidKeyRequest(HttpResponseNotFound('{"error": "Not a valid authorization domain"}',
                                                          content_type="application/json"))
 
-        if req_domain.jwtkey is None or req_domain.jwtkey == "":
+        if req_domain.jwtkey:
             raise InvalidKeyRequest(HttpResponseNotFound('{"error": "Domain is not JWT enabled"}',
                                                          content_type="application/json"))
 

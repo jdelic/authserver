@@ -20,7 +20,7 @@ from ratelimit.mixins import RatelimitMixin
 
 from dockerauth.jwtutils import JWTViewHelperMixin
 from mailauth import utils
-from mailauth.models import MNApplication, UnresolvableUserException
+from mailauth.models import MNApplication, UnresolvableUserException, Domain
 from mailauth.models import MNUser
 from mailauth.permissions import find_missing_permissions
 
@@ -127,9 +127,9 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
             return HttpResponseBadRequest('{"error": "This endpoint must be called securely"}',
                                           content_type="application/json")
 
-        req_domain = utils.find_parent_domain(request.get_host(), require_jwt_subdomains_set=True)
-
-        if req_domain is None:
+        try:
+            req_domain = Domain.objects.find_parent_domain(request.get_host(), require_jwt_subdomains_set=True)
+        except Domain.DoesNotExist:
             return HttpResponseBadRequest('{"error": "Not a valid authorization domain"}',
                                           content_type="application/json")
 
