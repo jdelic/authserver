@@ -8,6 +8,7 @@ import subprocess
 from io import TextIOWrapper
 
 from typing import Tuple, Union, Set, List, TextIO, Generator, cast, IO
+from urllib.parse import urlencode
 
 import jwt
 import requests
@@ -101,11 +102,19 @@ def validate(url: str, username: str, password: str, jwtkeyfile: str, scopes: Se
     return False
 
 
-def loadkey(url: str, jwtkeyfile: str=None, check: bool=False, validate_ssl: Union[bool, str]=True) -> None:
+def loadkey(url: str, domain: str=None, jwtkeyfile: str=None, check: bool=False,
+            validate_ssl: Union[bool, str]=True) -> None:
     if jwtkeyfile and jwtkeyfile != "-":
         if os.path.exists(jwtkeyfile):
             sys.stderr.write("Path %s already exists. Doing nothing.\n" % jwtkeyfile)
             sys.exit(0)
+
+    if domain:
+        par = urlencode({"domain": domain})
+        if "?" in url:
+            url = "%s&%s" % (url, par)
+        else:
+            url = "%s?%s" % (url, par)
 
     try:
         resp = requests.get(url, verify=validate_ssl)
@@ -175,13 +184,16 @@ def main() -> None:
                         help="Path to a PEM encoded public key to verify the JWT claims and scopes returned by the "
                              "server (i.e. the server's public key). Mode 'init' writes the key to this file. Use '-' "
                              "to write the key to stdout in 'init' mode.")
+    parser.add_argument("--domain", dest="domain", default=None,
+                        help="Specify an alternate domain to check for an existing JWT signing public key, otherwise "
+                             "the server will use the domain from '--url'.")
     parser.add_argument("prog", nargs="*", help="The program to run as defined by the checkpassword interface "
                                                 "(optional).")
 
     _args = parser.parse_args()
 
     if _args.mode in ["init", "check"]:
-        loadkey(_args.url, check=(_args.mode == "check"), jwtkeyfile=_args.jwtkey,
+        loadkey(_args.url, domain=_args.domain, check=(_args.mode == "check"), jwtkeyfile=_args.jwtkey,
                 validate_ssl=_args.ca_file if _args.ca_file else _args.validate_ssl)
         return
     elif _args.mode == "checkpassword":

@@ -1,5 +1,6 @@
 # -* encoding: utf-8 *-
 import json
+import logging
 from typing import Any
 
 from Crypto.PublicKey import RSA
@@ -12,6 +13,9 @@ from ratelimit.mixins import RatelimitMixin
 
 from dockerauth.models import DockerRegistry
 from mailauth.models import Domain
+
+
+_log = logging.getLogger(__name__)
 
 
 class InvalidKeyRequest(Exception):
@@ -39,7 +43,7 @@ class JWTPublicKeyView(RatelimitMixin, View):
             raise InvalidKeyRequest(HttpResponseNotFound('{"error": "Not a valid authorization domain"}',
                                                          content_type="application/json"))
 
-        if req_domain.jwtkey:
+        if not req_domain.jwtkey:
             raise InvalidKeyRequest(HttpResponseNotFound('{"error": "Domain is not JWT enabled"}',
                                                          content_type="application/json"))
 
@@ -48,7 +52,6 @@ class JWTPublicKeyView(RatelimitMixin, View):
         except ValueError as e:
             raise InvalidKeyRequest(HttpResponseNotFound('{"error": "Domain is not JWT enabled"}',
                                                          content_type="application/json")) from e
-
         return privkey
 
     def _get_registry_key(self, fqdn: str) -> RsaKey:
@@ -58,11 +61,16 @@ class JWTPublicKeyView(RatelimitMixin, View):
             raise InvalidKeyRequest(HttpResponseNotFound('{"error": "Not a valid authorization domain"}',
                                                          content_type="application/json"))
 
-        if reg.domain.jwtkey:
-            return reg.domain.jwtkey
-        else:
+        if not reg.domain.jwtkey:
             raise InvalidKeyRequest(HttpResponseNotFound('{"error": "Domain is not JWT enabled"}',
                                                          content_type="application/json"))
+
+        try:
+            privkey = RSA.import_key(reg.domain.jwtkey)  # type: ignore  # mypy doesn't see import_key for some reason
+        except ValueError as e:
+            raise InvalidKeyRequest(HttpResponseNotFound('{"error": "Domain is not JWT enabled"}',
+                                                         content_type="application/json")) from e
+        return privkey
 
     def get(self, request: HttpRequest) -> HttpResponse:
         if not request.is_secure():
