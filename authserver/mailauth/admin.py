@@ -86,7 +86,7 @@ class DomainAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     form = DomainForm
 
-    def response_add(self, request: HttpRequest, obj: Optional[Domain]=None, post_url_continue: str=None) -> \
+    def response_add(self, request: HttpRequest, obj: Domain, post_url_continue: str=None) -> \
             HttpResponse:
         opts = self.model._meta
         pk_value = obj._get_pk_val()
@@ -121,7 +121,7 @@ class DomainAdmin(admin.ModelAdmin):
                     return HttpResponseRedirect(post_url_continue)
         return super().response_add(request, obj, post_url_continue)
 
-    def response_change(self, request: HttpRequest, obj: Optional[Domain]=None) -> HttpResponse:
+    def response_change(self, request: HttpRequest, obj: Domain) -> HttpResponse:
         opts = self.model._meta
         pk_value = obj._get_pk_val()
         preserved_filters = self.get_preserved_filters(request)

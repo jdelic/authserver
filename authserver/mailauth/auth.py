@@ -109,9 +109,8 @@ class MNUserAuthenticationBackend(object):
         # the argument names must be 'username' and 'password' because the authenticator interface is tightly coupled
         # to the parameter names between login forms and authenticators
 
-        tocheck_password = None  # type: str
+        tocheck_password = None  # type: Optional[str]
         if "@" not in username or username.count("@") > 1:
-            user = None  # type: Union[MNUser, MNServiceUser]
             try:
                 service_user = MNServiceUser.objects.get(username=username)
             except (MNServiceUser.DoesNotExist, ValidationError):

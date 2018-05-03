@@ -6,15 +6,12 @@ from typing import Any, Tuple
 
 import pytz
 from cryptography import x509
-from Crypto.PublicKey import RSA
-from Crypto.PublicKey.RSA import RsaKey
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.x509 import Certificate
 from cryptography.x509 import NameOID
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseNotFound, HttpRequest, HttpResponseBadRequest
-from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -28,7 +25,7 @@ _log = logging.getLogger(__name__)
 
 
 class InvalidKeyRequest(Exception):
-    def __init__(self, response: HttpResponse, *args, **kwargs) -> None:
+    def __init__(self, response: HttpResponse, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.response = response
 
@@ -75,7 +72,7 @@ class JWTPublicKeyView(RatelimitMixin, View):
                                                          content_type="application/json"))
 
         try:
-            privkey = import_rsa_key(reg.domain.jwtkey)  # type: ignore  # mypy doesn't see import_key for some reason
+            key = import_rsa_key(reg.domain.jwtkey)  # type: ignore  # mypy doesn't see import_key for some reason
         except ValueError as e:
             raise InvalidKeyRequest(HttpResponseNotFound('{"error": "Domain is not JWT enabled"}',
                                                          content_type="application/json")) from e

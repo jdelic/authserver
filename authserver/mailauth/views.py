@@ -17,6 +17,7 @@ from oauth2_provider.forms import AllowForm
 from oauth2_provider.models import get_application_model
 from oauth2_provider.views.base import AuthorizationView
 from ratelimit.mixins import RatelimitMixin
+from typing import Optional
 
 from dockerauth.jwtutils import JWTViewHelperMixin
 from mailauth import utils
@@ -141,7 +142,7 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
             return HttpResponseBadRequest('{"error": "Missing parameters"}', content_type="application/json")
 
         if userdesc.password:
-            user = authenticate(username=userdesc.username, password=userdesc.password)  # type: MNUser
+            user = authenticate(username=userdesc.username, password=userdesc.password)  # type: Optional[MNUser]
             authenticated = True
         else:
             authenticated = False

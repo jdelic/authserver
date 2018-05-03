@@ -6,7 +6,7 @@ import os
 import re
 import math
 import uuid
-from typing import Any, Dict, Sequence, Tuple, Optional, List
+from typing import Any, Dict, Sequence, Tuple, Optional, List, cast, Match
 
 import django.contrib.auth.forms as auth_forms
 
@@ -129,8 +129,8 @@ class RSAKeyWidget(widgets.AdminTextareaWidget):
                 """,
                     split_key="\n".join(
                         ['"%s"' % line for line in
-                            re.search("--\n(.*?)\n--", public_key, re.DOTALL).group(1).split("\n")])
-                )
+                            cast(Match[str], re.search("--\n(.*?)\n--", public_key, re.DOTALL)).group(1).split("\n")])
+                )  # the cast tells mypy that re.search will not return None here
         else:
             ret += format_html("""
             <input type="submit" name="_genkey-{name}" value="Generate&nbsp;new&nbsp;key" class="button"/>

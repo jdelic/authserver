@@ -30,10 +30,10 @@ from mailauth.models import MNUser
 
 
 _TokenRequest = NamedTuple('_TokenRequest', [
-    ('service', str),
+    ('service', Optional[str]),
     ('offline_token', bool),
-    ('client_id', str),
-    ('scope', str),
+    ('client_id', Optional[str]),
+    ('scope', Optional[str]),
 ])
 
 

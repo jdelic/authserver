@@ -47,8 +47,8 @@ class PretendHasherPasswordField(models.CharField):
 
 
 class DomainManager(Manager):
-    def find_parent_domain(self, fqdn: str, require_jwt_subdomains_set: bool=True) -> Union['Domain', None]:
-        req_domain = None  # type: Domain
+    def find_parent_domain(self, fqdn: str, require_jwt_subdomains_set: bool=True) -> 'Domain':
+        req_domain = None  # type: Optional[Domain]
 
         # results in ['sub.example.com', 'example.com', 'com']
         parts = fqdn.split(".")
@@ -177,7 +177,7 @@ class MNUserManager(base_user.BaseUserManager):
     # serializes Manager into migrations. I set this here because it's set on the default UserManager
     use_in_migrations = True
 
-    def _create_user(self, identifier: str, fullname: str, password: str, **extrafields: Any) -> 'MNUser':
+    def _create_user(self, identifier: str, fullname: str, password: Optional[str], **extrafields: Any) -> 'MNUser':
         if not identifier:
             raise ValueError("MNUserManager._create_user requires set identifier")
 
@@ -199,9 +199,13 @@ class MNUserManager(base_user.BaseUserManager):
         extrafields.setdefault("is_staff", False)
         return self._create_user(identifier, fullname, password, **extrafields)
 
-    def resolve_user(self, username: str) -> Union['MNUser', None]:
+    def resolve_user(self, username: str) -> 'MNUser':
+        """
+        :param username: the username to find
+        :raises UnresolvableUserException: When no user can be found
+        :return: The user
+        """
         if "@" not in username or username.count("@") > 1:
-            user = None  # type: Union[MNUser, MNServiceUser]
             try:
                 service_user = MNServiceUser.objects.get(username=username)
             except (MNServiceUser.DoesNotExist, ValidationError):

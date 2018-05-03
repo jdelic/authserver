@@ -6,9 +6,10 @@ import re
 import sys
 
 from django.core.management import BaseCommand, CommandParser
-from typing import Any, Union, List, cast, IO
+from typing import Any, Union, List, cast, IO, Match
 
 from django.db.models.query import QuerySet
+from typing import Optional
 
 from mailauth.utils import stdout_or_file, generate_rsa_key, import_rsa_key
 from mailauth.models import Domain
@@ -79,8 +80,8 @@ class Command(BaseCommand):
                 outstr = "\"v=DKIM1\; k=rsa\; p=\" {split_key}".format(
                     split_key="\n".join(
                         ['"%s"' % line for line in
-                         re.search("--\n(.*?)\n--", public_key, re.DOTALL).group(1).split("\n")])
-                )
+                         cast(Match[str], re.search("--\n(.*?)\n--", public_key, re.DOTALL)).group(1).split("\n")])
+                )  # the cast tells mypy that re.search will not return None here
                 print(outstr, file=cast(IO[str], f))
 
         if output != "-":
@@ -90,7 +91,8 @@ class Command(BaseCommand):
               require_jwt_subdomains: bool=True, **kwargs: Any) -> None:
         if contains and include_parent_domain:
             try:
-                dom = Domain.objects.find_parent_domain(contains, require_jwt_subdomains_set=require_jwt_subdomains)
+                dom = Domain.objects.find_parent_domain(
+                    contains, require_jwt_subdomains_set=require_jwt_subdomains)  # type: Optional[Domain]
             except Domain.DoesNotExist:
                 dom = None
             qs = [dom] if dom is not None else []  # type: Union[QuerySet, Domain]
