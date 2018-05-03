@@ -1,10 +1,8 @@
 # -* encoding: utf-8 *-
-import os
 import sys
 from argparse import _SubParsersAction
 from typing import Type, Any, Optional
 
-from Crypto.PublicKey import RSA
 from django.core.management.base import BaseCommand, CommandParser
 from django.db.models.query_utils import Q
 from django.db.utils import DatabaseError

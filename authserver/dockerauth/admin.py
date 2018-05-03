@@ -9,6 +9,7 @@ from django.forms.renderers import BaseRenderer
 from django.utils.html import format_html
 
 from dockerauth.models import DockerRepo, DockerRegistry
+from mailauth.utils import import_rsa_key
 
 
 class JWTKeyWidget(widgets.AdminTextareaWidget):
@@ -18,9 +19,7 @@ class JWTKeyWidget(widgets.AdminTextareaWidget):
     def render(self, name: str, value: str, attrs: Optional[Dict[str, str]]=None, renderer: BaseRenderer=None) -> str:
         ret = super().render(name, value, attrs)
         if value and value.startswith("-----BEGIN RSA PRIVATE KEY"):
-            key = RSA.importKey(value)
-            public_key = key.publickey().exportKey("PEM").decode('utf-8')
-            public_key = public_key.replace("RSA PUBLIC KEY", "PUBLIC KEY")
+            public_key = import_rsa_key(value).public_key
             ret += format_html("<pre>{public_key}</pre>", public_key=public_key)
         else:
             ret += format_html("<pre>ERROR: Unparsable private key (not a PEM object)</pre>")

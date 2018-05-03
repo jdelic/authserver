@@ -9,7 +9,7 @@ import uuid
 from typing import Any, Dict, Sequence, Tuple, Optional, List
 
 import django.contrib.auth.forms as auth_forms
-from Crypto.PublicKey import RSA
+
 from django import forms
 from django.contrib.admin import widgets
 from django.core.exceptions import ValidationError
@@ -19,6 +19,7 @@ from django.utils.html import format_html
 from django_select2.forms import Select2TagWidget
 
 from mailauth.models import MNUser, Domain, MailingList, MNServiceUser
+from mailauth.utils import import_rsa_key
 
 
 def generate_password(pass_len: int) -> str:
@@ -114,9 +115,7 @@ class RSAKeyWidget(widgets.AdminTextareaWidget):
                renderer: Optional[BaseRenderer]=None) -> str:
         ret = super().render(name, value, attrs)
         if value and value.startswith("-----BEGIN RSA PRIVATE KEY"):
-            key = RSA.importKey(value)
-            public_key = key.publickey().exportKey("PEM").decode('utf-8')
-            public_key = public_key.replace("RSA PUBLIC KEY", "PUBLIC KEY")
+            public_key = import_rsa_key(value).public_key
 
             ret += format_html(
                 """

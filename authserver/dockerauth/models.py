@@ -8,6 +8,7 @@ from oauth2_provider.generators import generate_client_id
 
 from dockerauth.permissions import TokenPermissions
 from mailauth.models import MNUser, MNGroup, Domain
+from mailauth.utils import import_rsa_key
 
 
 def generate_jwt_secret_key() -> str:
@@ -110,10 +111,7 @@ class DockerRegistry(DockerPermissionBase):
         return self.domain.jwtkey
 
     def public_key_pem(self) -> str:
-        key = RSA.importKey(self.domain.jwtkey)
-        public_key = key.publickey().exportKey("PEM").decode('utf-8')
-        public_key = public_key.replace("RSA PUBLIC KEY", "PUBLIC KEY")
-        return public_key
+        return import_rsa_key(self.domain.jwtkey).public_key
 
     def __str__(self) -> str:
         return "%s (%s)" % (self.name, self.domain.name)

@@ -5,13 +5,12 @@ import re
 
 import sys
 
-from Crypto.PublicKey import RSA
 from django.core.management import BaseCommand, CommandParser
 from typing import Any, Union, List, cast, IO
 
 from django.db.models.query import QuerySet
 
-from mailauth.utils import stdout_or_file
+from mailauth.utils import stdout_or_file, generate_rsa_key, import_rsa_key
 from mailauth.models import Domain
 
 
@@ -37,9 +36,9 @@ class Command(BaseCommand):
             create_keys = []
 
         if "jwt" in create_keys:
-            domobj.jwtkey = RSA.generate(2048).exportKey("PEM").decode("utf-8")
+            domobj.jwtkey = generate_rsa_key(2048)
         if "dkim" in create_keys:
-            domobj.dkimkey = RSA.generate(2048).exportKey("PEM").decode("utf-8")
+            domobj.dkimkey = generate_rsa_key(2048)
         domobj.save()
 
         sys.stderr.write("Domain %s created" % domain)
@@ -62,18 +61,17 @@ class Command(BaseCommand):
 
         if getattr(domobj, attr, "") == "":
             if create_key:
-                privkey = RSA.generate(2048)
-                setattr(domobj, attr, privkey.exportKey("PEM").decode("utf-8"))
+                privkey = generate_rsa_key()
+                setattr(domobj, attr, privkey.private_key)
                 domobj.save()
             else:
                 sys.stderr.write("Error: Domain %s has no private key of type %s and --create-key is not set\n" %
                                  (domain, key))
                 sys.exit(1)
         else:
-            privkey = RSA.importKey(getattr(domobj, attr))
+            privkey = import_rsa_key(getattr(domobj, attr))
 
-        public_key = privkey.publickey().exportKey("PEM").decode('utf-8')
-        public_key = public_key.replace("RSA PUBLIC KEY", "PUBLIC KEY")
+        public_key = privkey.public_key
         with stdout_or_file(output) as f:
             if format == "pem":
                 print(public_key, file=cast(IO[str], f))

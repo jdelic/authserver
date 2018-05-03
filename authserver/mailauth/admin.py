@@ -2,7 +2,7 @@
 from typing import Any, Union, Tuple, Dict, Optional
 
 import django.contrib.auth.admin as auth_admin
-from Crypto.PublicKey import RSA
+
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
@@ -22,7 +22,7 @@ from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm, Mai
     MNServiceUserCreationForm, MNServiceUserChangeForm
 from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroup, MNApplication, MailingList, \
     MNServiceUser
-
+from mailauth.utils import generate_rsa_key
 
 admin.site.unregister(auth_admin.Group)
 
@@ -105,7 +105,7 @@ class DomainAdmin(admin.ModelAdmin):
         for key in request.POST.keys():
             if key.startswith("_genkey-"):
                 if hasattr(obj, key[len("_genkey-"):]):
-                    setattr(obj, key[len("_genkey-"):], RSA.generate(2048).exportKey("PEM").decode("utf-8"))
+                    setattr(obj, key[len("_genkey-"):], generate_rsa_key(2048).private_key)
                     obj.save()
                     msg = format_html(
                         _('The {name} "{obj}" was changed successfully. You may edit it again below.'),
@@ -133,7 +133,7 @@ class DomainAdmin(admin.ModelAdmin):
         for key in request.POST.keys():
             if key.startswith("_genkey-"):
                 if hasattr(obj, key[len("_genkey-"):]):
-                    setattr(obj, key[len("_genkey-"):], RSA.generate(2048).exportKey("PEM").decode("utf-8"))
+                    setattr(obj, key[len("_genkey-"):], generate_rsa_key(2048).private_key)
                     obj.save()
                     msg = format_html(
                         _('The {name} "{obj}" was changed successfully. You may edit it again below.'),
