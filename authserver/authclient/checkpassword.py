@@ -12,6 +12,11 @@ from urllib.parse import urlencode
 
 import jwt
 import requests
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKeyWithSerialization
+from cryptography.x509 import Certificate
 
 
 @contextlib.contextmanager
@@ -66,6 +71,13 @@ def validate(url: str, username: str, password: str, jwtkeyfile: str, scopes: Se
     else:
         sys.stderr.write("ERROR JWT key file %s does not exist.\n" % jwtkeyfile)
         sys.exit(2)
+
+    # if we get a X509 certificate, convert it to a public key that can then be deserialized by pyjwt
+    if jwtkey.startswith("-----BEGIN CERTIFICATE"):
+        cert = x509.load_pem_x509_certificate(jwtkey, backend=default_backend())  # type: Certificate
+        pk = cert.public_key()  # type: RSAPublicKeyWithSerialization
+        jwtkey = pk.public_bytes(encoding=serialization.Encoding.PEM,
+                                 format=serialization.PublicFormat.SubjectPublicKeyInfo)
 
     try:
         resp = requests.post(url, json={"username": username, "password": password}, verify=validate_ssl)
