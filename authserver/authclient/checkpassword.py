@@ -102,7 +102,7 @@ def validate(url: str, username: str, password: str, jwtkeyfile: str, scopes: Se
     return False
 
 
-def loadkey(url: str, domain: str=None, jwtkeyfile: str=None, check: bool=False,
+def loadkey(url: str, domain: str=None, jwtkeyfile: str=None, response_format: str="pubkey", check: bool=False,
             validate_ssl: Union[bool, str]=True) -> None:
     if jwtkeyfile and jwtkeyfile != "-":
         if os.path.exists(jwtkeyfile):
@@ -115,6 +115,11 @@ def loadkey(url: str, domain: str=None, jwtkeyfile: str=None, check: bool=False,
             url = "%s&%s" % (url, par)
         else:
             url = "%s?%s" % (url, par)
+
+    if "?" in url:
+        url = "%s&%s" % (url, "format=%s" % response_format,)
+    else:
+        url = "%s?%s" % (url, "format=%s" % response_format,)
 
     try:
         resp = requests.get(url, verify=validate_ssl)
@@ -138,7 +143,9 @@ def loadkey(url: str, domain: str=None, jwtkeyfile: str=None, check: bool=False,
             sys.stderr.write("Check successful.\n")
         else:
             with stdout_or_file(jwtkeyfile) as out:
-                print("\n".join(resp.json()["public_key_pem"]), file=cast(IO[str], out))
+                print("\n".join(resp.json()[
+                                    "cert" if response_format == "cert" else "public_key_pem"
+                                ]), file=cast(IO[str], out))
 
             if jwtkeyfile != "-":
                 sys.stderr.write("Key written to %s\n" % jwtkeyfile)
@@ -174,6 +181,9 @@ def main() -> None:
                         help="The URL of the authserver endpoint to use to check the password. Usually this should "
                              "point to the server's 'checkpassword' REST API, unless mode is 'init' in which case "
                              "it should point to the servers 'getkey' REST API endpoint")
+    parser.add_argument("-f", "--format", dest="format", choices=["pubkey", "cert"], default="pubkey",
+                        help="Choose the format for the JWT public key, which can be requested as a RSA public key "
+                             "('pubkey') or a self-signed X509 certiifcate ('cert')")
     parser.add_argument("--no-ssl-validate", dest="validate_ssl", action="store_false", default=True,
                         help="Skip validation of the server's SSL certificate.")
     parser.add_argument("--ca-file", dest="ca_file", default=None,
@@ -193,8 +203,8 @@ def main() -> None:
     _args = parser.parse_args()
 
     if _args.mode in ["init", "check"]:
-        loadkey(_args.url, domain=_args.domain, check=(_args.mode == "check"), jwtkeyfile=_args.jwtkey,
-                validate_ssl=_args.ca_file if _args.ca_file else _args.validate_ssl)
+        loadkey(_args.url, domain=_args.domain, check=(_args.mode == "check"), response_format=_args.format,
+                jwtkeyfile=_args.jwtkey, validate_ssl=_args.ca_file if _args.ca_file else _args.validate_ssl)
         return
     elif _args.mode == "checkpassword":
         username, password = readinput_checkpassword()
