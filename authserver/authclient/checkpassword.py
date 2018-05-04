@@ -7,7 +7,7 @@ import argparse
 import subprocess
 from io import TextIOWrapper
 
-from typing import Tuple, Union, Set, List, TextIO, Generator, cast, IO
+from typing import Tuple, Union, Set, List, TextIO, Generator, cast, IO, Optional
 from urllib.parse import urlencode
 
 import jwt
@@ -20,7 +20,7 @@ from cryptography.x509 import Certificate
 
 
 @contextlib.contextmanager
-def stdout_or_file(path: str) -> Generator[Union[TextIOWrapper, TextIO], None, None]:
+def stdout_or_file(path: Optional[str]) -> Generator[Union[TextIOWrapper, TextIO], None, None]:
     if path is None or path == "" or path == "-":
         yield sys.stdout
     else:
@@ -59,7 +59,7 @@ def readinput_groups() -> Tuple[str, List[str]]:
     return username, groups
 
 
-def validate(url: str, username: str, password: str, jwtkeyfile: str, scopes: Set[str],
+def validate(url: str, username: str, password: Optional[str], jwtkeyfile: str, scopes: Set[str],
              validate_ssl: Union[bool, str]=True, require_authnz: bool=True) -> bool:
     if os.path.exists(jwtkeyfile) and os.access(jwtkeyfile, os.R_OK):
         try:
@@ -219,7 +219,7 @@ def main() -> None:
                 jwtkeyfile=_args.jwtkey, validate_ssl=_args.ca_file if _args.ca_file else _args.validate_ssl)
         return
     elif _args.mode == "checkpassword":
-        username, password = readinput_checkpassword()
+        username, password = readinput_checkpassword()  # type: str, Optional[str]
     elif _args.mode == "authext":
         username, password = readinput_authext()
     elif _args.mode == "authextgroup":

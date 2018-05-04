@@ -30,7 +30,7 @@ from mailauth.models import MNUser
 
 
 _TokenRequest = NamedTuple('_TokenRequest', [
-    ('service', Optional[str]),
+    ('service', str),
     ('offline_token', bool),
     ('client_id', Optional[str]),
     ('scope', Optional[str]),
@@ -42,7 +42,7 @@ _log = logging.getLogger(__name__)
 
 def _tkr_parse(params: Union[Dict[str, str], QueryDict]) -> _TokenRequest:
     return _TokenRequest(
-        service=params.get("service", None),
+        service=params.get("service", "unknown"),
         offline_token=params.get("offline_token", "false") == "true",
         client_id=params.get("client_id", None),
         scope=params.get("scope", None)

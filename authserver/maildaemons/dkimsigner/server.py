@@ -19,15 +19,14 @@ from django.db.utils import OperationalError
 import authserver
 from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer
 
-_args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
-pool = None  # type: Pool
+pool = Pool()
 
 
 class DKIMSignerServer(SaneSMTPServer):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, output_ip: str, output_port: int, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.smtp = SMTPWrapper(external_ip=_args.output_ip, external_port=_args.output_port)
+        self.smtp = SMTPWrapper(external_ip=output_ip, external_port=output_port)
 
     # ** must be thread-safe, don't modify shared state,
     # _log should be thread-safe as stated by the docs. Django ORM should be as well.
@@ -40,7 +39,7 @@ class DKIMSignerServer(SaneSMTPServer):
         data = self.add_received_header(peer, data, channel)
 
         mfdomain = mailfrom.split("@", 1)[1]
-        dom = None  # type: Domain
+        dom = None  # type: Optional[Domain]
         try:
             dom = Domain.objects.get(name=mfdomain)
         except Domain.DoesNotExist:
@@ -81,11 +80,10 @@ class DKIMSignerServer(SaneSMTPServer):
         self.handle_close()
 
 
-def run() -> None:
-    global pool
-    server = DKIMSignerServer((_args.input_ip, _args.input_port), None, decode_data=False,
+def run(_args: argparse.Namespace) -> None:
+    server = DKIMSignerServer(_args.output_ip, _args.output_port,
+                              (_args.input_ip, _args.input_port), None, decode_data=False,
                               daemon_name="dkimsigner")
-    pool = Pool()
     asyncore.loop()
 
 
@@ -98,7 +96,6 @@ def _sigint_handler(sig: int, frame: FrameType) -> None:
 def _main() -> None:
     signal.signal(signal.SIGINT, _sigint_handler)
 
-    global _args
     parser = argparse.ArgumentParser(
         description="This is a SMTP daemon that is used through OpenSMTPD configuration "
                     "to DKIM sign email received on one port and then relay the signed email "
@@ -159,7 +156,7 @@ def _main() -> None:
     )
 
     with ctx:
-        run()
+        run(_args)
 
 
 def main() -> None:

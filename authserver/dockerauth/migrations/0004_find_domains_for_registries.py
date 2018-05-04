@@ -6,6 +6,7 @@ from django.db import migrations
 from typing import TYPE_CHECKING, Union
 
 from django.db.migrations import RunPython
+from typing import Optional
 
 if TYPE_CHECKING:
     from django.db.backends.base.schema import BaseDatabaseSchemaEditor
@@ -18,7 +19,7 @@ def find_parent_domain(apps: 'Apps', fqdn: str,
                        require_jwt_subdomains_set: bool=True) -> Union['mailauth_models.Domain', None]:
     # import mailauth.models.Domain here so importing this module does not depend on Django to be initialized
     Domain = apps.get_model('mailauth', 'Domain')  # type: mailauth_models.Domain
-    req_domain = None  # type: mailauth_models.Domain
+    req_domain = None  # type: Optional[mailauth_models.Domain]
 
     # results in ['sub.example.com', 'example.com', 'com']
     parts = fqdn.split(".")
@@ -48,7 +49,7 @@ def find_parent_domain(apps: 'Apps', fqdn: str,
     return req_domain
 
 
-def find_registry_defaults(apps: 'Apps', schema_editor: 'BaseDatabaseSchemaEditor'):
+def find_registry_defaults(apps: 'Apps', schema_editor: 'BaseDatabaseSchemaEditor') -> None:
     DockerRegistry = apps.get_model("dockerauth", "DockerRegistry")  # type: dockerauth_models.DockerRegistry
     Domain = apps.get_model('mailauth', 'Domain')  # type: mailauth_models.Domain
 
