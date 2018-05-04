@@ -7,7 +7,8 @@ from django.db import models
 from oauth2_provider.generators import generate_client_id
 
 from dockerauth.permissions import TokenPermissions
-from mailauth.models import MNUser, MNGroup
+from mailauth.models import MNUser, MNGroup, Domain
+from mailauth.utils import import_rsa_key
 
 
 def generate_jwt_secret_key() -> str:
@@ -104,22 +105,16 @@ class DockerRegistry(DockerPermissionBase):
         max_length=100, unique=True, default=generate_client_id, db_index=True
     )
 
-    sign_key = models.TextField(
-        verbose_name="JWT signature private key (RSA PEM)",
-        default=generate_jwt_secret_key
-    )
+    domain = models.ForeignKey(Domain, on_delete=models.PROTECT)
 
     def private_key_pem(self) -> str:
-        return self.sign_key
+        return self.domain.jwtkey
 
     def public_key_pem(self) -> str:
-        key = RSA.importKey(self.sign_key)
-        public_key = key.publickey().exportKey("PEM").decode('utf-8')
-        public_key = public_key.replace("RSA PUBLIC KEY", "PUBLIC KEY")
-        return public_key
+        return import_rsa_key(self.domain.jwtkey).public_key
 
     def __str__(self) -> str:
-        return self.name
+        return "%s (%s)" % (self.name, self.domain.name)
 
 
 class DockerRepo(DockerPermissionBase):

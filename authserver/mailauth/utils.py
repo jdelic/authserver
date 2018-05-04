@@ -2,44 +2,50 @@
 import sys
 import contextlib
 from io import TextIOWrapper
-from typing import Union, TextIO
+from typing import Union, TextIO, Generator, Tuple, NamedTuple
+
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKeyWithSerialization
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKeyWithSerialization
+
+Key = NamedTuple(
+    'Key', [
+        ("public_key", str),
+        ("private_key", str),
+        ("key", RSAPrivateKeyWithSerialization),
+])
 
 
-def find_parent_domain(fqdn: str, require_jwt_subdomains_set: bool=True) -> Union['Domain', None]:
-    # import mailauth.models.Domain here so importing this module does not depend on Django to be initialized
-    from mailauth.models import Domain
-    req_domain = None  # type: Domain
+def _create_key(pkey: RSAPrivateKeyWithSerialization) -> Key:
+    privpem = pkey.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption(),
+    ).decode("utf-8")
 
-    # results in ['sub.example.com', 'example.com', 'com']
-    parts = fqdn.split(".")
-    for domainstr in [".".join(parts[r:]) for r in range(0, len(parts))]:
-        try:
-            req_domain = Domain.objects.get(name=domainstr)
-        except Domain.DoesNotExist:
-            continue
-        else:
-            if req_domain is None or req_domain.jwtkey == "":
-                req_domain = None
-                continue
+    pub = pkey.public_key()  # type: RSAPublicKeyWithSerialization
+    pubpem = pub.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode("utf-8")
+    return Key(public_key=pubpem, private_key=privpem, key=pkey)
 
-            if req_domain.jwtkey is not None and req_domain.jwtkey != "":
-                if domainstr == fqdn or (req_domain.jwt_subdomains and require_jwt_subdomains_set):
-                    break
-                elif not require_jwt_subdomains_set:
-                    # we have a domain which has a jwtkey and we don't require jwt_subdomains to be True, so
-                    # we return the current result
-                    break
-                elif require_jwt_subdomains_set and not req_domain.jwt_subdomains:
-                    # prevent the case where domainstr is the last str in parts, it matches, has a jwtkey but
-                    # is not valid for subdomains. req_domain would be != None in that case and the loop would exit
-                    req_domain = None
-                    continue
 
-    return req_domain
+def generate_rsa_key(length: int=2048) -> Key:
+    pkey = rsa.generate_private_key(
+        public_exponent=65537, key_size=length, backend=default_backend())  # type: RSAPrivateKeyWithSerialization
+    return _create_key(pkey)
+
+
+def import_rsa_key(key: str) -> Key:
+    pkey = serialization.load_pem_private_key(key.encode("utf-8"), password=None, backend=default_backend())
+    return _create_key(pkey)
 
 
 @contextlib.contextmanager
-def stdout_or_file(path: str) -> Union[TextIOWrapper, TextIO]:
+def stdout_or_file(path: str) -> Generator[Union[TextIOWrapper, TextIO], None, None]:
     if path is None or path == "" or path == "-":
         yield sys.stdout
     else:

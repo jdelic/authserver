@@ -4,11 +4,12 @@ import logging
 from typing import Dict, Any, Optional
 
 import jwt
-from Crypto.Hash import SHA256
-from Crypto.PublicKey import RSA
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKeyWithSerialization
 
 from mailauth.models import MNUser
-
+from mailauth.utils import import_rsa_key
 
 _log = logging.getLogger(__name__)
 
@@ -17,10 +18,15 @@ class JWTViewHelperMixin:
     def _create_jwt(self, claim: Dict[str, Any], key_pemstr: str) -> str:
         _log.debug("Encoding JWT response: %s", claim)
 
+        pk = import_rsa_key(key_pemstr).key.public_key()  # type: RSAPublicKeyWithSerialization
+        pk_der = pk.public_bytes(encoding=serialization.Encoding.DER,
+                                 format=serialization.PublicFormat.SubjectPublicKeyInfo)
+
+        hash = hashes.Hash(algorithm=hashes.SHA256(), backend=default_backend())
+        hash.update(pk_der)
+
         fp = base64.b32encode(
-            SHA256.new(
-                data=RSA.importKey(key_pemstr).publickey().exportKey(format="DER")
-            ).digest()[0:30]  # shorten to 240 bit presumably so no padding is necessary
+            hash.finalize()[0:30]  # shorten to 240 bit presumably so no padding is necessary
         ).decode('utf-8')
 
         kid = ":".join([fp[i:i + 4] for i in range(0, len(fp), 4)])

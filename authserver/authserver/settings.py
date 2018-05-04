@@ -122,6 +122,8 @@ else:
 
 DOCKERAUTH_ALLOW_UNCONFIGURED_REPOS = django12factor.getenv_bool("DOCKERAUTH_ALLOW_UNCONFIGURED_REPOS")
 
+JWT_CERTIFICATE_DAYS_VALID = int(os.getenv("JWT_CERT_DAYS_VALID", "365"))
+
 AUTH_USER_MODEL = 'mailauth.MNUser'
 
 # Validate email addresses against our special DB structure
@@ -155,7 +157,6 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.10/topics/i18n/

@@ -10,7 +10,7 @@ import sys
 import os
 
 from types import FrameType
-from typing import Tuple, Sequence, Any, Union, Optional, List
+from typing import Tuple, Sequence, Any, Union, Optional, List, Dict
 from concurrent.futures import ThreadPoolExecutor as Pool
 
 import daemon
@@ -20,17 +20,17 @@ import authserver
 from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer
 
 
-_args = None  # type: argparse.Namespace
 _log = logging.getLogger(__name__)
-pool = None  # type: Pool
+pool = Pool()
 
 
 class ForwarderServer(SaneSMTPServer):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, remote_relay_ip: str, remote_relay_port: int, local_delivery_ip: str,
+                 local_delivery_port: int, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.smtp = SMTPWrapper(
-            external_ip=_args.remote_relay_ip, external_port=_args.remote_relay_port,
-            error_relay_ip=_args.local_delivery_ip, error_relay_port=_args.local_delivery_port
+            external_ip=remote_relay_ip, external_port=remote_relay_port,
+            error_relay_ip=local_delivery_ip, error_relay_port=local_delivery_port
         )
 
     # ** must be thread-safe, don't modify shared state,
@@ -46,7 +46,7 @@ class ForwarderServer(SaneSMTPServer):
         remaining_rcpttos = list(rcpttos)  # ensure that new_rcpttos is a mutable list
         combined_rcptto = {}  # type: Dict[str, List[str]]  # { new_mailfrom: [recipients] }
 
-        def add_rcptto(mfrom: str, rcpt: Union[str, List]):
+        def add_rcptto(mfrom: str, rcpt: Union[str, List]) -> None:
             if mailfrom in combined_rcptto:
                 if isinstance(rcpt, list):
                     combined_rcptto[mfrom] += rcpt
@@ -64,7 +64,7 @@ class ForwarderServer(SaneSMTPServer):
             rcptuser, rcptdomain = rcptto.split("@", 1)
 
             # implement domain catch-all redirect
-            domain = None  # type: Domain
+            domain = None  # type: Optional[Domain]
             try:
                 domain = Domain.objects.get(name=rcptdomain)
             except Domain.DoesNotExist:
@@ -149,10 +149,10 @@ class ForwarderServer(SaneSMTPServer):
         return future.result()
 
 
-def run() -> None:
-    global pool
-    pool = Pool()
-    server = ForwarderServer((_args.input_ip, _args.input_port), None, decode_data=False,
+def run(_args: argparse.Namespace) -> None:
+    server = ForwarderServer(_args.remote_relay_ip, _args.remote_relay_port,
+                             _args.local_delivery_ip, _args.local_delivery_port,
+                             (_args.input_ip, _args.input_port), None, decode_data=False,
                              daemon_name="mailforwarder")
     asyncore.loop()
 
@@ -166,7 +166,6 @@ def _sigint_handler(sig: int, frame: FrameType) -> None:
 def _main() -> None:
     signal.signal(signal.SIGINT, _sigint_handler)
 
-    global _args
     parser = argparse.ArgumentParser(
         description="This is a SMTP daemon that is used through OpenSMTPD configuration "
                     "to check whether incoming emails are addressed to a forwarding email alias "
@@ -231,7 +230,7 @@ def _main() -> None:
     )
 
     with ctx:
-        run()
+        run(_args)
 
 
 def main() -> None:

@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from typing import Any, Optional, Set, Iterable, Union, List
 
+from django.db.models import Manager
 from oauth2_provider import models as oauth2_models
 
 #
@@ -27,12 +28,6 @@ class PretendHasherPasswordField(models.CharField):
     Django sidesteps the Model instance which has a property below and instantiates the Field class
     directly.
     """
-    def value_from_object(self, obj: 'PretendHasherPasswordField') -> str:
-        if hasattr(obj, 'actual_password'):
-            return getattr(obj, 'actual_password')
-        else:
-            return getattr(obj, self.attname)
-
     def get_prep_value(self, value: str) -> str:
         # we might get a value previously modified by the password getter below. In that case we remove
         # the unwanted prefix.
@@ -51,6 +46,41 @@ class PretendHasherPasswordField(models.CharField):
             return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, value)
 
 
+class DomainManager(Manager):
+    def find_parent_domain(self, fqdn: str, require_jwt_subdomains_set: bool=True) -> 'Domain':
+        req_domain = None  # type: Optional[Domain]
+
+        # results in ['sub.example.com', 'example.com', 'com']
+        parts = fqdn.split(".")
+        for domainstr in [".".join(parts[r:]) for r in range(0, len(parts))]:
+            try:
+                req_domain = self.get(name=domainstr)
+            except Domain.DoesNotExist:
+                continue
+            else:
+                if req_domain is None or req_domain.jwtkey == "":
+                    req_domain = None
+                    continue
+
+                if req_domain.jwtkey is not None and req_domain.jwtkey != "":
+                    if domainstr == fqdn or (req_domain.jwt_subdomains and require_jwt_subdomains_set):
+                        break
+                    elif not require_jwt_subdomains_set:
+                        # we have a domain which has a jwtkey and we don't require jwt_subdomains to be True, so
+                        # we return the current result
+                        break
+                    elif require_jwt_subdomains_set and not req_domain.jwt_subdomains:
+                        # prevent the case where domainstr is the last str in parts, it matches, has a jwtkey but
+                        # is not valid for subdomains. req_domain would be != None in that case and the loop would exit
+                        req_domain = None
+                        continue
+
+        if req_domain is None:
+            raise Domain.DoesNotExist()
+
+        return req_domain
+
+
 class Domain(models.Model):
     name = models.CharField(max_length=255, unique=True)
     dkimselector = models.CharField(verbose_name="DKIM DNS selector", max_length=255, null=False, blank=True,
@@ -60,6 +90,8 @@ class Domain(models.Model):
     jwt_subdomains = models.BooleanField(verbose_name="Use JWT key to sign for subdomains", default=False)
     redirect_to = models.CharField(verbose_name="Redirect all mail to domain", max_length=255, null=False, blank=True,
                                    default="")
+
+    objects = DomainManager()
 
     def __str__(self) -> str:
         return self.name
@@ -145,7 +177,7 @@ class MNUserManager(base_user.BaseUserManager):
     # serializes Manager into migrations. I set this here because it's set on the default UserManager
     use_in_migrations = True
 
-    def _create_user(self, identifier: str, fullname: str, password: str, **extrafields: Any) -> 'MNUser':
+    def _create_user(self, identifier: str, fullname: str, password: Optional[str], **extrafields: Any) -> 'MNUser':
         if not identifier:
             raise ValueError("MNUserManager._create_user requires set identifier")
 
@@ -167,9 +199,13 @@ class MNUserManager(base_user.BaseUserManager):
         extrafields.setdefault("is_staff", False)
         return self._create_user(identifier, fullname, password, **extrafields)
 
-    def resolve_user(self, username: str) -> Union['MNUser', None]:
+    def resolve_user(self, username: str) -> 'MNUser':
+        """
+        :param username: the username to find
+        :raises UnresolvableUserException: When no user can be found
+        :return: The user
+        """
         if "@" not in username or username.count("@") > 1:
-            user = None  # type: Union[MNUser, MNServiceUser]
             try:
                 service_user = MNServiceUser.objects.get(username=username)
             except (MNServiceUser.DoesNotExist, ValidationError):

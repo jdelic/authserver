@@ -7,14 +7,20 @@ import argparse
 import subprocess
 from io import TextIOWrapper
 
-from typing import Tuple, Union, Set, List, TextIO
+from typing import Tuple, Union, Set, List, TextIO, Generator, cast, IO, Optional
+from urllib.parse import urlencode
 
 import jwt
 import requests
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKeyWithSerialization
+from cryptography.x509 import Certificate
 
 
 @contextlib.contextmanager
-def stdout_or_file(path: str) -> Union[TextIOWrapper, TextIO]:
+def stdout_or_file(path: Optional[str]) -> Generator[Union[TextIOWrapper, TextIO], None, None]:
     if path is None or path == "" or path == "-":
         yield sys.stdout
     else:
@@ -53,7 +59,7 @@ def readinput_groups() -> Tuple[str, List[str]]:
     return username, groups
 
 
-def validate(url: str, username: str, password: str, jwtkeyfile: str, scopes: Set[str],
+def validate(url: str, username: str, password: Optional[str], jwtkeyfile: str, scopes: Set[str],
              validate_ssl: Union[bool, str]=True, require_authnz: bool=True) -> bool:
     if os.path.exists(jwtkeyfile) and os.access(jwtkeyfile, os.R_OK):
         try:
@@ -65,6 +71,13 @@ def validate(url: str, username: str, password: str, jwtkeyfile: str, scopes: Se
     else:
         sys.stderr.write("ERROR JWT key file %s does not exist.\n" % jwtkeyfile)
         sys.exit(2)
+
+    # if we get a X509 certificate, convert it to a public key that can then be deserialized by pyjwt
+    if jwtkey.startswith("-----BEGIN CERTIFICATE"):
+        cert = x509.load_pem_x509_certificate(jwtkey, backend=default_backend())  # type: Certificate
+        pk = cert.public_key()  # type: RSAPublicKeyWithSerialization
+        jwtkey = pk.public_bytes(encoding=serialization.Encoding.PEM,
+                                 format=serialization.PublicFormat.SubjectPublicKeyInfo)
 
     try:
         resp = requests.post(url, json={"username": username, "password": password}, verify=validate_ssl)
@@ -98,12 +111,27 @@ def validate(url: str, username: str, password: str, jwtkeyfile: str, scopes: Se
         sys.stderr.write("ERROR Server returned code %s\n" % resp.status_code)
         return False
 
+    return False
 
-def loadkey(url: str, jwtkeyfile: str=None, check: bool=False, validate_ssl: Union[bool, str]=True) -> None:
+
+def loadkey(url: str, domain: str=None, jwtkeyfile: str=None, response_format: str="pubkey", check: bool=False,
+            validate_ssl: Union[bool, str]=True) -> None:
     if jwtkeyfile and jwtkeyfile != "-":
         if os.path.exists(jwtkeyfile):
             sys.stderr.write("Path %s already exists. Doing nothing.\n" % jwtkeyfile)
             sys.exit(0)
+
+    if domain:
+        par = urlencode({"domain": domain})
+        if "?" in url:
+            url = "%s&%s" % (url, par)
+        else:
+            url = "%s?%s" % (url, par)
+
+    if "?" in url:
+        url = "%s&%s" % (url, "format=%s" % response_format,)
+    else:
+        url = "%s?%s" % (url, "format=%s" % response_format,)
 
     try:
         resp = requests.get(url, verify=validate_ssl)
@@ -127,7 +155,9 @@ def loadkey(url: str, jwtkeyfile: str=None, check: bool=False, validate_ssl: Uni
             sys.stderr.write("Check successful.\n")
         else:
             with stdout_or_file(jwtkeyfile) as out:
-                print("\n".join(resp.json()["public_key_pem"]), file=out)
+                print("\n".join(resp.json()[
+                                    "cert" if response_format == "cert" else "public_key_pem"
+                                ]), file=cast(IO[str], out))
 
             if jwtkeyfile != "-":
                 sys.stderr.write("Key written to %s\n" % jwtkeyfile)
@@ -163,6 +193,9 @@ def main() -> None:
                         help="The URL of the authserver endpoint to use to check the password. Usually this should "
                              "point to the server's 'checkpassword' REST API, unless mode is 'init' in which case "
                              "it should point to the servers 'getkey' REST API endpoint")
+    parser.add_argument("-f", "--format", dest="format", choices=["pubkey", "cert"], default="pubkey",
+                        help="Choose the format for the JWT public key, which can be requested as a RSA public key "
+                             "('pubkey') or a self-signed X509 certiifcate ('cert')")
     parser.add_argument("--no-ssl-validate", dest="validate_ssl", action="store_false", default=True,
                         help="Skip validation of the server's SSL certificate.")
     parser.add_argument("--ca-file", dest="ca_file", default=None,
@@ -173,17 +206,20 @@ def main() -> None:
                         help="Path to a PEM encoded public key to verify the JWT claims and scopes returned by the "
                              "server (i.e. the server's public key). Mode 'init' writes the key to this file. Use '-' "
                              "to write the key to stdout in 'init' mode.")
+    parser.add_argument("--domain", dest="domain", default=None,
+                        help="Specify an alternate domain to check for an existing JWT signing public key, otherwise "
+                             "the server will use the domain from '--url'.")
     parser.add_argument("prog", nargs="*", help="The program to run as defined by the checkpassword interface "
                                                 "(optional).")
 
     _args = parser.parse_args()
 
     if _args.mode in ["init", "check"]:
-        loadkey(_args.url, check=(_args.mode == "check"), jwtkeyfile=_args.jwtkey,
-                validate_ssl=_args.ca_file if _args.ca_file else _args.validate_ssl)
+        loadkey(_args.url, domain=_args.domain, check=(_args.mode == "check"), response_format=_args.format,
+                jwtkeyfile=_args.jwtkey, validate_ssl=_args.ca_file if _args.ca_file else _args.validate_ssl)
         return
     elif _args.mode == "checkpassword":
-        username, password = readinput_checkpassword()
+        username, password = readinput_checkpassword()  # type: str, Optional[str]
     elif _args.mode == "authext":
         username, password = readinput_authext()
     elif _args.mode == "authextgroup":

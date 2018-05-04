@@ -5,11 +5,12 @@ import smtplib
 import socket
 from email import policy
 from email._policybase import Policy
+from email.header import Header
 from email.message import Message, _formatparam, SEMISPACE  # type: ignore
 
 
 from email.parser import BytesParser
-from typing import Union, List, Sequence, Tuple, Any, Optional
+from typing import Union, List, Sequence, Tuple, Any, Optional, cast
 
 from django.utils import timezone
 
@@ -46,10 +47,11 @@ class SMTPWrapper:
     def _format_denied_recipients(self, original_mail: bytes, recipients: Sequence[str]) -> bytes:
         parser = BytesParser()
         # TODO: fix type annotation when typeshed has better stubs
-        msg = None  # type: Message
+        msg = cast(Message, None)  # type: Message
         msg = parser.parsebytes(original_mail, True)  # type: ignore
         msg["Subject"] = "[mailforwarder error] Re: %s" % msg["Subject"]
-        msg["To"] = msg["From"]
+        # this should never be None at this point, but typewise it could be
+        msg["To"] = cast(Union[str, Header], msg["From"])
         msg["From"] = "mailforwarder bounce <>"
 
         rcptlist = ""
@@ -119,7 +121,7 @@ class PatchedSMTPChannel(smtpd.SMTPChannel):
         # instantiated SMTPServer instances. So these can have been patched already. Therefore
         # we make sure they're not by marking them. Otherwise we'll end up with a really long stacktrace of
         # nested __real_pm calls.
-        wrapper.mn_is_wrapper = True
+        wrapper.mn_is_wrapper = True  # type: ignore  # Assignment to Callable properties is stikk broken mypy#708
 
         if not hasattr(self.smtp_server.process_message, 'mn_is_wrapper'):
             # TODO: remove type annotation when issue is fixed
@@ -189,15 +191,16 @@ class SaneSMTPServer(smtpd.SMTPServer):
 
     def __init__(self, localaddr: _Address, remoteaddr: _Address, *,
                  daemon_name: str, server_name: Optional[str]=None, **kwargs: Any) -> None:
-        self._localaddr = None  # type: _Address
+        # the assignment below is just to assign an type to the internal attribute
+        self._localaddr = cast(_Address, None)  # type: _Address
         super().__init__(localaddr, remoteaddr, **kwargs)
         self.server_name = socket.gethostname() if server_name is None else server_name
         self.daemon_name = daemon_name
 
     def add_received_header(self, peer: Tuple[str, int], msg: bytes, channel: PatchedSMTPChannel) -> bytes:
         parser = BytesParser(_class=SaneMessage, policy=_compat32_smtp_policy)
-        # TODO: remove type annotation when issue is fixed
-        new_msg = None  # type: SaneMessage
+        # TODO: remove type annotation and cast when BytesParser on Typeshed gains .parsebytes
+        new_msg = cast(SaneMessage, None)  # type: SaneMessage
         new_msg = parser.parsebytes(msg)  # type: ignore
         new_msg.prepend_header("Received",
                                "from %s (%s:%s)\r\n\tby %s (%s [%s:%s]) with SMTP;\r\n\t%s" %
