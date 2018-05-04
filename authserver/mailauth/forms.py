@@ -6,10 +6,10 @@ import os
 import re
 import math
 import uuid
-from typing import Any, Dict, Sequence, Tuple, Optional, List
+from typing import Any, Dict, Sequence, Tuple, Optional, List, cast, Match
 
 import django.contrib.auth.forms as auth_forms
-from Crypto.PublicKey import RSA
+
 from django import forms
 from django.contrib.admin import widgets
 from django.core.exceptions import ValidationError
@@ -19,6 +19,7 @@ from django.utils.html import format_html
 from django_select2.forms import Select2TagWidget
 
 from mailauth.models import MNUser, Domain, MailingList, MNServiceUser
+from mailauth.utils import import_rsa_key
 
 
 def generate_password(pass_len: int) -> str:
@@ -114,9 +115,7 @@ class RSAKeyWidget(widgets.AdminTextareaWidget):
                renderer: Optional[BaseRenderer]=None) -> str:
         ret = super().render(name, value, attrs)
         if value and value.startswith("-----BEGIN RSA PRIVATE KEY"):
-            key = RSA.importKey(value)
-            public_key = key.publickey().exportKey("PEM").decode('utf-8')
-            public_key = public_key.replace("RSA PUBLIC KEY", "PUBLIC KEY")
+            public_key = import_rsa_key(value).public_key
 
             ret += format_html(
                 """
@@ -130,8 +129,8 @@ class RSAKeyWidget(widgets.AdminTextareaWidget):
                 """,
                     split_key="\n".join(
                         ['"%s"' % line for line in
-                            re.search("--\n(.*?)\n--", public_key, re.DOTALL).group(1).split("\n")])
-                )
+                            cast(Match[str], re.search("--\n(.*?)\n--", public_key, re.DOTALL)).group(1).split("\n")])
+                )  # the cast tells mypy that re.search will not return None here
         else:
             ret += format_html("""
             <input type="submit" name="_genkey-{name}" value="Generate&nbsp;new&nbsp;key" class="button"/>

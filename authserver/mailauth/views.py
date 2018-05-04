@@ -5,9 +5,8 @@ from datetime import datetime
 from typing import Any, Union, List, NamedTuple, Set
 
 import pytz
-from Crypto.PublicKey import RSA
 from django.contrib.auth import authenticate
-from django.http import HttpResponseBadRequest, HttpResponseNotFound
+from django.http import HttpResponseBadRequest
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse
 from django.shortcuts import render
@@ -18,10 +17,11 @@ from oauth2_provider.forms import AllowForm
 from oauth2_provider.models import get_application_model
 from oauth2_provider.views.base import AuthorizationView
 from ratelimit.mixins import RatelimitMixin
+from typing import Optional
 
 from dockerauth.jwtutils import JWTViewHelperMixin
 from mailauth import utils
-from mailauth.models import MNApplication, Domain, UnresolvableUserException
+from mailauth.models import MNApplication, UnresolvableUserException, Domain
 from mailauth.models import MNUser
 from mailauth.permissions import find_missing_permissions
 
@@ -88,45 +88,6 @@ class InvalidAuthRequest(Exception):
     pass
 
 
-class JWTPublicKeyView(RatelimitMixin, View):
-    ratelimit_key = 'ip'
-    ratelimit_rate = '5/m'
-    ratelimit_block = True
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-
-    @method_decorator(csrf_exempt)
-    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
-        return super().dispatch(*args, **kwargs)
-
-    def get(self, request: HttpRequest) -> HttpResponse:
-        if not request.is_secure():
-            return HttpResponseBadRequest('{"error": "This endpoint must be called securely"}',
-                                          content_type="application/json")
-
-        req_domain = utils.find_parent_domain(request.get_host())
-        if req_domain is None:
-            return HttpResponseNotFound('{"error": "Not a valid authorization domain"}',
-                                        content_type="application/json")
-
-        if req_domain.jwtkey is None or req_domain.jwtkey == "":
-            return HttpResponseNotFound('{"error": "Domain is not JWT enabled"}',
-                                        content_type="application/json")
-
-        try:
-            privkey = RSA.import_key(req_domain.jwtkey)  # type: ignore  # mypy doesn't see import_key for some reason
-        except ValueError:
-            return HttpResponseNotFound('{"error": "Domain is not JWT enabled"}',
-                                        content_type="application/json")
-
-        public_key = privkey.publickey().exportKey("PEM").decode('utf-8').replace("RSA PUBLIC KEY", "PUBLIC KEY")
-        resp = {
-            "public_key_pem": public_key.split("\n")
-        }
-        return HttpResponse(json.dumps(resp), content_type="application/json", status=200)
-
-
 class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
     ratelimit_key = 'ip'
     ratelimit_rate = '20/m'
@@ -167,9 +128,9 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
             return HttpResponseBadRequest('{"error": "This endpoint must be called securely"}',
                                           content_type="application/json")
 
-        req_domain = utils.find_parent_domain(request.get_host(), require_jwt_subdomains_set=True)
-
-        if req_domain is None:
+        try:
+            req_domain = Domain.objects.find_parent_domain(request.get_host(), require_jwt_subdomains_set=True)
+        except Domain.DoesNotExist:
             return HttpResponseBadRequest('{"error": "Not a valid authorization domain"}',
                                           content_type="application/json")
 
@@ -181,7 +142,7 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
             return HttpResponseBadRequest('{"error": "Missing parameters"}', content_type="application/json")
 
         if userdesc.password:
-            user = authenticate(username=userdesc.username, password=userdesc.password)  # type: MNUser
+            user = authenticate(username=userdesc.username, password=userdesc.password)  # type: Optional[MNUser]
             authenticated = True
         else:
             authenticated = False
