@@ -2,7 +2,7 @@
 import argparse
 
 from django.core.management import BaseCommand, CommandParser
-from typing import Any
+from typing import Any, Sequence
 
 from django.db import connection
 from django.db.backends.utils import CursorWrapper
@@ -183,15 +183,25 @@ class Command(BaseCommand):
             $$ LANGUAGE plpgsql SECURITY DEFINER;
         """)
 
-    def _grant(self, **options: Any) -> None:
+    def _grant(self, user: Sequence[str], **options: Any) -> None:
         cur = connection.cursor()  # type: CursorWrapper
-        for user in options["user"]:
+        for u in user:
             cur.execute("""
                 GRANT EXECUTE ON FUNCTION authserver_check_domain(varchar) TO "{username}";
                 GRANT EXECUTE ON FUNCTION authserver_get_credentials(varchar) TO "{username}";
                 GRANT EXECUTE ON FUNCTION authserver_resolve_alias(varchar, boolean) TO "{username}";
                 GRANT EXECUTE ON FUNCTION authserver_iterate_users() TO "{username}";
-            """.format(username=user))
+            """.format(username=u))
+
+    def _revoke(self, user: Sequence[str], **options: Any) -> None:
+        cur = connection.cursor()  # type: CursorWrapper
+        for u in user:
+            cur.execute("""
+                REVOKE EXECUTE ON FUNCTION authserver_check_domain(varchar) FROM "{username}";
+                REVOKE EXECUTE ON FUNCTION authserver_get_credentials(varchar) FROM "{username}";
+                REVOKE EXECUTE ON FUNCTION authserver_resolve_alias(varchar, boolean) FROM "{username}";
+                REVOKE EXECUTE ON FUNCTION authserver_iterate_users() FROM "{username}";
+            """.format(username=u))
 
     def add_arguments(self, parser: CommandParser) -> None:
         cmd = self
@@ -210,15 +220,21 @@ class Command(BaseCommand):
         grant_sp = subparsers.add_parser("grant", help="Grant access to the stored procedure API to a database user")
         grant_sp.add_argument(
             "user", nargs="+", action="append", default=[],
-            help="The name of the database user to grant access to the stored procedures. 'install' must have been "
-                 "called before and the users must already exist"
+            help="The names of the database users to grant access to the stored procedures. 'install' must have been "
+                 "called before and the users must already have been created in PostgreSQL"
         )
+        revoke_sp = subparsers.add_parser("revoke", help="Revoke access to the stored procedure API from a database "
+                                                         "user")
+        revoke_sp.add_argument("user", nargs="+", action="append", default=[],
+                               help="The names of the database users to revoke access from")
 
     def handle(self, *args:Any, **options: Any) -> None:
         if options["scmd"] == "install":
             self._install(**options)
         elif options["scmd"] == "grant":
             self._grant(**options)
+        elif options["scmd"] == "revoke":
+            self._revoke(**options)
         else:
             self.stderr.write("Please specify a command.\n")
             self.stderr.write("Use django-admin.py spapi --settings=authserver.settings --help to get help.\n\n")
