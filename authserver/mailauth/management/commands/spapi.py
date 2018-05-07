@@ -208,7 +208,7 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR("SPAPI is NOT installed."))
             sys.exit(1)
 
-    def _check_user(self, user: str, **options: Any) -> None:
+    def _check_user(self, user: Sequence[str], **options: Any) -> None:
         q = ""
         for ix, sig in enumerate(self.spapi_signatures):
             q = "has_function_privilege('{user}', '{fnsig}', 'execute') AS a{count}{comma}".format(
@@ -261,7 +261,7 @@ class Command(BaseCommand):
         inst_sp = subparsers.add_parser("install", help="Create stored procedure API in the database")
         grant_sp = subparsers.add_parser("grant", help="Grant access to the stored procedure API to a database user")
         grant_sp.add_argument(
-            "user", nargs="+", action="append", default=[],
+            "user", nargs="+",
             help="The names of the database users to grant access to the stored procedures. 'install' must have been "
                  "called before and the users must already have been created in PostgreSQL"
         )
