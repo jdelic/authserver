@@ -270,8 +270,9 @@ class Command(BaseCommand):
         revoke_sp.add_argument("user", nargs="+", action="append", default=[],
                                help="The names of the database users to revoke access from")
         check_sp = subparsers.add_parser("check", help="Check whether the spapi is installed or a user as access")
-        check_sp.add_argument("--type", dest="check_type", choices=["installed", "grant"], default="grant")
-        check_sp.add_argument("user")
+        check_sp_g = check_sp.add_mutually_exclusive_group(required=True)
+        check_sp_g.add_argument("--installed", dest="check_installed", action="store_true", default=False)
+        check_sp_g.add_argument("--grant", dest="user", type=str)
 
     def handle(self, *args:Any, **options: Any) -> None:
         if options["scmd"] == "install":
@@ -281,9 +282,9 @@ class Command(BaseCommand):
         elif options["scmd"] == "revoke":
             self._revoke(**options)
         elif options["scmd"] == "check":
-            if options["check_type"] == "installed":
+            if options["check_installed"]:
                 self._check_install(**options)
-            else:
+            elif options["user"]:
                 self._check_user(**options)
         else:
             self.stderr.write("Please specify a command.\n")
