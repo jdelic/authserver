@@ -18,15 +18,23 @@ email addresses. Basically a ``.forward`` or ``.qmail`` implementation based on
 authserver's database schema as a Python daemon.
 
 It also provides Django ``manage.py`` commands for registering OAuth2
-applications. Those are useful for creating configuration entries through
-configuration management systems.
+applications, users, domains and  Docker registries. Those are useful for
+creating configuration entries through configuration management systems.
 
-Finally, it also includes an implementation of the
+It also includes an implementation of the
 `Docker Token Authentication protocol <dockerauth_>`__ and can therefore be
 used to secure Docker registries for push and pull with SSO credentials. The
 included ``manage.py`` command: ``manage.py dockerauth registry add ...``
 allows script based setup.
 
+Finally, it includes a ``checkpassword`` compatible client application that can
+be used to integrate Apache2 ``mod_authnz_external`` or DJB checkpassword
+compatible clients with authserver.
+
+Users can use the admin interface to create "service users" which are specific
+aliases for user accounts that can be used with applications that don't support
+OAuth2 so users don't have to share their passwords with the service
+(equivalent to the same feature on Google Gmail).
 
 Planned features
 ----------------
@@ -35,10 +43,6 @@ Planned features
   credentials, cutting down on manual configuration.
 
 * OpenID Connect support
-
-* Command-line authentication helper (the first version of this has landed with
-  the ``permissions``, ``domain``, ``dockerauth`` and ``oauth2`` commands for
-  ``manage.py``)
 
 * Service-specific username and passwords for systems that don't support
   OAuth2/OIDC
@@ -108,13 +112,6 @@ DATABASE_PARENTROLE   The role that authserver should "sudo" into (via
                       primary access role (only used with Vault).
 DATABASE_NAME         The name of the database to connect to (only used with
                       Vault).
-SPAPI_DBUSERS         A comma-separated list of database users which are being
-                      granted access to the stored procedure API in migration
-                      ``0003_opensmtpd_access``. You probably want to create
-                      a user for your SMTP server (e.g. OpenSMTPD) and your
-                      IMAP server (e.g. dovecot). Both can query authserver's
-                      database through these stored procedures as their user
-                      databases.
 DATABASE_URL          When client SSL certificates or usernames and passwords
                       are used to connect to the database instead of Vault,
                       then this URL (parsed by dj-database-url) is used to
@@ -196,6 +193,17 @@ N   Function Name                        Description
 4   ``authserver_iterate_users()``       Returns a list of all valid delivery
                                          mailboxes.
 ==  ===================================  =====================================
+
+Access to the stored procedure API is managed by the ``django-admin.py spapi``
+command which allows you to ``grant`` access to database users, ``install`` the
+stored procedures on the database and ``check`` whether the stored procedures
+have been installed or if a specific database user has ``execute`` access to
+the stored procedures. For more information, please run:
+
+.. code-block::shell
+
+    /usr/local/authserver/bin/envdir /etc/appconfig/authserver/env/ \
+        /usr/local/authserver/bin/django-admin.py spapi --help
 
 
 OAuth2
