@@ -1,6 +1,7 @@
 # -* encoding: utf-8 *-
 import argparse
 
+import sys
 from django.core.management import BaseCommand, CommandParser
 from typing import Any, Sequence
 
@@ -10,6 +11,13 @@ from django.db.backends.utils import CursorWrapper
 
 class Command(BaseCommand):
     requires_migrations_checks = True
+
+    spapi_signatures = [
+        "authserver_check_domain(varchar)",
+        "authserver_resolve_alias(varchar, boolean)",
+        "authserver_get_credentials(varchar)",
+        "authserver_iterate_users()"
+    ]
 
     def _install(self, **options: Any) -> None:
         cur = connection.cursor()  # type: CursorWrapper
@@ -183,25 +191,59 @@ class Command(BaseCommand):
             $$ LANGUAGE plpgsql SECURITY DEFINER;
         """)
 
+    def _check_install(self, **options: Any) -> None:
+        q = ""
+        for ix, sig in enumerate(self.spapi_signatures):
+            q = "to_regprocedure('{fnsig}') IS NOT NULL AS a{count}{comma}".format(
+                    fnsig=sig, count=ix, comma="," if ix < len(self.spapi_signatures) - 1 else "")
+
+        cur = connection.cursor()  # type: CursorWrapper
+        cur.execute("""
+            SELECT {query}
+        """.format(query=q))
+        res = cur.fetchone()
+        if all(res):
+            self.stderr.write(self.style.SUCCESS("SPAPI is installed."))
+        else:
+            self.stderr.write(self.style.ERROR("SPAPI is NOT installed."))
+            sys.exit(1)
+
+    def _check_user(self, user: str, **options: Any) -> None:
+        q = ""
+        for ix, sig in enumerate(self.spapi_signatures):
+            q = "has_function_privilege('{user}', '{fnsig}', 'execute') AS a{count}{comma}".format(
+                    user=user, fnsig=sig, count=ix, comma="," if ix < len(self.spapi_signatures) - 1 else "")
+
+        cur = connection.cursor()  # type: CursorWrapper
+        cur.execute("""
+            SELECT {query}
+        """.format(query=q))
+        res = cur.fetchone()
+        if all(res):
+            self.stderr.write(self.style.SUCCESS("User {user} has access to the stored procedure API.".format(
+                user=user
+            )))
+        else:
+            self.stderr.write(self.style.ERROR("User {user} does NOT have access to the stored procedure API.".format(
+                user=user
+            )))
+            sys.exit(1)
+
     def _grant(self, user: Sequence[str], **options: Any) -> None:
         cur = connection.cursor()  # type: CursorWrapper
         for u in user:
-            cur.execute("""
-                GRANT EXECUTE ON FUNCTION authserver_check_domain(varchar) TO "{username}";
-                GRANT EXECUTE ON FUNCTION authserver_get_credentials(varchar) TO "{username}";
-                GRANT EXECUTE ON FUNCTION authserver_resolve_alias(varchar, boolean) TO "{username}";
-                GRANT EXECUTE ON FUNCTION authserver_iterate_users() TO "{username}";
-            """.format(username=u))
+            for sig in self.spapi_signatures:
+                cur.execute("""
+                    GRANT EXECUTE ON FUNCTION {fnsignature} TO "{username}";
+                """.format(fnsignature=sig, username=u))
 
     def _revoke(self, user: Sequence[str], **options: Any) -> None:
         cur = connection.cursor()  # type: CursorWrapper
         for u in user:
-            cur.execute("""
-                REVOKE EXECUTE ON FUNCTION authserver_check_domain(varchar) FROM "{username}";
-                REVOKE EXECUTE ON FUNCTION authserver_get_credentials(varchar) FROM "{username}";
-                REVOKE EXECUTE ON FUNCTION authserver_resolve_alias(varchar, boolean) FROM "{username}";
-                REVOKE EXECUTE ON FUNCTION authserver_iterate_users() FROM "{username}";
-            """.format(username=u))
+            for sig in self.spapi_signatures:
+                cur.execute("""
+                    REVOKE EXECUTE ON FUNCTION {fnsignature} FROM "{username}";
+                """.format(fnsignature=sig, username=u))
 
     def add_arguments(self, parser: CommandParser) -> None:
         cmd = self
@@ -227,6 +269,9 @@ class Command(BaseCommand):
                                                          "user")
         revoke_sp.add_argument("user", nargs="+", action="append", default=[],
                                help="The names of the database users to revoke access from")
+        check_sp = subparsers.add_parser("check", help="Check whether the spapi is installed or a user as access")
+        check_sp.add_argument("--type", dest="check_type", choices=["installed", "grant"], default="grant")
+        check_sp.add_argument("user")
 
     def handle(self, *args:Any, **options: Any) -> None:
         if options["scmd"] == "install":
@@ -235,6 +280,11 @@ class Command(BaseCommand):
             self._grant(**options)
         elif options["scmd"] == "revoke":
             self._revoke(**options)
+        elif options["scmd"] == "check":
+            if options["check_type"] == "installed":
+                self._check_install(**options)
+            else:
+                self._check_user(**options)
         else:
             self.stderr.write("Please specify a command.\n")
             self.stderr.write("Use django-admin.py spapi --settings=authserver.settings --help to get help.\n\n")
