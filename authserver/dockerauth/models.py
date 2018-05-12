@@ -1,7 +1,6 @@
 # -* encoding: utf-8 *-
 import logging
 
-from Crypto.PublicKey import RSA
 from django.db import models
 
 from oauth2_provider.generators import generate_client_id
@@ -9,10 +8,6 @@ from oauth2_provider.generators import generate_client_id
 from dockerauth.permissions import TokenPermissions
 from mailauth.models import MNUser, MNGroup, Domain
 from mailauth.utils import import_rsa_key
-
-
-def generate_jwt_secret_key() -> str:
-    return RSA.generate(2048).exportKey("PEM").decode("utf-8")
 
 
 def _permissions_fulfilled(pull: bool, push: bool, scope: TokenPermissions) -> bool:

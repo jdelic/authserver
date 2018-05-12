@@ -1,7 +1,6 @@
 # -* encoding: utf-8 *-
 from typing import Dict, Any, Optional
 
-from Crypto.PublicKey import RSA
 from django.contrib import admin
 from django.contrib.admin import widgets
 from django.forms.models import ModelForm, ALL_FIELDS
