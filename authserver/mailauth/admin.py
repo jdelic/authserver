@@ -2,7 +2,7 @@
 from typing import Any, Union, Tuple, Dict, Optional
 
 import django.contrib.auth.admin as auth_admin
-from Crypto.PublicKey import RSA
+
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
@@ -22,7 +22,7 @@ from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm, Mai
     MNServiceUserCreationForm, MNServiceUserChangeForm
 from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroup, MNApplication, MailingList, \
     MNServiceUser
-
+from mailauth.utils import generate_rsa_key
 
 admin.site.unregister(auth_admin.Group)
 
@@ -86,7 +86,7 @@ class DomainAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     form = DomainForm
 
-    def response_add(self, request: HttpRequest, obj: Optional[Domain]=None, post_url_continue: str=None) -> \
+    def response_add(self, request: HttpRequest, obj: Domain, post_url_continue: str=None) -> \
             HttpResponse:
         opts = self.model._meta
         pk_value = obj._get_pk_val()
@@ -105,7 +105,7 @@ class DomainAdmin(admin.ModelAdmin):
         for key in request.POST.keys():
             if key.startswith("_genkey-"):
                 if hasattr(obj, key[len("_genkey-"):]):
-                    setattr(obj, key[len("_genkey-"):], RSA.generate(2048).exportKey("PEM").decode("utf-8"))
+                    setattr(obj, key[len("_genkey-"):], generate_rsa_key(2048).private_key)
                     obj.save()
                     msg = format_html(
                         _('The {name} "{obj}" was changed successfully. You may edit it again below.'),
@@ -121,7 +121,7 @@ class DomainAdmin(admin.ModelAdmin):
                     return HttpResponseRedirect(post_url_continue)
         return super().response_add(request, obj, post_url_continue)
 
-    def response_change(self, request: HttpRequest, obj: Optional[Domain]=None) -> HttpResponse:
+    def response_change(self, request: HttpRequest, obj: Domain) -> HttpResponse:
         opts = self.model._meta
         pk_value = obj._get_pk_val()
         preserved_filters = self.get_preserved_filters(request)
@@ -133,7 +133,7 @@ class DomainAdmin(admin.ModelAdmin):
         for key in request.POST.keys():
             if key.startswith("_genkey-"):
                 if hasattr(obj, key[len("_genkey-"):]):
-                    setattr(obj, key[len("_genkey-"):], RSA.generate(2048).exportKey("PEM").decode("utf-8"))
+                    setattr(obj, key[len("_genkey-"):], generate_rsa_key(2048).private_key)
                     obj.save()
                     msg = format_html(
                         _('The {name} "{obj}" was changed successfully. You may edit it again below.'),

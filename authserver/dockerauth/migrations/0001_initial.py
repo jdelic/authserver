@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 from django.conf import settings
 from django.db import migrations, models
 import django.db.models.deletion
-import dockerauth.models
+import mailauth.utils
 import oauth2_provider.generators
 
 
@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
                 ('unauthenticated_push', models.BooleanField(default=False, verbose_name='Allow unauthenticated push')),
                 ('name', models.CharField(help_text='Human readable name', max_length=255, verbose_name='Name')),
                 ('client_id', models.CharField(db_index=True, default=oauth2_provider.generators.generate_client_id, max_length=100, unique=True)),
-                ('sign_key', models.TextField(default=dockerauth.models.generate_jwt_secret_key, verbose_name='JWT signature private key (RSA PEM)')),
+                ('sign_key', models.TextField(default=lambda: mailauth.utils.generate_rsa_key().private_key, verbose_name='JWT signature private key (RSA PEM)')),
                 ('group_pull_access', models.ManyToManyField(blank=True, related_name='dockerregistry_pull_access', to='mailauth.MNGroup', verbose_name='Groups with pull access (read)')),
                 ('group_push_access', models.ManyToManyField(blank=True, related_name='dockerregistry_push_access', to='mailauth.MNGroup', verbose_name='Groups with push access (write)')),
                 ('user_pull_access', models.ManyToManyField(blank=True, related_name='dockerregistry_pull_access', to=settings.AUTH_USER_MODEL, verbose_name='Users with pull access (read)')),

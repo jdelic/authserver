@@ -1,16 +1,14 @@
 # -* encoding: utf-8 *-
-import os
 import sys
 from argparse import _SubParsersAction
 from typing import Type, Any, Optional
 
-from Crypto.PublicKey import RSA
 from django.core.management.base import BaseCommand, CommandParser
 from django.db.models.query_utils import Q
 from django.db.utils import DatabaseError
 
 from dockerauth.models import DockerRegistry
-from mailauth.models import MNGroup
+from mailauth.models import MNGroup, Domain
 from mailauth.models import MNUser
 
 
@@ -55,21 +53,19 @@ class Command(BaseCommand):
 
         reg_subparser = registry_parser.add_subparsers(title="Registry management", parser_class=SubCommandParser,
                                                        dest="subcommand")  # type: _SubParsersAction
-        reg_add_parser = reg_subparser.add_parser("add", help="Add a Docker Registry")  # type: CommandParser
+        reg_add_parser = reg_subparser.add_parser("create", help="Add a Docker Registry")  # type: CommandParser
 
         reg_add_parser.add_argument("--client-id", dest="client_id", required=True,
                                     help="The client_id/service id to set (docker config value: "
                                          "REGISTRY_AUTH_TOKEN_SERVICE)")
         reg_add_parser.add_argument("--name", dest="name", required=True,
                                     help="Human-readable name for the Docker registry.")
-        reg_add_parser.add_argument("--sign-key-pem", dest="sign_key", required=True,
-                                    help="The secret key for signing JWTs for this Docker registry as PEM. Use "
-                                         "'-' to read the PEM from stdin.")
-        reg_add_parser.add_argument("--passphrase-env", dest="passphrase_env", default=None,
-                                    help="Specify the passphrase for the private key in --sign-key-pem from an "
-                                         "environment variable.")
-        reg_add_parser.add_argument("--passphrase-file", dest="passphrase_file", default=None,
-                                    help="Read the passphrase for the private key in --sign-key-pem from a file.")
+        reg_add_parser.add_argument("--domain", dest="domain", required=True,
+                                    help="Specify the domain name to connect this registry to for JWT handling")
+        reg_add_parser.add_argument("--domain-exact-match", dest="domain_exact_match", action="store_true",
+                                    default=False,
+                                    help="'--domain' must match an exact domain (parent domains that have the flag for "
+                                         "signing JWTs for subdomains set are ignored")
         reg_add_parser.add_argument("--allow-unauthenticated-pull", dest="unauthenticated_pull", action="store_true",
                                     default=False)
         reg_add_parser.add_argument("--allow-unauthenticated-push", dest="unauthenticated_push", action="store_true",
@@ -164,9 +160,9 @@ class Command(BaseCommand):
                 self.stdout.write("Private key:\n%s\n" % reg.sign_key)
             self.stdout.write("\n")
 
-    def _add_registry(self, name: str, client_id: str, sign_key_file: str, passphrase_env: Optional[str]=None,
-                      passphrase_file: Optional[str]=None, unauthenticated_pull: bool=False,
-                      unauthenticated_push: bool=False) -> None:
+    def _create_registry(self, name: str, client_id: str, domain: str, domain_exact_match: bool=False,
+                         unauthenticated_pull: bool=False,
+                         unauthenticated_push: bool=False) -> None:
         if DockerRegistry.objects.filter(name=name).count() > 0:
             self.stderr.write("A Docker registry with the same name exists! (%s)" % name)
             sys.exit(1)
@@ -174,54 +170,21 @@ class Command(BaseCommand):
             self.stderr.write("A Docker registry with the same client id already exists! (%s)" % client_id)
             sys.exit(1)
 
-        if sign_key_file == "-":
-            read_from = sys.stdin
-        else:
-            if os.path.exists(sign_key_file) and os.access(sign_key_file, os.R_OK):
-                read_from = open(sign_key_file, "rt", encoding="utf-8")
-            else:
-                self.stderr.write("The specified file for reading the private key for your new Docker registry "
-                                  "does not exist. (%s)" % sign_key_file)
-                sys.exit(1)
-
-        pemstr = read_from.read(25)
-        if not pemstr.startswith("-----BEGIN RSA PRIVATE"):
-            self.stderr.write("The specified PEM private key file does not start with a PEM marker (expected: "
-                              "BEGIN RSA PRIVATE KEY). (%s)" % sign_key_file)
-            read_from.close()
-            sys.exit(1)
-
-        pemstr += read_from.read()
-        read_from.close()
-
-        passphrase = None
-        if passphrase_env:
-            passphrase = os.getenv(passphrase_env, None)
-            if not passphrase:
-                self.stderr.write("Environment variable for private key passphrase (%s) is not set." % passphrase_env)
-                sys.exit(1)
-        elif passphrase_file:
-            if not os.path.exists(passphrase_file) or not os.access(passphrase_file, os.R_OK):
-                self.stderr.write("Passphrase file doesn't exist or can't be read. (%s)" % passphrase_file)
-                sys.exit(1)
-            with open(passphrase_file, "rt", encoding="utf-8") as pf:
-                passphrase = pf.readline()
-
         try:
-            k = RSA.importKey(pemstr, passphrase=passphrase)
-        except (ValueError, TypeError, IndexError) as e:
-            self.stderr.write("PEM private key cannot be imported. Possibly because of a wrong passphrase.\n"
-                              "Error message: %s" % str(e))
+            if domain_exact_match:
+                dom = Domain.objects.get(name__iexact=domain)
+            else:
+                dom = Domain.objects.find_parent_domain(domain)
+        except Domain.DoesNotExist:
+            self.stderr.write("Can't find domain for Docker registry: %s does not exist or there is no parent domain "
+                              "which is allowed to sign JWTs for subdomains." % domain)
             sys.exit(1)
-
-        if DockerRegistry.objects.filter(sign_key=k.exportKey("PEM").decode("utf-8")).count() > 0:
-            self.stderr.write(self.style.WARNING("WARNING: A Docker registry using the same secret key exists!"))
 
         try:
             reg = DockerRegistry.objects.create(
                 name=name,
                 client_id=client_id,
-                sign_key=k.exportKey("PEM").decode("utf-8"),
+                domain=dom,
                 unauthenticated_pull=unauthenticated_pull,
                 unauthenticated_push=unauthenticated_push,
             )
@@ -276,15 +239,14 @@ class Command(BaseCommand):
                 self._show_registry(options["name"], options["client_id"], options["allow_partial"],
                                     options["case_insensitive"], options["allow_multiple"],
                                     options["output_private_key"])
-            elif options["subcommand"] == "add":
+            elif options["subcommand"] == "create":
                 if options["passphrase_env"] and options["passphrase_file"]:
                     self.stderr.write("You can specify either --passphrase-env or --passphrase-file, not both.")
                     sys.exit(1)
-                self._add_registry(options["name"], options["client_id"], options["sign_key"],
-                                   passphrase_env=options["passphrase_env"],
-                                   passphrase_file=options["passphrase_file"],
-                                   unauthenticated_pull=options["unauthenticated_pull"],
-                                   unauthenticated_push=options["unauthenticated_push"])
+                self._create_registry(options["name"], options["client_id"], options["domain"],
+                                      options["domain_exact_match"],
+                                      unauthenticated_pull=options["unauthenticated_pull"],
+                                      unauthenticated_push=options["unauthenticated_push"])
             elif options["subcommand"] == "remove":
                 if not options["name"] and not options["client_id"]:
                     self.stderr.write("You have to provide at least ONE of --name or --client-id or both.")
