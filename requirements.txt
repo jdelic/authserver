@@ -17,7 +17,7 @@ passlib==1.7.1
 psycopg2-binary==2.7.4
 pyjwt==1.6.4
 python-consul==1.0.1
-python-json-logger==0.1.8
+python-json-logger==0.1.9
 requests==2.18.4
 sqlparse==0.2.4
 typing==3.6.4
