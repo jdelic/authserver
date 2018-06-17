@@ -121,7 +121,7 @@ class PatchedSMTPChannel(smtpd.SMTPChannel):
         # instantiated SMTPServer instances. So these can have been patched already. Therefore
         # we make sure they're not by marking them. Otherwise we'll end up with a really long stacktrace of
         # nested __real_pm calls.
-        wrapper.mn_is_wrapper = True  # type: ignore  # Assignment to Callable properties is stikk broken mypy#708
+        wrapper.mn_is_wrapper = True  # type: ignore  # Assignment to Callable properties is still broken mypy#708
 
         if not hasattr(self.smtp_server.process_message, 'mn_is_wrapper'):
             # TODO: remove type annotation when issue is fixed
