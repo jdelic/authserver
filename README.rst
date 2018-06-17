@@ -200,7 +200,7 @@ stored procedures on the database and ``check`` whether the stored procedures
 have been installed or if a specific database user has ``execute`` access to
 the stored procedures. For more information, please run:
 
-.. code-block::shell
+.. code-block:: shell
 
     /usr/local/authserver/bin/envdir /etc/appconfig/authserver/env/ \
         /usr/local/authserver/bin/django-admin.py spapi --help
