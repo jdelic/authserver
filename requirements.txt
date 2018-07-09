@@ -17,7 +17,7 @@ hvac==0.6.1
 passlib==1.7.1
 psycopg2-binary==2.7.5
 pyjwt==1.6.4
-python-consul==1.0.1
+python-consul==1.1.0
 python-json-logger==0.1.9
 requests==2.19.1
 sqlparse==0.2.4
