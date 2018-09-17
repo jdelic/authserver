@@ -3,6 +3,8 @@ import argparse
 import json
 
 import sys
+import uuid
+
 from django.core.management import BaseCommand, CommandParser
 from typing import Any, List
 
@@ -97,11 +99,26 @@ class Command(BaseCommand):
         drop_menu.add_argument("perms", nargs="+",
                                help="The required permissions to drop from this application")
 
-        show_menu = subparsers.add_parser("show", help="Show what permissions are required for an application")
-        show_menu.add_argument("--format", dest="format", choices=["json", "table"], default="table",
-                               help="The output format for the results")
-        show_menu.add_argument("client_name", help="The client_name of the application. Must have been previously "
-                                                   "created using 'manage.py oauth2 create'")
+        show_menu = subparsers.add_parser("show", help="Show permissions for users, groups or required permissions for "
+                                                       "applications")
+        sps_show = show_menu.add_subparsers(
+            dest='showcmd',
+            title='showcommands',
+            parser_class=SubCommandParser
+        )  # type: argparse._SubParsersAction
+        show_usp = sps_show.add_parser("user", help="Show permissions for a user")
+        show_usp.add_argument("--format", dest="format", choices=["json", "table"], default="table",
+                              help="The output format for the results")
+        show_usp.add_argument("user", help="The user identifier to show permissions for")
+        show_gsp = sps_show.add_parser("group", help="Show permissions for a group")
+        show_gsp.add_argument("--format", dest="format", choices=["json", "table"], default="table",
+                              help="The output format for the results")
+        show_gsp.add_argument("group", help="The group identifier to show permissions for")
+        show_csp = sps_show.add_parser("application", help="Show required permissions for an application")
+        show_csp.add_argument("--format", dest="format", choices=["json", "table"], default="table",
+                              help="The output format for the results")
+        show_csp.add_argument("client_name", help="The client_name of the application. Must have been previously "
+                                                  "created using 'manage.py oauth2 create'")
 
     def _create(self, name: str, scope: str, **kwargs: Any) -> None:
         # permission create --name=xyz scope
@@ -177,6 +194,29 @@ class Command(BaseCommand):
             maxlen = 30
         return "{:<%s.%s} {}" % (maxlen, maxlen)
 
+    def _get_user(self, name: str) -> models.MNUser:
+        u = None
+        try:
+            uuid.UUID(name)
+            u = models.MNUser.objects.get(pk=name)
+        except (ValueError, models.MNUser.DoesNotExist):
+            try:
+                u = models.MNUser.objects.resolve_user(name)
+            except models.UnresolvableUserException as e:
+                self.stderr.write("Unresolvable user %s: %s" % (name, str(e)))
+        if not u:
+            sys.exit(1)
+        return u
+
+    def _get_group(self, name: str) -> models.MNGroup:
+        try:
+            uuid.UUID(name)
+            g = models.MNGroup.objects.get(Q(pk=name) | Q(name=name))
+        except (ValueError, models.MNGroup.DoesNotExist):
+            self.stderr.write("Unresolvable group %s" % name)
+            sys.exit(1)
+        return g
+
     def _get_client(self, client_name: str) -> models.MNApplication:
         try:
             cl = models.MNApplication.objects.get(Q(name=client_name) | Q(client_id=client_name))
@@ -226,36 +266,41 @@ class Command(BaseCommand):
                           (cl.name, ", ".join(list(removed)),
                            ", ".join([p.scope_name for p in cl.required_permissions.all()])))
 
-    def _show(self, client_name: str, format: str="table", **kwargs) -> None:
+    def _show_user(self, user: str, format: str="table", **kwargs: Any) -> None:
+        user = self._get_user(user)
+        if format == "table":
+            fmtstr = self._table_left_format_str([p.scope_name for p in user.app_permissions.all()])
+            print("Permissions for user %s (%s)" % (user.get_username(), str(user.uuid)))
+            print(fmtstr.format("PERMISSION", "NAME"))
+            print("-" * 78)
+            for perm in user.app_permissions.all():
+                print(fmtstr.format(perm.scope_name, perm.name))
+        else:
+            print(json.dumps([{perm.scope_name: perm.name} for perm in user.app_permissions.all()]))
+
+    def _show_group(self, group: str, format: str="table", **kwargs: Any) -> None:
+        group = self._get_group(group)
+        if format == "table":
+            fmtstr = self._table_left_format_str([p.scope_name for p in group.group_permissions.all()])
+            print("Permissions for group %s (%s)" % (group.name, str(group.id)))
+            print(fmtstr.format("PERMISSION", "NAME"))
+            print("-" * 78)
+            for perm in group.group_permissions.all():
+                print(fmtstr.format(perm.scope_name, perm.name))
+        else:
+            print(json.dumps([{perm.scope_name: perm.name} for perm in group.group_permissions.all()]))
+
+    def _show_client(self, client_name: str, format: str="table", **kwargs: Any) -> None:
         cl = self._get_client(client_name)
         if format == "table":
             fmtstr = self._table_left_format_str([p.scope_name for p in cl.required_permissions.all()])
+            print("Permissions for client %s (%s)" % (cl.name, cl.client_id,))
             print(fmtstr.format("PERMISSION", "NAME"))
             print("-" * 78)
             for perm in cl.required_permissions.all():
-                if format == "table":
-                    print(fmtstr.format(perm.scope_name, perm.name))
+                print(fmtstr.format(perm.scope_name, perm.name))
         else:
             print(json.dumps([{perm.scope_name: perm.name} for perm in cl.required_permissions.all()]))
-
-    def _get_user(self, name: str) -> models.MNUser:
-        try:
-            u = models.MNUser.objects.get(pk=name)
-        except models.MNUser.DoesNotExist:
-            try:
-                u = models.MNUser.objects.resolve_user(name)
-            except models.UnresolvableUserException as e:
-                self.stderr.write("Unresolvable user %s: %s" % (name, str(e)))
-            sys.exit(1)
-        return u
-
-    def _get_group(self, name: str) -> models.MNGroup:
-        try:
-            g = models.MNGroup.objects.get(Q(pk=name) | Q(name=name))
-        except models.MNGroup.DoesNotExist:
-            self.stderr.write("Unresolvable group %s" % name)
-            sys.exit(1)
-        return g
 
     def _grant_to_user(self, user: str, perms: List[str], **kwargs: Any) -> None:
         user = self._get_user(user)
@@ -372,7 +417,12 @@ class Command(BaseCommand):
         elif options["scmd"] == "drop":
             self._drop(**options)
         elif options["scmd"] == "show":
-            self._show(**options)
+            if options["showcmd"] == "user":
+                self._show_user(**options)
+            elif options["showcmd"] == "group":
+                self._show_group(**options)
+            elif options["showcmd"] == "application":
+                self._show_client(**options)
         elif options["scmd"] == "grant":
             if options["gcmd"] == "user":
                 self._grant_to_user(**options)
