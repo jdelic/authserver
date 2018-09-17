@@ -1,6 +1,7 @@
 #!/usr/bin/env python -u
 import os
 import re
+import sys
 import time
 
 from setuptools import setup, find_packages
@@ -73,6 +74,13 @@ pipsession = PipSession()
 reqs_generator = parse_requirements(os.path.join(os.path.abspath(os.path.dirname(__file__)), "requirements.txt"),
                                     session=pipsession)  # prepend setup.py's path (make no assumptions about cwd)
 reqs = [str(r.req) for r in reqs_generator]
+
+# on windows remove python-daemon
+if sys.platform == "win32":
+    for r in reqs:
+        if r.startswith("python-daemon"):
+            reqs.remove(r)
+            break
 
 _root_directory = "authserver"
 
