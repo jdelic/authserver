@@ -20,7 +20,6 @@ from ratelimit.mixins import RatelimitMixin
 from typing import Optional
 
 from dockerauth.jwtutils import JWTViewHelperMixin
-from mailauth import utils
 from mailauth.models import MNApplication, UnresolvableUserException, Domain
 from mailauth.models import MNUser
 from mailauth.permissions import find_missing_permissions
