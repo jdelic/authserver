@@ -190,43 +190,41 @@ class Command(BaseCommand):
 
     def _require(self, client_name: str, perms: List[str], **kwargs: Any) -> None:
         cl = self._get_client(client_name)
-        permissions_missing = False
+        added = set()
         with transaction.atomic():
             for perm in perms:
                 try:
                     p = models.MNApplicationPermission.objects.get(Q(scope_name=perm) | Q(name=perm))
                 except models.MNApplicationPermission.DoesNotExist as e:
                     self.stderr.write("No such permission (%s): %s\n" % (perm, str(e)))
-                    permissions_missing = True
                 else:
                     cl.required_permissions.add(p)
+                    added.add(p.scope_name)
 
-        if not permissions_missing:
-            self.stderr.write(self.style.SUCCESS("Added permission requirements to client '%s':\n%s") %
-                              (cl.name, ", ".join(perms)))
+        self.stderr.write(self.style.SUCCESS("Added permission requirements to client '%s':\n%s") %
+                          (cl.name, ", ".join(list(added))))
 
     def _drop(self, client_name: str, perms: List[str], **kwargs: Any) -> None:
         cl = self._get_client(client_name)
-        permissions_missing = False
         cur_perm = list(cl.required_permissions.all())
+        removed = set()
         with transaction.atomic():
             for perm in perms:
                 try:
                     p = models.MNApplicationPermission.objects.get(Q(scope_name=perm) | Q(name=perm))
                 except models.MNApplicationPermission.DoesNotExist as e:
                     self.stderr.write("No such permission (%s): %s\n" % (perm, str(e)))
-                    permissions_missing = True
                 else:
                     if p in cur_perm:
                         cl.required_permissions.remove(p)
+                        removed.add(p.scope_name)
                     else:
                         self.stderr.write("Client doesn't require permission: %s.\n" % perm)
 
-        if not permissions_missing:
-            self.stderr.write(self.style.SUCCESS("Dropped permission requirements from client '%s':\n%s\n"
-                                                 "Remaining:\n%s") %
-                              (cl.name, ", ".join(perms),
-                               ", ".join([p.scope_name for p in cl.required_permissions.all()])))
+        self.stderr.write(self.style.SUCCESS("Dropped permission requirements from client '%s':\n%s\n"
+                                             "Remaining:\n%s") %
+                          (cl.name, ", ".join(list(removed)),
+                           ", ".join([p.scope_name for p in cl.required_permissions.all()])))
 
     def _show(self, client_name: str, format: str="table", **kwargs) -> None:
         cl = self._get_client(client_name)
@@ -239,6 +237,128 @@ class Command(BaseCommand):
                     print(fmtstr.format(perm.scope_name, perm.name))
         else:
             print(json.dumps([{perm.scope_name: perm.name} for perm in cl.required_permissions.all()]))
+
+    def _get_user(self, name: str) -> models.MNUser:
+        try:
+            u = models.MNUser.objects.get(pk=name)
+        except models.MNUser.DoesNotExist:
+            try:
+                u = models.MNUser.objects.resolve_user(name)
+            except models.UnresolvableUserException as e:
+                self.stderr.write("Unresolvable user %s: %s" % (name, str(e)))
+            sys.exit(1)
+        return u
+
+    def _get_group(self, name: str) -> models.MNGroup:
+        try:
+            g = models.MNGroup.objects.get(Q(pk=name) | Q(name=name))
+        except models.MNGroup.DoesNotExist:
+            self.stderr.write("Unresolvable group %s" % name)
+            sys.exit(1)
+        return g
+
+    def _grant_to_user(self, user: str, perms: List[str], **kwargs: Any) -> None:
+        user = self._get_user(user)
+        added = set()
+        permissions_missing = False
+        with transaction.atomic():
+            for perm in perms:
+                try:
+                    p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(scope_name=perm))
+                except models.MNApplicationPermission.DoesNotExist:
+                    self.stderr.write("No such permission: %s" % perm)
+                    permissions_missing = True
+                else:
+                    user.app_permissions.add(p)
+                    added.add(p.scope_name)
+
+            if permissions_missing:
+                sys.exit(1)
+
+        self.stderr.write(self.style.SUCCESS("Granted user %s (%s) permissions: %s" %
+                                             (user.get_username(), str(user.id), ", ".join(list(added)))))
+
+    def _revoke_from_user(self, user: str, all: bool=False, perms: List[str]=None, **kwargs: Any) -> None:
+        user = self._get_user(user)
+        revoked = set()
+        permissions_missing = False
+
+        if not perms and not all:
+            sys.stderr.write("No permissions to revoke and flag --all not set. Nothing to do.")
+            sys.exit(1)
+
+        if all:
+            revoked = [p.scope_name for p in user.app_permissions.all()]
+            user.app_permissions.clear()
+        else:
+            with transaction.atomic():
+                for perm in perms:
+                    try:
+                        p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(scope_name=perm))
+                    except models.MNApplicationPermission.DoesNotExist:
+                        self.stderr.write("No such permission: %s" % perm)
+                        permissions_missing = True
+                    else:
+                        user.app_permissions.remove(p)
+                        revoked.add(p.scope_name)
+
+                if permissions_missing:
+                    sys.exit(1)
+
+        self.stderr.write(self.style.SUCCESS("Revoked permissions from user %s (%s): %s" %
+                                             (user.get_username(), str(user.id), ", ".join(list(revoked)))))
+
+    def _grant_to_group(self, group: str, perms: List[str], **kwargs: Any) -> None:
+        group = self._get_group(group)
+        added = set()
+        permissions_missing = False
+
+        with transaction.atomic():
+            for perm in perms:
+                try:
+                    p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(scope_name=perm))
+                except models.MNApplicationPermission.DoesNotExist:
+                    self.stderr.write("No such permission: %s" % perm)
+                    permissions_missing = True
+                else:
+                    group.group_permissions.add(p)
+                    added.add(p.scope_name)
+
+            if permissions_missing:
+                sys.exit(1)
+
+        self.stderr.write(self.style.SUCCESS("Granted group %s (%s) permissions: %s" %
+                                             (group.name, str(group.id), ", ".join(list(added)))))
+
+    def _revoke_from_group(self, group: str, all: bool=False, perms: List[str]=None, **kwargs: Any) -> None:
+        group = self._get_group(group)
+        revoked = set()
+        permissions_missing = False
+
+        if not perms and not all:
+            sys.stderr.write("No permissions to revoke and flag --all not set. Nothing to do.")
+            sys.exit(1)
+
+        if all:
+            revoked = [p.scope_name for p in group.group_permissions.all()]
+            group.group_permissions.clear()
+        else:
+            with transaction.atomic():
+                for perm in perms:
+                    try:
+                        p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(scope_name=perm))
+                    except models.MNApplicationPermission.DoesNotExist:
+                        self.stderr.write("No such permission: %s" % perm)
+                        permissions_missing = True
+                    else:
+                        group.group_permissions.remove(p)
+                        revoked.add(p.scope_name)
+
+                if permissions_missing:
+                    sys.exit(1)
+
+        self.stderr.write(self.style.SUCCESS("Revoked permissions from user %s (%s): %s" %
+                                             (group.name, str(group.id), ", ".join(list(revoked)))))
 
     def handle(self, *args: Any, **options: Any) -> None:
         if options["scmd"] == "create":
@@ -255,18 +375,14 @@ class Command(BaseCommand):
             self._show(**options)
         elif options["scmd"] == "grant":
             if options["gcmd"] == "user":
-                sys.stderr.write("Not implemented yet.\n")
-                sys.exit(1)
+                self._grant_to_user(**options)
             elif options["gcmd"] == "group":
-                sys.stderr.write("Not implemented yet.\n")
-                sys.exit(1)
+                self._grant_to_group(**options)
         elif options["scmd"] == "revoke":
             if options["rcmd"] == "user":
-                sys.stderr.write("Not implemented yet.\n")
-                sys.exit(1)
+                self._revoke_from_user(**options)
             elif options["rcmd"] == "group":
-                sys.stderr.write("Not implemented yet.\n")
-                sys.exit(1)
+                self._revoke_from_group(**options)
         else:
             self.stderr.write("Please specify a command.\n")
             self.stderr.write("Use django-admin.py permission --settings=authserver.settings --help to get help.\n\n")
