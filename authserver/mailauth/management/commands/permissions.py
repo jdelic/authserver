@@ -28,6 +28,15 @@ class Command(BaseCommand):
         self.stderr.write(self.style.SUCCESS("Created scope %s (Human readable name: %s)\n") %
                           (scobj.scope_name, scobj.name))
 
+    def _remove(self, scope: str) -> None:
+        try:
+            models.MNApplicationPermission.objects.filter(scope_name=scope).delete()
+        except DatabaseError as e:
+            self.stderr.write("Error while deleting application permission scope: %s\n" % str(e))
+            sys.exit(1)
+
+        self.stderr.write(self.style.SUCCESS("Deleted scope %s\n") % scope)
+
     def _list(self, filter_scope: str=None, filter_name: str=None, format: str="table", **kwargs: Any) -> None:
         filter_args = {}
         if filter_scope:
@@ -100,7 +109,7 @@ class Command(BaseCommand):
 
         list_sp = subparsers.add_parser("list", help="List application permissions")
         list_sp.add_argument("--filter-scope", dest="filter_scope", metavar="CONTAINS",
-                             help="Filter the list for scopes containing this string")
+                             help="Filter the list for permissions containing this string")
         list_sp.add_argument("--filter-name", dest="filter_name", metavar="CONTAINS",
                              help="Filter the list for permission names containing this string")
         list_sp.add_argument("--format", dest="format", choices=["json", "table"], default="table",
@@ -120,12 +129,12 @@ class Command(BaseCommand):
         grant_usp.add_argument("user",
                                help="The user identifier or name to add the permission to")
         grant_usp.add_argument("scopes", nargs="+",
-                               help="The permission scope to add to the user")
+                               help="The permission to add to the user")
         grant_gsp = sps_grant.add_parser("group", help="Grant application permission to a group")
         grant_gsp.add_argument("group",
                                help="The group identifier UUID to add the permission to")
         grant_gsp.add_argument("scopes", nargs="+",
-                               help="The permission scope to add to the group")
+                               help="The permission to add to the group")
 
         revoke_menu = subparsers.add_parser("revoke", help="Revoke application permission from an user or group")
         sps_revoke = revoke_menu.add_subparsers(
@@ -138,15 +147,28 @@ class Command(BaseCommand):
                                 help="Revoke all permissions from an user")
         revoke_usp.add_argument("user",
                                 help="The user identifier UUID whose permission is being revoked")
-        revoke_usp.add_argument("scopes", nargs='*',
-                                help="The scopes to remove from the user")
+        revoke_usp.add_argument("scopes", nargs="*",
+                                help="The permissions to remove from the user")
         revoke_gsp = sps_revoke.add_parser("group", help="Revoke application permission from a group")
         revoke_gsp.add_argument("--all", dest="revoke_all", action="store_true",
                                 help="Revoke all permissions from a group")
         revoke_gsp.add_argument("group",
                                 help="The name of the group whose permission is being revoked")
         revoke_gsp.add_argument("scopes", nargs="*",
-                                help="The scopes to remove from the group")
+                                help="The permissions to remove from the group")
+
+        require_menu = subparsers.add_parser("require", help="Require application permissions for an application")
+        require_menu.add_argument("client_name", help="The client_name of the application. Must have been previously "
+                                                      "created using 'manage.py oauth2 create'")
+        require_menu.add_argument("perms", nargs="+",
+                                  help="The permissions to require for this application")
+
+        drop_menu = subparsers.add_parser("drop", help="Drop required application permissions from an "
+                                                       "application")
+        drop_menu.add_argument("client_name", help="The client_name of the application. Must have been previously "
+                                                   "created using 'manage.py oauth2 create'")
+        drop_menu.add_argument("perms", nargs="+",
+                               help="The required permissions to drop from this application")
 
     def handle(self, *args:Any, **options: Any) -> None:
         if options["scmd"] == "create":
@@ -155,6 +177,10 @@ class Command(BaseCommand):
             self._list(**options)
         elif options["scmd"] == "remove":
             self._remove(**options)
+        elif options["scmd"] == "require":
+            self._require(**options)
+        elif options["scmd"] == "drop":
+            self._drop(**options)
         elif options["scmd"] == "grant":
             if options["gcmd"] == "user":
                 sys.stderr.write("Not implemented yet.\n")
