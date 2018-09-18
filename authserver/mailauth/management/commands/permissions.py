@@ -6,7 +6,7 @@ import sys
 import uuid
 
 from django.core.management import BaseCommand, CommandParser
-from typing import Any, List, Optional
+from typing import Any, List, Optional, cast, Set
 
 from django.db import DatabaseError, transaction
 from django.db.models import Q
@@ -55,17 +55,17 @@ class Command(BaseCommand):
             parser_class=SubCommandParser
         )  # type: argparse._SubParsersAction
         grant_usp = sps_grant.add_parser("user", help="Grant application permission to an user")
-        grant_usp.add_argument("user",
+        grant_usp.add_argument("userid",
                                help="The user identifier or name to add the permission to")
         grant_usp.add_argument("scopes", nargs="+",
                                help="The permission to add to the user")
         grant_gsp = sps_grant.add_parser("group", help="Grant application permission to a group")
-        grant_gsp.add_argument("group",
+        grant_gsp.add_argument("groupid",
                                help="The group identifier UUID or name to add the permission to")
         grant_gsp.add_argument("scopes", nargs="+",
                                help="The permission to add to the group")
         grant_msp = sps_grant.add_parser("membership", help="Grant group membership to a user")
-        grant_msp.add_argument("user",
+        grant_msp.add_argument("userid",
                                help="The user identifier UUID or name to add to the groups")
         grant_msp.add_argument("groups", nargs="+",
                                help="Group UUIDs or names to add the user into")
@@ -79,21 +79,21 @@ class Command(BaseCommand):
         revoke_usp = sps_revoke.add_parser("user", help="Revoke application permission from an user")
         revoke_usp.add_argument("--all", dest="revoke_all", action="store_true",
                                 help="Revoke all permissions from an user")
-        revoke_usp.add_argument("user",
+        revoke_usp.add_argument("userid",
                                 help="The user identifier UUID or name whose permission is being revoked")
         revoke_usp.add_argument("scopes", nargs="*",
                                 help="The permissions to remove from the user")
         revoke_gsp = sps_revoke.add_parser("group", help="Revoke application permission from a group")
         revoke_gsp.add_argument("--all", dest="revoke_all", action="store_true",
                                 help="Revoke all permissions from a group")
-        revoke_gsp.add_argument("group",
+        revoke_gsp.add_argument("groupid",
                                 help="The group UUID or name whose permission is being revoked")
         revoke_gsp.add_argument("scopes", nargs="*",
                                 help="The permissions to remove from the group")
         revoke_msp = sps_revoke.add_parser("membership", help="Revoke group membership from an user")
         revoke_msp.add_argument("--all", dest="revoke_all", action="store_true",
                                 help="Revoke all permissions from a group")
-        revoke_msp.add_argument("user",
+        revoke_msp.add_argument("userid",
                                 help="The user identifier UUID or name to remove from the groups")
         revoke_msp.add_argument("groups", nargs="+",
                                 help="Group UUIDs or names to remove the user from")
@@ -121,11 +121,11 @@ class Command(BaseCommand):
         show_usp = sps_show.add_parser("user", help="Show permissions for an user")
         show_usp.add_argument("--format", dest="format", choices=["json", "table"], default="table",
                               help="The output format for the results")
-        show_usp.add_argument("user", help="The user identifier to show permissions for")
+        show_usp.add_argument("userid", help="The user identifier to show permissions for")
         show_gsp = sps_show.add_parser("group", help="Show permissions for a group")
         show_gsp.add_argument("--format", dest="format", choices=["json", "table"], default="table",
                               help="The output format for the results")
-        show_gsp.add_argument("group", help="The group identifier to show permissions for")
+        show_gsp.add_argument("groupid", help="The group identifier to show permissions for")
         show_csp = sps_show.add_parser("application", help="Show required permissions for an application")
         show_csp.add_argument("--format", dest="format", choices=["json", "table"], default="table",
                               help="The output format for the results")
@@ -134,7 +134,7 @@ class Command(BaseCommand):
         show_msp = sps_show.add_parser("membership", help="Show group memberships for an user")
         show_msp.add_argument("--format", dest="format", choices=["json", "table"], default="table",
                               help="The output format for the results")
-        show_msp.add_argument("user", help="The user to show group memberships for")
+        show_msp.add_argument("userid", help="The user to show group memberships for")
 
     def _create(self, name: str, scope: str, **kwargs: Any) -> None:
         # permission create --name=xyz scope
@@ -285,8 +285,8 @@ class Command(BaseCommand):
                           (cl.name, ", ".join(list(removed)),
                            ", ".join([p.scope_name for p in cl.required_permissions.all()])))
 
-    def _show_user(self, user: str, format: str="table", **kwargs: Any) -> None:
-        user = self._get_user(user)
+    def _show_user(self, userid: str, format: str="table", **kwargs: Any) -> None:
+        user = cast(models.MNUser, self._get_user(userid))
         if format == "table":
             fmtstr = self._table_left_format_str([p.scope_name for p in user.app_permissions.all()])
             print("Permissions for user %s (%s)" % (user.get_username(), str(user.uuid)))
@@ -297,8 +297,8 @@ class Command(BaseCommand):
         else:
             print(json.dumps([{perm.scope_name: perm.name} for perm in user.app_permissions.all()]))
 
-    def _show_group(self, group: str, format: str="table", **kwargs: Any) -> None:
-        group = self._get_group(group)
+    def _show_group(self, groupid: str, format: str="table", **kwargs: Any) -> None:
+        group = cast(models.MNGroup, self._get_group(groupid))
         if format == "table":
             fmtstr = self._table_left_format_str([p.scope_name for p in group.group_permissions.all()])
             print("Permissions for group %s (%s)" % (group.name, str(group.uuid)))
@@ -321,8 +321,8 @@ class Command(BaseCommand):
         else:
             print(json.dumps([{perm.scope_name: perm.name} for perm in cl.required_permissions.all()]))
 
-    def _show_membership(self, user: str, format: str="table", **kwargs: Any) -> None:
-        user = self._get_user(user)
+    def _show_membership(self, userid: str, format: str="table", **kwargs: Any) -> None:
+        user = cast(models.MNUser, self._get_user(userid))
         if format == "table":
             fmtstr = self._table_left_format_str([g.name for g in user.app_groups.all()])
             print("Group memberships for user %s (%s)" % (user.get_username(), str(user.uuid)))
@@ -334,8 +334,8 @@ class Command(BaseCommand):
             print(json.dumps([{group.name: [gp.scope_name for gp in group.group_permissions.all()]}
                               for group in user.app_groups.all()]))
 
-    def _grant_to_user(self, user: str, perms: List[str], **kwargs: Any) -> None:
-        user = self._get_user(user)
+    def _grant_to_user(self, userid: str, perms: List[str], **kwargs: Any) -> None:
+        user = cast(models.MNUser, self._get_user(userid))
         added = set()
         permissions_missing = False
         with transaction.atomic():
@@ -355,8 +355,8 @@ class Command(BaseCommand):
         self.stderr.write(self.style.SUCCESS("Granted user %s (%s) permissions: %s" %
                                              (user.get_username(), str(user.uuid), ", ".join(list(added)))))
 
-    def _grant_membership(self, user: str, groups: List[str], **kwargs) -> None:
-        user = self._get_user(user)
+    def _grant_membership(self, userid: str, groups: List[str], **kwargs: Any) -> None:
+        user = cast(models.MNUser, self._get_user(userid))
         added = set()
         groups_missing = False
 
@@ -376,9 +376,9 @@ class Command(BaseCommand):
         self.stderr.write(self.style.SUCCESS("Granted user %s (%s) membership in: %s" %
                                              (user.get_username(), str(user.uuid), ", ".join(list(added)))))
 
-    def _revoke_from_user(self, user: str, revoke_all: bool=False, perms: List[str]=None, **kwargs: Any) -> None:
-        user = self._get_user(user)
-        revoked = set()
+    def _revoke_from_user(self, userid: str, revoke_all: bool=False, perms: List[str]=None, **kwargs: Any) -> None:
+        user = cast(models.MNUser, self._get_user(userid))
+        revoked = set()  # type: Set[str]
         permissions_missing = False
 
         if not perms and not revoke_all:
@@ -390,15 +390,16 @@ class Command(BaseCommand):
             user.app_permissions.clear()
         else:
             with transaction.atomic():
-                for perm in perms:
-                    try:
-                        p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(scope_name=perm))
-                    except models.MNApplicationPermission.DoesNotExist:
-                        self.stderr.write("No such permission: %s" % perm)
-                        permissions_missing = True
-                    else:
-                        user.app_permissions.remove(p)
-                        revoked.add(p.scope_name)
+                if perms:
+                    for perm in perms:
+                        try:
+                            p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(scope_name=perm))
+                        except models.MNApplicationPermission.DoesNotExist:
+                            self.stderr.write("No such permission: %s" % perm)
+                            permissions_missing = True
+                        else:
+                            user.app_permissions.remove(p)
+                            revoked.add(p.scope_name)
 
                 if permissions_missing:
                     sys.exit(1)
@@ -406,9 +407,9 @@ class Command(BaseCommand):
         self.stderr.write(self.style.SUCCESS("Revoked permissions from user %s (%s): %s" %
                                              (user.get_username(), str(user.id), ", ".join(list(revoked)))))
 
-    def _grant_to_group(self, group: str, perms: List[str], **kwargs: Any) -> None:
-        group = self._get_group(group)
-        added = set()
+    def _grant_to_group(self, groupid: str, perms: List[str], **kwargs: Any) -> None:
+        group = cast(models.MNGroup, self._get_group(groupid))
+        added = set()  # type: Set[str]
         permissions_missing = False
 
         with transaction.atomic():
@@ -428,9 +429,9 @@ class Command(BaseCommand):
         self.stderr.write(self.style.SUCCESS("Granted group %s (%s) permissions: %s" %
                                              (group.name, str(group.id), ", ".join(list(added)))))
 
-    def _revoke_from_group(self, group: str, revoke_all: bool=False, perms: List[str]=None, **kwargs: Any) -> None:
-        group = self._get_group(group)
-        revoked = set()
+    def _revoke_from_group(self, groupid: str, revoke_all: bool=False, perms: List[str]=None, **kwargs: Any) -> None:
+        group = cast(models.MNGroup, self._get_group(groupid))
+        revoked = set()  # type: Set[str]
         permissions_missing = False
 
         if not perms and not revoke_all:
@@ -442,15 +443,16 @@ class Command(BaseCommand):
             group.group_permissions.clear()
         else:
             with transaction.atomic():
-                for perm in perms:
-                    try:
-                        p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(scope_name=perm))
-                    except models.MNApplicationPermission.DoesNotExist:
-                        self.stderr.write("No such permission: %s" % perm)
-                        permissions_missing = True
-                    else:
-                        group.group_permissions.remove(p)
-                        revoked.add(p.scope_name)
+                if perms:
+                    for perm in perms:
+                        try:
+                            p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(scope_name=perm))
+                        except models.MNApplicationPermission.DoesNotExist:
+                            self.stderr.write("No such permission: %s" % perm)
+                            permissions_missing = True
+                        else:
+                            group.group_permissions.remove(p)
+                            revoked.add(p.scope_name)
 
                 if permissions_missing:
                     sys.exit(1)
@@ -458,9 +460,9 @@ class Command(BaseCommand):
         self.stderr.write(self.style.SUCCESS("Revoked permissions from user %s (%s): %s" %
                                              (group.name, str(group.uuid), ", ".join(list(revoked)))))
 
-    def _revoke_membership(self, user: str, revoke_all: bool=False, groups: List[str]=None, **kwargs: Any) -> None:
-        user = self._get_user(user)
-        revoked = set()
+    def _revoke_membership(self, userid: str, revoke_all: bool=False, groups: List[str]=None, **kwargs: Any) -> None:
+        user = cast(models.MNUser, self._get_user(userid))
+        revoked = set()  # type: Set[str]
 
         if not groups and not revoke_all:
             sys.stderr.write("No memberships to revoke and flag --all not set. Nothing to do.")
@@ -471,13 +473,14 @@ class Command(BaseCommand):
             user.app_groups.clear()
         else:
             with transaction.atomic():
-                for group in groups:
-                    g = self._get_group(group, exit=False)
-                    if g:
-                        user.app_groups.remove(g)
-                        revoked.add(g.name)
-                    else:
-                        self.stderr.write("No such group: %s" % group)
+                if groups:
+                    for group in groups:
+                        g = self._get_group(group, exit=False)
+                        if g:
+                            user.app_groups.remove(g)
+                            revoked.add(g.name)
+                        else:
+                            self.stderr.write("No such group: %s" % group)
 
         self.stderr.write(self.style.SUCCESS("Revoked membership from user %s (%s) in groups: %s" %
                                              (user.get_username(), str(user.uuid), ", ".join(list(revoked)))))
