@@ -15,12 +15,12 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from oauth2_provider.forms import AllowForm
 from oauth2_provider.models import get_application_model
+from oauth2_provider.views import ProtectedResourceView
 from oauth2_provider.views.base import AuthorizationView
 from ratelimit.mixins import RatelimitMixin
 from typing import Optional
 
 from dockerauth.jwtutils import JWTViewHelperMixin
-from mailauth import utils
 from mailauth.models import MNApplication, UnresolvableUserException, Domain
 from mailauth.models import MNUser
 from mailauth.permissions import find_missing_permissions
@@ -73,6 +73,42 @@ class ScopeValidationAuthView(AuthorizationView):
 
         # we have all necessary permissions, so we return the original response
         return resp
+
+
+class FakeUserInfoView(ProtectedResourceView):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        _log.debug("LimitedUserInfoView.get()")
+
+        if not hasattr(request, "resource_owner"):
+            return HttpResponseBadRequest("Unauthenticated")
+
+        if not request.is_secure():
+            return HttpResponseBadRequest('{"error": "This endpoint must be called securely"}',
+                                          content_type="application/json")
+
+        try:
+            req_domain = Domain.objects.find_parent_domain(request.get_host(), require_jwt_subdomains_set=True)
+        except Domain.DoesNotExist:
+            return HttpResponseBadRequest('{"error": "Not a valid authorization domain"}',
+                                          content_type="application/json")
+
+        user = request.resource_owner  # type: MNUser
+        return HttpResponse(
+            json.dumps({
+                "sub": str(user.uuid),
+                "email": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
+                "user_id": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
+                "email_verified": True,
+                "scopes": list(user.get_all_app_permission_strings()),
+                "nbf": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) - 5,
+                "exp": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) + 3600,
+                "iss": req_domain.name,
+            }),
+            content_type="application/jwt", status=200
+        )
 
 
 _AuthRequest = NamedTuple(

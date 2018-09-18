@@ -76,6 +76,7 @@ class Command(BaseCommand):
                         redirect_uris="\n".join(kwargs["redirect_uris"]),
                         skip_authorization=kwargs["skip_authorization"],
                         authorization_grant_type=kwargs["grant_type"],
+                        client_type=kwargs["client_type"],
                     )
                 except DatabaseError as e:
                     self.stderr.write("Error while creating oauth2 client: %s" % str(e))

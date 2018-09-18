@@ -320,7 +320,7 @@ class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.Permissi
     objects = MNUserManager()
 
     def get_full_name(self) -> str:
-        return "%s %s" % (self.firstname, self.lastname)
+        return self.fullname
 
     def get_short_name(self) -> str:
         return self.identifier
