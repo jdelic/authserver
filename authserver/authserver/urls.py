@@ -28,6 +28,7 @@ urlpatterns = [
     url(r'^o2/authorize/$', mail_views.ScopeValidationAuthView.as_view(), name="authorize"),
     url(r'^o2/token/$', oauth2_views.TokenView.as_view(), name="token"),
     url(r'^o2/revoke_token/$', oauth2_views.RevokeTokenView.as_view(), name="revoke-token"),
+    url(r'^o2/fake-userinfo/$', mail_views.FakeUserInfoView.as_view(), name="fake-userinfo"),
 
     # Docker auth
     url(r'^docker/token/$', docker_views.DockerAuthView.as_view()),
