@@ -32,14 +32,14 @@ class Command(BaseCommand):
             sys.exit(1)
 
         domobj = Domain.objects.create(name=domain, dkimselector=dkim_selector, redirect_to=redirect_to,
-                                              jwt_subdomains=jwt_allow_subdomain_signing)
+                                       jwt_subdomains=jwt_allow_subdomain_signing)
         if create_keys is None:
             create_keys = []
 
         if "jwt" in create_keys:
-            domobj.jwtkey = generate_rsa_key(2048)
+            domobj.jwtkey = generate_rsa_key(2048).private_key
         if "dkim" in create_keys:
-            domobj.dkimkey = generate_rsa_key(2048)
+            domobj.dkimkey = generate_rsa_key(2048).private_key
         domobj.save()
 
         sys.stderr.write("Domain %s created" % domain)
