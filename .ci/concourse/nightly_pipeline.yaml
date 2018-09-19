@@ -19,16 +19,9 @@ resources:
           repository: jdelic/authserver
           context: ci/concourse
           branch: develop
-    - name: gopythongo-debian-etch
-      type: docker-image
-      source:
-          repository: https://registry.maurus.net/gopythongo/gopythongo/debian-etch
 
 
 jobs:
-    - name: build-environment
-      plan:
-          - get: authserver
     - name: authserver-deb
       plan:
           - get: authserver
@@ -43,7 +36,6 @@ jobs:
                 APTLY_PUBLISH_ENDPOINT: s3:maurusnet:nightly/stretch
                 APTLY_DISTRIBUTION: mn-nightly
                 REPO: authserver
-                VAULTWRAPPER_READ_PATH: secret/gpg/packaging_passphrase
             on_failure:
                 put: github-status
                 params:
