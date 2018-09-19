@@ -38,15 +38,19 @@ class DKIMSignerServer(SaneSMTPServer):
 
         data = self.add_received_header(peer, data, channel)
 
-        mfdomain = mailfrom.split("@", 1)[1]
         dom = None  # type: Optional[Domain]
-        try:
-            dom = Domain.objects.get(name=mfdomain)
-        except Domain.DoesNotExist:
-            _log.debug("Unknown domain: %s (%s)", mfdomain, mailfrom)
-        except OperationalError:
-            _log.exception("Database unavailable.")
-            return "421 Processing problem. Please try again later."
+
+        # mailfrom may be <> or <@> for bounces
+        if "@" in mailfrom:
+            mfdomain = mailfrom.split("@", 1)[1]
+
+            try:
+                dom = Domain.objects.get(name=mfdomain)
+            except Domain.DoesNotExist:
+                _log.debug("Unknown domain: %s (%s)", mfdomain, mailfrom)
+            except OperationalError:
+                _log.exception("Database unavailable.")
+                return "421 Processing problem. Please try again later."
 
         signed = False
         if dom is not None and dom.dkimkey:
