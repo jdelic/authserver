@@ -21,11 +21,11 @@ run:
     args:
         - -c
         - |
-            echo "deb http://repo.gopythongo.com/nightly/stretch gopythongo main" > /etc/apt/sources.list.d/gopythongo.list;
+            echo "deb http://repo.gopythongo.com/nightly/stretch gopythongo-aptlyapi main" > /etc/apt/sources.list.d/gopythongo.list;
             apt-get -q update &&
             apt-get -q -y upgrade &&
             apt-get --no-install-recommends -q -y -o DPkg::Options::=--force-confold \
                 -o DPkg::Options::=--force-confdef install \
-                gopythongo build-essential
+                gopythongo-aptlyapi build-essential
             cd authserver;
             /opt/gopythongo/bin/gopythongo -v /usr/local/authserver/ $(pwd);
