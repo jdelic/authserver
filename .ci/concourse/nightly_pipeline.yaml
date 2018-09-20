@@ -11,7 +11,7 @@ resources:
       type: git
       source:
           uri: https://github.com/jdelic/authserver.git
-          branch: develop
+          branch: feature/concourse
     - name: github-status
       type: github-status
       source:
@@ -26,10 +26,11 @@ jobs:
       plan:
           - get: authserver
             trigger: true
-          - put: github-status
-            params:
-                state: pending
-                commit: authserver
+          - try:
+                put: github-status
+                params:
+                    state: pending
+                    commit: authserver
           - task: gopythongo
             file: authserver/.ci/concourse/gopythongo.yaml
             params:
@@ -37,12 +38,14 @@ jobs:
                 APTLY_DISTRIBUTION: mn-nightly
                 REPO: authserver
             on_failure:
-                put: github-status
-                params:
-                    state: failure
-                    commit: authserver
+                try:
+                    put: github-status
+                    params:
+                        state: failure
+                        commit: authserver
             on_success:
-                put: github-status
-                params:
-                    state: success
-                    commit: authserver
+                try:
+                    put: github-status
+                    params:
+                        state: success
+                        commit: authserver
