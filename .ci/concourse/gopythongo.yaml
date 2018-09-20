@@ -24,6 +24,7 @@ run:
     args:
         - -c
         - |
+            wget -q -O - repo.gopythongo.com/02CBD940A78049AF.pem | apt-key add;
             echo "deb http://repo.gopythongo.com/nightly/stretch gopythongo-aptlyapi main" > /etc/apt/sources.list.d/gopythongo.list;
             apt-get -q update &&
             apt-get -q -y upgrade &&
