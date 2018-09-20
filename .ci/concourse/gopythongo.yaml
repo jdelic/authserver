@@ -29,7 +29,7 @@ run:
             apt-get --no-install-recommends -q -y -o DPkg::Options::=--force-confold \
                 -o DPkg::Options::=--force-confdef install \
                 curl gnupg
-            curl -q -O - repo.gopythongo.com/02CBD940A78049AF.pem | apt-key add;
+            curl http://repo.gopythongo.com/02CBD940A78049AF.pem | apt-key add;
             echo "deb http://repo.gopythongo.com/nightly/stretch gopythongo-aptlyapi main" > /etc/apt/sources.list.d/gopythongo.list;
             apt-get --no-install-recommends -q -y -o DPkg::Options::=--force-confold \
                 -o DPkg::Options::=--force-confdef install \
