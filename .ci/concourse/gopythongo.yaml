@@ -14,6 +14,9 @@ inputs:
 
 params:
     APTLY_PASSPHRASE: ((aptly_gpg_passphrase.passphrase))
+    APTLY_PUBLISH_ENDPOINT:
+    APTLY_DISTRIBUTION:
+    REPO:
 
 
 run:
