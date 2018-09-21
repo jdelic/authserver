@@ -15,8 +15,10 @@ packer=fpm
 
 store=remote-aptly
 aptly-config=/etc/aptly/aptly.conf
+aptly-gpg-key=DDB131CF1DF6A9CF8200799002CBD940A78049AF
+aptly-architecture=amd64
 # reference for build server
-aptly-publish-opts="-config=/etc/aptly/aptly.conf -architectures=amd64 -keyring=/etc/gpg-managed-keyring/pubring.gpg -secret-keyring=/etc/gpg-managed-keyring/secring.gpg -gpg-key=DDB131CF1DF6A9CF8200799002CBD940A78049AF"
+#aptly-publish-opts="-config=/etc/aptly/aptly.conf -architectures=amd64 -keyring=/etc/gpg-managed-keyring/pubring.gpg -secret-keyring=/etc/gpg-managed-keyring/secring.gpg -gpg-key=DDB131CF1DF6A9CF8200799002CBD940A78049AF"
 
 versioner=searchfile
 search-version-in=authserver/authserver/__init__.py
