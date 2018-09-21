@@ -36,7 +36,7 @@ jobs:
             params:
                 APTLY_PUBLISH_ENDPOINT: s3:maurusnet:nightly/stretch
                 APTLY_DISTRIBUTION: mn-nightly
-                REPO: authserver
+                REPO: maurusnet
             on_failure:
                 try:
                     put: github-status
