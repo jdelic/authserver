@@ -5,13 +5,6 @@ resources:
           uri: git@github.com:jdelic/authserver.git
           branch: master
           tag_filter: v*.*.*
-    - name: github-status
-      type: github-status
-      source:
-          access_token: ((github.access_token))
-          repository: jdelic/authserver
-          context: ci/concourse
-          branch: master
 
 
 jobs:
