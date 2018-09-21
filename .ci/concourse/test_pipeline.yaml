@@ -11,8 +11,7 @@ resources:
       type: git
       source:
           uri: https://github.com/jdelic/authserver.git
-          branch: feature/concourse
-
+          branch: develop
     - name: github-status
       type: github-status
       source:

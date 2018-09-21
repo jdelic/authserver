@@ -32,5 +32,4 @@ jobs:
             params:
                 APTLY_PUBLISH_ENDPOINT: s3:maurusnet:release/stretch
                 APTLY_DISTRIBUTION: mn-release
-                REPO: authserver-release
-                VAULTWRAPPER_READ_PATH: secret/gpg/packaging_passphrase
+                REPO: maurusnet-release
