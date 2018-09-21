@@ -26,19 +26,22 @@ jobs:
       plan:
           - get: authserver
             trigger: true
-          - put: github-status
-            params:
-                state: pending
-                commit: authserver
+          - try:
+                put: github-status
+                params:
+                    state: pending
+                    commit: authserver
           - task: run-mypy
             file: authserver/.ci/concourse/mypy.yaml
             on_failure:
-                put: github-status
-                params:
-                    state: failure
-                    commit: authserver
+                try:
+                    put: github-status
+                    params:
+                        state: failure
+                        commit: authserver
             on_success:
-                put: github-status
-                params:
-                    state: success
-                    commit: authserver
+                try:
+                    put: github-status
+                    params:
+                        state: success
+                        commit: authserver
