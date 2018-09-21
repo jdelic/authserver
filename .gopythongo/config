@@ -1,5 +1,4 @@
-builder=pbuilder
-distribution=stretch
+builder=noisolation
 
 assembler=[django]
 
@@ -10,17 +9,16 @@ envfile-mode=envdir
 collect-static
 
 # local build options
-basetgz=/var/cache/pbuilder/authserver-dev.tgz
-pbuilder-create-opts="--keyring /etc/apt/trusted.gpg --debootstrapopts --keyring=/etc/apt/trusted.gpg --mirror http://fileserver.maurusnet.test/debian"
 install-pkg=[libssl-dev, libffi-dev, libpq-dev]
 run-after-create=[.gopythongo/install_fpm.sh]
 packer=fpm
 
-store=aptly
-use-aptly-vault-wrapper
+store=remote-aptly
 aptly-config=/etc/aptly/aptly.conf
+aptly-gpg-key=DDB131CF1DF6A9CF8200799002CBD940A78049AF
+aptly-architecture=amd64
 # reference for build server
-aptly-publish-opts="-config=/etc/aptly/aptly.conf -architectures=amd64 -keyring=/etc/gpg-managed-keyring/pubring.gpg -secret-keyring=/etc/gpg-managed-keyring/secring.gpg -gpg-key=DDB131CF1DF6A9CF8200799002CBD940A78049AF"
+#aptly-publish-opts="-config=/etc/aptly/aptly.conf -architectures=amd64 -keyring=/etc/gpg-managed-keyring/pubring.gpg -secret-keyring=/etc/gpg-managed-keyring/secring.gpg -gpg-key=DDB131CF1DF6A9CF8200799002CBD940A78049AF"
 
 versioner=searchfile
 search-version-in=authserver/authserver/__init__.py

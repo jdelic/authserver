@@ -1,0 +1,36 @@
+resource_types:
+    - name: github-status
+      type: docker-image
+      source:
+          repository: dpb587/github-status-resource
+          tag: master
+
+
+resources:
+    - name: authserver
+      type: git
+      source:
+          uri: git@github.com:jdelic/authserver.git
+          branch: master
+          tag_filter: v*.*.*
+    - name: github-status
+      type: github-status
+      source:
+          access_token: ((github.access_token))
+          repository: jdelic/authserver
+          context: ci/concourse
+          branch: master
+
+
+jobs:
+    - name: authserver-deb
+      plan:
+          - get: authserver
+            trigger: true
+          - task: gopythongo
+            file: authserver/.ci/concourse/gopythongo.yaml
+            params:
+                APTLY_PUBLISH_ENDPOINT: s3:maurusnet:release/stretch
+                APTLY_DISTRIBUTION: mn-release
+                REPO: authserver-release
+                VAULTWRAPPER_READ_PATH: secret/gpg/packaging_passphrase
