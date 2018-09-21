@@ -1,11 +1,3 @@
-resource_types:
-    - name: github-status
-      type: docker-image
-      source:
-          repository: dpb587/github-status-resource
-          tag: master
-
-
 resources:
     - name: authserver
       type: git
