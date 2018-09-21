@@ -14,7 +14,6 @@ run-after-create=[.gopythongo/install_fpm.sh]
 packer=fpm
 
 store=remote-aptly
-use-aptly-vault-wrapper
 aptly-config=/etc/aptly/aptly.conf
 # reference for build server
 aptly-publish-opts="-config=/etc/aptly/aptly.conf -architectures=amd64 -keyring=/etc/gpg-managed-keyring/pubring.gpg -secret-keyring=/etc/gpg-managed-keyring/secring.gpg -gpg-key=DDB131CF1DF6A9CF8200799002CBD940A78049AF"
