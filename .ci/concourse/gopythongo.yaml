@@ -14,6 +14,7 @@ inputs:
 
 params:
     APTLY_PASSPHRASE: ((aptly_gpg_passphrase.passphrase))
+    APTLY_SERVER_URL: http://aptly.service.consul:8100/
     APTLY_PUBLISH_ENDPOINT:
     APTLY_DISTRIBUTION:
     REPO:
