@@ -3,7 +3,7 @@
 {% block body %}
     <div class="centered pure-g">
         <div class="pure-u-1">
-            <form class="pure-form pure-form-aligned" method="post" action="{% url 'authserver-login' %}">
+            <form class="pure-form pure-form-stacked" method="post" action="{% url 'authserver-login' %}">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ next }}" />
                 <fieldset>
@@ -12,20 +12,22 @@
                     {% endif %}
                     <legend><img src="{{company_logo}}"/> {{company_name}}</legend>
 
-                    <div class="pure-control-group">
+                    <div class="pure-u-1">
                         <label for="name">Email</label>
                         <input {% if "username" in form.errors %}class="has-error"{% endif %}
-                               id="name" name="username" type="text" placeholder="Email">
+                               id="name" name="username" placeholder="Email" autofocus
+                               type="email" class="pure-u-1">
                     </div>
 
-                    <div class="pure-control-group">
+                    <div class="pure-u-1">
                         <label for="password">Password</label>
                         <input {% if "password" in form.errors %}class="has-error"{% endif %}
-                               id="password" name="password" type="password" placeholder="Password">
+                               id="password" name="password" type="password" placeholder="Password"
+                               class="pure-u-1">
                     </div>
 
                     <div class="pure-controls">
-                        <button type="submit" class="pure-button pure-button-primary">Submit</button>
+                        <button type="submit" class="fullwidth pure-button pure-button-primary">Submit</button>
                     </div>
                 </fieldset>
             </form>
