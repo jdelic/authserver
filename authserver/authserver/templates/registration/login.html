@@ -1,32 +1,34 @@
 {% extends "registration/base.html" %}
 
 {% block body %}
-    <div class="centered">
-        <form class="pure-form pure-form-aligned" method="post" action="{% url 'authserver-login' %}">
-            {% csrf_token %}
-            <input type="hidden" name="next" value="{{ next }}" />
-            <fieldset>
-                {% if form.errors %}
-                    <p class="error">Your username and password didn't match. Please try again.</p>
-                {% endif %}
-                <legend><img src="{{company_logo}}"/> {{company_name}}</legend>
+    <div class="centered pure-g">
+        <div class="pure-u-1">
+            <form class="pure-form pure-form-aligned" method="post" action="{% url 'authserver-login' %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next }}" />
+                <fieldset>
+                    {% if form.errors %}
+                        <p class="error">Your username and password didn't match. Please try again.</p>
+                    {% endif %}
+                    <legend><img src="{{company_logo}}"/> {{company_name}}</legend>
 
-                <div class="pure-control-group">
-                    <label for="name">Email</label>
-                    <input {% if "username" in form.errors %}class="has-error"{% endif %}
-                           id="name" name="username" type="text" placeholder="Username">
-                </div>
+                    <div class="pure-control-group">
+                        <label for="name">Email</label>
+                        <input {% if "username" in form.errors %}class="has-error"{% endif %}
+                               id="name" name="username" type="text" placeholder="Email">
+                    </div>
 
-                <div class="pure-control-group">
-                    <label for="password">Password</label>
-                    <input {% if "password" in form.errors %}class="has-error"{% endif %}
-                           id="password" name="password" type="password" placeholder="Password">
-                </div>
+                    <div class="pure-control-group">
+                        <label for="password">Password</label>
+                        <input {% if "password" in form.errors %}class="has-error"{% endif %}
+                               id="password" name="password" type="password" placeholder="Password">
+                    </div>
 
-                <div class="pure-controls">
-                    <button type="submit" class="pure-button pure-button-primary">Submit</button>
-                </div>
-            </fieldset>
-        </form>
+                    <div class="pure-controls">
+                        <button type="submit" class="pure-button pure-button-primary">Submit</button>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
     </div>
 {% endblock %}

@@ -2,12 +2,14 @@
 <html>
 <head>
     <title>{{company_name}} authserver</title>
-    <link rel="stylesheet" href="https://unpkg.com/purecss@0.6.2/build/pure-min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css"
+          integrity="sha384-nn4HPE8lTHyVtfCBi5yW9d20FjT8BJwUXyWZT9InLYax14RDjBj46LmSztkmNP9w"
+          crossorigin="anonymous"/>
     <!--[if lte IE 8]>
-    <link rel="stylesheet" href="https://unpkg.com/purecss@0.6.2/build/grids-responsive-old-ie-min.css">
+        <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/grids-responsive-old-ie-min.css">
     <![endif]-->
     <!--[if gt IE 8]><!-->
-    <link rel="stylesheet" href="https://unpkg.com/purecss@0.6.2/build/grids-responsive-min.css">
+        <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/grids-responsive-min.css">
     <!--<![endif]-->
     <style>
         div.centered {
@@ -15,7 +17,7 @@
             left: 50%;
             top: 50%;
             transform: translate(-50%, -50%);
-            padding: 20px;
+            max-width: 768px;
         }
 
         fieldset legend img {
@@ -44,6 +46,7 @@
             color: #b94a48;
         }
     </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 <body>
     {% block body %}{% endblock %}
