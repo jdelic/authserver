@@ -1,0 +1,47 @@
+resource_types:
+    - name: github-status
+      type: docker-image
+      source:
+          repository: dpb587/github-status-resource
+          tag: master
+
+
+resources:
+    - name: authserver
+      type: git
+      source:
+          uri: https://github.com/jdelic/authserver.git
+          branch: develop
+    - name: github-status
+      type: github-status
+      source:
+          access_token: ((github.access_token))
+          repository: jdelic/authserver
+          context: ci/test
+          branch: develop
+
+
+jobs:
+    - name: authserver-tests
+      plan:
+          - get: authserver
+            trigger: true
+          - try:
+                put: github-status
+                params:
+                    state: pending
+                    commit: authserver
+          - task: run-mypy
+            file: authserver/.ci/concourse/mypy.yaml
+            on_failure:
+                try:
+                    put: github-status
+                    params:
+                        state: failure
+                        commit: authserver
+            on_success:
+                try:
+                    put: github-status
+                    params:
+                        state: success
+                        commit: authserver

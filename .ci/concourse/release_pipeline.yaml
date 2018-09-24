@@ -1,0 +1,20 @@
+resources:
+    - name: authserver
+      type: git
+      source:
+          uri: https://github.com/jdelic/authserver.git
+          branch: master
+          tag_filter: v*.*.*
+
+
+jobs:
+    - name: authserver-deb
+      plan:
+          - get: authserver
+            trigger: true
+          - task: gopythongo
+            file: authserver/.ci/concourse/gopythongo.yaml
+            params:
+                APTLY_PUBLISH_ENDPOINT: s3:maurusnet:release/stretch
+                APTLY_DISTRIBUTION: mn-release
+                REPO: maurusnet-release
