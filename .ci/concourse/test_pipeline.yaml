@@ -17,7 +17,7 @@ resources:
       source:
           access_token: ((github.access_token))
           repository: jdelic/authserver
-          context: ci/concourse
+          context: ci/test
           branch: develop
 
 
