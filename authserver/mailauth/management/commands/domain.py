@@ -180,7 +180,8 @@ class Command(BaseCommand):
                                  help="The output format for the results")
         domain_list.add_argument("--no-require-subdomain-signing", dest="require_jwt_subdomains", action="store_false",
                                  default=True,
-                                 help="Only find parent domains if they can sign for subdomains")
+                                 help="Find parent domains even if they can't sign for subdomains. By default this "
+                                      "command will only list domains that can sign for subdomains.")
         domain_list.add_argument("contains", nargs="?",
                                  help="Filer list by this string")
 
