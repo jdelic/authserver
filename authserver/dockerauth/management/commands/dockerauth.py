@@ -65,7 +65,9 @@ class Command(BaseCommand):
         reg_add_parser.add_argument("--domain-exact-match", dest="domain_exact_match", action="store_true",
                                     default=False,
                                     help="'--domain' must match an exact domain (parent domains that have the flag for "
-                                         "signing JWTs for subdomains set are ignored")
+                                         "signing JWTs for subdomains set are ignored). By default this command will "
+                                         "attach the registry to a parent domain if it is allowed to sign JWTs for "
+                                         "its subdomains.")
         reg_add_parser.add_argument("--allow-unauthenticated-pull", dest="unauthenticated_pull", action="store_true",
                                     default=False)
         reg_add_parser.add_argument("--allow-unauthenticated-push", dest="unauthenticated_push", action="store_true",
