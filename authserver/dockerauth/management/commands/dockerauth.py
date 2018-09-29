@@ -242,7 +242,7 @@ class Command(BaseCommand):
                                     options["case_insensitive"], options["allow_multiple"],
                                     options["output_private_key"])
             elif options["subcommand"] == "create":
-                if options["passphrase_env"] and options["passphrase_file"]:
+                if "passphrase_env" in options and "passphrase_file" in options:
                     self.stderr.write("You can specify either --passphrase-env or --passphrase-file, not both.")
                     sys.exit(1)
                 self._create_registry(options["name"], options["client_id"], options["domain"],
@@ -250,7 +250,7 @@ class Command(BaseCommand):
                                       unauthenticated_pull=options["unauthenticated_pull"],
                                       unauthenticated_push=options["unauthenticated_push"])
             elif options["subcommand"] == "remove":
-                if not options["name"] and not options["client_id"]:
+                if "name" not in options and "client_id" not in options:
                     self.stderr.write("You have to provide at least ONE of --name or --client-id or both.")
                     sys.exit(1)
                 self._remove_registry(options["name"], options["client_id"], options["force"])
