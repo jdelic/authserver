@@ -87,7 +87,8 @@ class SMTPWrapper:
                 _log.info("Unexpected response from server (passed upstream): %s %s", e.smtp_code, errorstr)
                 return "%s %s" % (e.smtp_code, errorstr)
             except smtplib.SMTPRecipientsRefused as e:
-                _log.info("Some recipients where refused by the downstream server: %s", ", ".join(e.recipients.keys()))
+                _log.info("Some or all recipients where refused by the downstream server: %s",
+                          ", ".join(e.recipients.keys()))
                 if self.error_relay_ip and self.error_relay_port:
                     with smtplib.SMTP(self.error_relay_ip, self.error_relay_port) as smtp_r:
                         try:
@@ -98,7 +99,14 @@ class SMTPWrapper:
                             )
                         except smtplib.SMTPException as ex:
                             _log.exception("Error while sending denied recipients reply: %s", str(ex))
-                return None
+                if set(to_addrs) == set(e.recipients.keys()):
+                    # All recipients were denied. Let's tell upstream to try again. It's likely that downstream
+                    # has a delivery problem (like a set sticky bit on the maildir)
+                    return "421 Downstream delivery failure. Please come again."
+                else:
+                    # Only some recipients were denied. It's probably wrong to tell the upstream to repeat
+                    # sending the email
+                    return None
             except smtplib.SMTPServerDisconnected as e:
                 _log.info("Downstream server unexpectedly disconnected: %s", str(e))
                 return "421 Possible network problem. Please try again."

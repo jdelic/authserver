@@ -65,7 +65,9 @@ class Command(BaseCommand):
         reg_add_parser.add_argument("--domain-exact-match", dest="domain_exact_match", action="store_true",
                                     default=False,
                                     help="'--domain' must match an exact domain (parent domains that have the flag for "
-                                         "signing JWTs for subdomains set are ignored")
+                                         "signing JWTs for subdomains set are ignored). By default this command will "
+                                         "attach the registry to a parent domain if it is allowed to sign JWTs for "
+                                         "its subdomains.")
         reg_add_parser.add_argument("--allow-unauthenticated-pull", dest="unauthenticated_pull", action="store_true",
                                     default=False)
         reg_add_parser.add_argument("--allow-unauthenticated-push", dest="unauthenticated_push", action="store_true",
@@ -240,7 +242,7 @@ class Command(BaseCommand):
                                     options["case_insensitive"], options["allow_multiple"],
                                     options["output_private_key"])
             elif options["subcommand"] == "create":
-                if options["passphrase_env"] and options["passphrase_file"]:
+                if "passphrase_env" in options and "passphrase_file" in options:
                     self.stderr.write("You can specify either --passphrase-env or --passphrase-file, not both.")
                     sys.exit(1)
                 self._create_registry(options["name"], options["client_id"], options["domain"],
@@ -248,7 +250,7 @@ class Command(BaseCommand):
                                       unauthenticated_pull=options["unauthenticated_pull"],
                                       unauthenticated_push=options["unauthenticated_push"])
             elif options["subcommand"] == "remove":
-                if not options["name"] and not options["client_id"]:
+                if "name" not in options and "client_id" not in options:
                     self.stderr.write("You have to provide at least ONE of --name or --client-id or both.")
                     sys.exit(1)
                 self._remove_registry(options["name"], options["client_id"], options["force"])
