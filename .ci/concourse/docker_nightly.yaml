@@ -10,12 +10,98 @@ resources:
           repository: registry.maurusnet.test:443/nightly/authserver
           username: authserver-build@maurusnet.test
           password: test1234
+          ca_certs:
+              - domain: registry.maurusnet.test:443
+                cert: |
+                    -----BEGIN CERTIFICATE-----
+                    MIIG9TCCBN2gAwIBAgICEBYwDQYJKoZIhvcNAQELBQAwgeQxCzAJBgNVBAYTAkRF
+                    MQ8wDQYDVQQHDAZNdW5pY2gxHTAbBgNVBAoMFG1hdXJ1cy5uZXR3b3JrcyBHbWJI
+                    MR8wHQYDVQQLDBZNaW5pb24gR2VhcyBCaW5kaW5nIENBMS8wLQYDVQQDDCZtYXVy
+                    dXMubmV0d29ya3MgTWluaW9uIEdlYXMgQmluZGluZyBDQTEcMBoGCSqGSIb3DQEJ
+                    ARYNY2FAbWF1cnVzLm5ldDE1MDMGCSqGSIb3DQEJAgwmbWF1cnVzLm5ldHdvcmtz
+                    IE1pbmlvbiBHZWFzIEJpbmRpbmcgQ0EwHhcNMTcwOTA2MTQ1NTA0WhcNMjcwOTA0
+                    MTQ1NTA0WjCBtzELMAkGA1UEBhMCREUxDzANBgNVBAcMBk11bmljaDEdMBsGA1UE
+                    CgwUbWF1cnVzLm5ldHdvcmtzIEdtYkgxIzAhBgNVBAsMGkxvY2FsIGRldmVsb3Bt
+                    ZW50IHdpbGRjYXJkMRkwFwYDVQQDDBAqLm1hdXJ1c25ldC50ZXN0MTgwNgYJKoZI
+                    hvcNAQkCDCltYXVydXNuZXQudGVzdCBsb2NhbCBkZXZlbG9wbWVudCB3aWxkY2Fy
+                    ZDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALF0i+xOxvHnkpzOmati
+                    c17u9wQOEt4E8ZeLWl6zCO4PVkitacPjjaQpy1XyjUPqztO5762ibVj0+nt420mR
+                    BA51A+v6f99ywf93wUL0x/T9GmJxfXDfXeAsqUtB5l5pSWzGCFkdPkzz0vZFn91F
+                    Hxq72UgDmnGxYl+vYG+AQ4A/ApngDer0xMmmgtURYH7wFOXR99QyZKdjaJRSFBvG
+                    8cz51mvjVfKDEzsaInukj/bW3P0FR1X+9hUEugcPAYYl8CsdIHyxN4KYY2Inof7z
+                    4L1q/NFKRG5K0HBFzN/DnpnikX4yFtFeXJnFrka8KguHD8PPfbnbLfUpu9HzJkse
+                    WW0CAwEAAaOCAdowggHWMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFFxvf1aghEsq
+                    qZFaRqAAL4zJY2OCMIIBEwYDVR0jBIIBCjCCAQaAFONU5g1GdCGNbeHRwsEJPg9N
+                    u5JjoYHqpIHnMIHkMQswCQYDVQQGEwJERTEPMA0GA1UEBwwGTXVuaWNoMR0wGwYD
+                    VQQKDBRtYXVydXMubmV0d29ya3MgR21iSDEfMB0GA1UECwwWTWFzdGVyIENvbnRy
+                    b2wgUHJvZ3JhbTEvMC0GA1UEAwwmbWF1cnVzLm5ldHdvcmtzIE1hc3RlciBDb250
+                    cm9sIFByb2dyYW0xHDAaBgkqhkiG9w0BCQEWDWNhQG1hdXJ1cy5uZXQxNTAzBgkq
+                    hkiG9w0BCQIMJm1hdXJ1cy5uZXR3b3JrcyBNYXN0ZXIgQ29udHJvbCBQcm9ncmFt
+                    ggEBMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUEDDAKBggrBgEFBQcDATArBgNVHREE
+                    JDAigg5tYXVydXNuZXQudGVzdIIQKi5tYXVydXNuZXQudGVzdDA+BgNVHR8ENzA1
+                    MDOgMaAvhi1odHRwczovL2NybC5tYXVydXMubmV0L21pbmlvbl9yZXZvY2F0aW9u
+                    cy5jcmwwDQYJKoZIhvcNAQELBQADggIBADC39n7jZ4qpIHNbJcwJfW/EonVOICrL
+                    7aZKXWgIp965tDIFtfc3oYcODPNAmcAAjUhmqoE8REXb0m/H0c+YQro9X9WhvFjB
+                    5sH32aGK18qWZP5nKdoPae5sFeITpvRIDBnEpjZdqgxcowPFbtIu78cOPeNKXF8m
+                    rko10QWd73h7tALEsKyFIyxqtDj7RNT1+EHJm++aeJq+5GBmp8XBLyda/qmlYM72
+                    5BoHJWUF7EV0Y0F98M1UK/b61QSFXb+ChJV2oiuGodw2TBYGlRePM4UldlEdZ3V1
+                    t4uDHHX09V8RaaW8h56qpPHOaYRxwyLQaxthqvrSo8we1bhRD9i2JRvc/RExVNJk
+                    Fy4hqA52BVUVeAyerLCjhWilTex3Z2YYRb/O8AP99SAiA02csNmwJZ65c5gtHHkh
+                    mtpeMuZ/5Rq7pUt9psK2Ez81C/qkT5f5rzdwM2OA8W+WaSKzmQZOpG39CJDMZZHx
+                    7DuvcmX+ZCPVKNf6v2n0tbiMULtbPlgtOQ28Y5hjw2pZXfThTharPC2FblMkPwZb
+                    gYXdGpHRlV44gq40CboIz2uz0qzYMdsMYBuACxGtqdJ3J2zotSNgKtBIYN97eEOU
+                    szqCqhJpAuMqyQT/JONNjfcn29VNWInaFFMQtlOWvj97qKgm5JIGBajtReikypd9
+                    6C9gSG37MFWt
+                    -----END CERTIFICATE-----
     - name: authserver-buildsystem
       type: docker-image
       source:
           repository: registry.maurusnet.test:443/buildsystem/authserver
           username: authserver-build@maurusnet.test
           password: test1234
+          ca_certs:
+              - domain: registry.maurusnet.test:443
+                cert: |
+                    -----BEGIN CERTIFICATE-----
+                    MIIG9TCCBN2gAwIBAgICEBYwDQYJKoZIhvcNAQELBQAwgeQxCzAJBgNVBAYTAkRF
+                    MQ8wDQYDVQQHDAZNdW5pY2gxHTAbBgNVBAoMFG1hdXJ1cy5uZXR3b3JrcyBHbWJI
+                    MR8wHQYDVQQLDBZNaW5pb24gR2VhcyBCaW5kaW5nIENBMS8wLQYDVQQDDCZtYXVy
+                    dXMubmV0d29ya3MgTWluaW9uIEdlYXMgQmluZGluZyBDQTEcMBoGCSqGSIb3DQEJ
+                    ARYNY2FAbWF1cnVzLm5ldDE1MDMGCSqGSIb3DQEJAgwmbWF1cnVzLm5ldHdvcmtz
+                    IE1pbmlvbiBHZWFzIEJpbmRpbmcgQ0EwHhcNMTcwOTA2MTQ1NTA0WhcNMjcwOTA0
+                    MTQ1NTA0WjCBtzELMAkGA1UEBhMCREUxDzANBgNVBAcMBk11bmljaDEdMBsGA1UE
+                    CgwUbWF1cnVzLm5ldHdvcmtzIEdtYkgxIzAhBgNVBAsMGkxvY2FsIGRldmVsb3Bt
+                    ZW50IHdpbGRjYXJkMRkwFwYDVQQDDBAqLm1hdXJ1c25ldC50ZXN0MTgwNgYJKoZI
+                    hvcNAQkCDCltYXVydXNuZXQudGVzdCBsb2NhbCBkZXZlbG9wbWVudCB3aWxkY2Fy
+                    ZDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALF0i+xOxvHnkpzOmati
+                    c17u9wQOEt4E8ZeLWl6zCO4PVkitacPjjaQpy1XyjUPqztO5762ibVj0+nt420mR
+                    BA51A+v6f99ywf93wUL0x/T9GmJxfXDfXeAsqUtB5l5pSWzGCFkdPkzz0vZFn91F
+                    Hxq72UgDmnGxYl+vYG+AQ4A/ApngDer0xMmmgtURYH7wFOXR99QyZKdjaJRSFBvG
+                    8cz51mvjVfKDEzsaInukj/bW3P0FR1X+9hUEugcPAYYl8CsdIHyxN4KYY2Inof7z
+                    4L1q/NFKRG5K0HBFzN/DnpnikX4yFtFeXJnFrka8KguHD8PPfbnbLfUpu9HzJkse
+                    WW0CAwEAAaOCAdowggHWMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFFxvf1aghEsq
+                    qZFaRqAAL4zJY2OCMIIBEwYDVR0jBIIBCjCCAQaAFONU5g1GdCGNbeHRwsEJPg9N
+                    u5JjoYHqpIHnMIHkMQswCQYDVQQGEwJERTEPMA0GA1UEBwwGTXVuaWNoMR0wGwYD
+                    VQQKDBRtYXVydXMubmV0d29ya3MgR21iSDEfMB0GA1UECwwWTWFzdGVyIENvbnRy
+                    b2wgUHJvZ3JhbTEvMC0GA1UEAwwmbWF1cnVzLm5ldHdvcmtzIE1hc3RlciBDb250
+                    cm9sIFByb2dyYW0xHDAaBgkqhkiG9w0BCQEWDWNhQG1hdXJ1cy5uZXQxNTAzBgkq
+                    hkiG9w0BCQIMJm1hdXJ1cy5uZXR3b3JrcyBNYXN0ZXIgQ29udHJvbCBQcm9ncmFt
+                    ggEBMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUEDDAKBggrBgEFBQcDATArBgNVHREE
+                    JDAigg5tYXVydXNuZXQudGVzdIIQKi5tYXVydXNuZXQudGVzdDA+BgNVHR8ENzA1
+                    MDOgMaAvhi1odHRwczovL2NybC5tYXVydXMubmV0L21pbmlvbl9yZXZvY2F0aW9u
+                    cy5jcmwwDQYJKoZIhvcNAQELBQADggIBADC39n7jZ4qpIHNbJcwJfW/EonVOICrL
+                    7aZKXWgIp965tDIFtfc3oYcODPNAmcAAjUhmqoE8REXb0m/H0c+YQro9X9WhvFjB
+                    5sH32aGK18qWZP5nKdoPae5sFeITpvRIDBnEpjZdqgxcowPFbtIu78cOPeNKXF8m
+                    rko10QWd73h7tALEsKyFIyxqtDj7RNT1+EHJm++aeJq+5GBmp8XBLyda/qmlYM72
+                    5BoHJWUF7EV0Y0F98M1UK/b61QSFXb+ChJV2oiuGodw2TBYGlRePM4UldlEdZ3V1
+                    t4uDHHX09V8RaaW8h56qpPHOaYRxwyLQaxthqvrSo8we1bhRD9i2JRvc/RExVNJk
+                    Fy4hqA52BVUVeAyerLCjhWilTex3Z2YYRb/O8AP99SAiA02csNmwJZ65c5gtHHkh
+                    mtpeMuZ/5Rq7pUt9psK2Ez81C/qkT5f5rzdwM2OA8W+WaSKzmQZOpG39CJDMZZHx
+                    7DuvcmX+ZCPVKNf6v2n0tbiMULtbPlgtOQ28Y5hjw2pZXfThTharPC2FblMkPwZb
+                    gYXdGpHRlV44gq40CboIz2uz0qzYMdsMYBuACxGtqdJ3J2zotSNgKtBIYN97eEOU
+                    szqCqhJpAuMqyQT/JONNjfcn29VNWInaFFMQtlOWvj97qKgm5JIGBajtReikypd9
+                    6C9gSG37MFWt
+                    -----END CERTIFICATE-----
 
 
 jobs:
