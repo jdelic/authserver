@@ -1,0 +1,32 @@
+resources:
+    - name: authserver
+      type: git
+      source:
+          uri: https://github.com/jdelic/authserver.git
+          branch: feature/django2
+    - name: authserver-nightly
+      type: docker-image
+      source:
+          repository: registry.maurusnet.test:443/nightly/authserver
+          username: authserver-build@maurusnet.test
+          password: test1234
+    - name: authserver-buildsystem
+      type: docker-image
+      source:
+          repository: registry.maurusnet.test:443/buildsystem/authserver
+          username: authserver-build@maurusnet.test
+          password: test1234
+
+
+jobs:
+    - name: authserver-docker-nightly
+      plan:
+          - get: authserver
+          - put: authserver-buildsystem
+            params:
+                build: authserver/.ci
+                target: buildsystem
+          - put: authserver-nightly
+            params:
+                build: authserver/.ci
+                target: target
