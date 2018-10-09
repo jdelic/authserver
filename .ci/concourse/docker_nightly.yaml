@@ -7,11 +7,11 @@ resources:
     - name: authserver-nightly
       type: docker-image
       source:
-          repository: registry.maurusnet.test:443/nightly/authserver
+          repository: registry.maurusnet.test/nightly/authserver
           username: authserver-build@maurusnet.test
           password: test1234
           ca_certs:
-              - domain: registry.maurusnet.test:443
+              - domain: registry.maurusnet.test
                 cert: |
                     -----BEGIN CERTIFICATE-----
                     MIIG9TCCBN2gAwIBAgICEBYwDQYJKoZIhvcNAQELBQAwgeQxCzAJBgNVBAYTAkRF
@@ -56,11 +56,11 @@ resources:
     - name: authserver-buildsystem
       type: docker-image
       source:
-          repository: registry.maurusnet.test:443/buildsystem/authserver
+          repository: registry.maurusnet.test/buildsystem/authserver
           username: authserver-build@maurusnet.test
           password: test1234
           ca_certs:
-              - domain: registry.maurusnet.test:443
+              - domain: registry.maurusnet.test
                 cert: |
                     -----BEGIN CERTIFICATE-----
                     MIIG9TCCBN2gAwIBAgICEBYwDQYJKoZIhvcNAQELBQAwgeQxCzAJBgNVBAYTAkRF
