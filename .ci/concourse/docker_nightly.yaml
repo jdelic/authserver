@@ -13,7 +13,7 @@ resources:
     - name: authserver-buildsystem
       type: docker-image
       source:
-          repository: docker-registry.service.consul:443/buildsystem/authserver
+          repository: registry.maurusnet.test:443/buildsystem/authserver
           username: authserver-build@maurusnet.test
           password: test1234
 
