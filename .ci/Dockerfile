@@ -1,6 +1,7 @@
 FROM python:3.6-stretch as buildsystem-base
 WORKDIR /authserver
-RUN apt-get --no-install-recommends -q -y -o DPkg::Options::=--force-confold \
+RUN apt-get update && \
+    apt-get --no-install-recommends -q -y -o DPkg::Options::=--force-confold \
         -o DPkg::Options::=--force-confdef install \
         build-essential python3 python3-virtualenv virtualenv python3-pip \
         libssl-dev libffi-dev libpq-dev python3-dev
