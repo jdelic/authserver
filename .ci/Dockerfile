@@ -9,7 +9,7 @@ RUN apt-get update && \
 
 FROM buildsystem-base as builder
 WORKDIR /authserver
-RUN virtualenv /app && /app/bin/pip install /authserver
+RUN virtualenv -p python3 /app && /app/bin/pip install ./authserver
 
 
 FROM python:3.6-stretch as target
