@@ -70,22 +70,22 @@ jobs:
                 inputs:
                     - name: authserver
                 outputs:
-                    - name: app
-                    - name: appconfig
+                    - name: dist
                 run:
                     path: /bin/bash
                     args:
                         - -c
                         - |
-                            mkdir -p appconfig/authserver/env && \
-                            mkdir -p appconfig/authserver/files && \
-                            head -c 32 /dev/urandom | base64 > appconfig/authserver/env/SECRET_KEY && \
-                            echo authserver.settings > appconfig/authserver/env/DJANGO_SETTINGS_MODULE && \
+                            mkdir -p dist/appconfig/authserver/env && \
+                            mkdir -p dist/appconfig/authserver/files && \
+                            head -c 32 /dev/urandom | base64 > dist/appconfig/authserver/env/SECRET_KEY && \
+                            echo authserver.settings > dist/appconfig/authserver/env/DJANGO_SETTINGS_MODULE && \
                             pip install virtualenv && \
                             virtualenv /app && \
                             /app/bin/pip install authserver/ && \
-                            cp -R /app app
+                            cp -R /app dist/app && \
+                            cp authserver/.ci/Dockerfile dist
           - put: authserver-nightly
             params:
-                build: authserver/.ci
+                build: dist
 
