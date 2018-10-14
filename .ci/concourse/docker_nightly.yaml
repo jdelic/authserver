@@ -4,6 +4,11 @@ resources:
       source:
           uri: https://github.com/jdelic/authserver.git
           branch: feature/django2
+    -   name: python3.6
+        type: docker-image
+        source:
+            repository: python
+            tag: 3.6-stretch
     - name: authserver-nightly
       type: docker-image
       source:
@@ -108,11 +113,32 @@ jobs:
     - name: authserver-docker-nightly
       plan:
           - get: authserver
-          - put: authserver-buildsystem
+          - get: python3.6
             params:
-                build: authserver/.ci
-                target: buildsystem
+                save: True
+          - task: authserver-build
+            image: python3.6:stretch
+            config:
+                platform: linux
+                image: python3.6
+                inputs:
+                    - name: authserver
+                outputs:
+                    - name: app
+                    - name: appconfig
+                run:
+                    path: /bin/bash
+                    args:
+                        - -c
+                        - |
+                            mkdir -p appconfig/authserver/env && \
+                            mkdir -p appconfig/authserver/files && \
+                            head -c 32 /dev/urandom | base64 -e > appconfig/authserver/env/SECRET_KEY && \
+                            echo authserver.settings > appconfig/authserver/env/DJANGO_SETTINGS_MODULE && \
+                            virtualenv -p /usr/local/bin/python3 /app && \
+                            /app/bin/pip install authserver/ && \
+                            cp -R /app app
           - put: authserver-nightly
             params:
                 build: authserver/.ci
-                target: target
+
