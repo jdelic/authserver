@@ -2,6 +2,7 @@ FROM python:3.6-stretch as target
 ADD app /app
 ADD appconfig /config
 VOLUME /config/authserver
+RUN mkdir -p /run/authserver
 EXPOSE 8080
 CMD ["/app/bin/envdir", "/config/authserver/env", \
      "/app/bin/gunicorn", "-b", "127.0.0.1:8080", \
