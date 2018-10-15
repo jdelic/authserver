@@ -125,6 +125,7 @@ class DockerRepo(DockerPermissionBase):
     registry = models.ForeignKey(
         DockerRegistry,
         related_name="repos",
+        on_delete=models.CASCADE,
     )
 
     def __str__(self) -> str:
