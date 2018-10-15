@@ -1,12 +1,12 @@
 # -* encoding: utf-8 *-
-from typing import Any, Union, Tuple, Dict
+from typing import Any, Union, Tuple, Dict, Optional
 
 import django.contrib.auth.admin as auth_admin
 
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
-from django.urls import urlresolvers
+from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.http.request import HttpRequest
 from django.urls import reverse
@@ -163,13 +163,13 @@ class EmailAliasAdmin(admin.ModelAdmin):
         if obj.user is not None:
             ret = format_html(
                 "<a href=\"{}\">{}</a>",
-                urlresolvers.reverse('admin:mailauth_mnuser_change', args=[obj.user.uuid]),
+                reverse('admin:mailauth_mnuser_change', args=[obj.user.uuid]),
                 obj.user.identifier,
             )
         elif obj.forward_to is not None:
             ret = format_html(
                 "<a href=\"{}\">{}</a>",
-                urlresolvers.reverse('admin:mailauth_mailinglist_change', args=[obj.forward_to.id]),
+                reverse('admin:mailauth_mailinglist_change', args=[obj.forward_to.id]),
                 obj.forward_to.name,
             )
         return ret
