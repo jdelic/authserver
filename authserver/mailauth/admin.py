@@ -1,12 +1,12 @@
 # -* encoding: utf-8 *-
-from typing import Any, Union, Tuple, Dict, Optional
+from typing import Any, Union, Tuple, Dict
 
 import django.contrib.auth.admin as auth_admin
 
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
-from django.core import urlresolvers
+from django.urls import urlresolvers
 from django.http import HttpResponse, HttpResponseRedirect
 from django.http.request import HttpRequest
 from django.urls import reverse
