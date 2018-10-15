@@ -5,6 +5,6 @@ VOLUME /config/authserver
 RUN mkdir -p /run/authserver
 EXPOSE 8080
 CMD ["/app/bin/envdir", "/config/authserver/env", \
-     "/app/bin/gunicorn", "-b", "127.0.0.1:8080", \
+     "/app/bin/gunicorn", "-b", "0.0.0.0:8080", \
      "-w", "2", "-p", "/run/authserver/authserver.pid", "--config", \
      "python:authserver.gunicorn_conf", "authserver.wsgi:application"]
