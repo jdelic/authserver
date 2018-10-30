@@ -27,7 +27,7 @@ whitenoise==4.1
 # DKIM filter dependencies
 valimail-dkimpy==0.7.1
 # undeclared dependency of valimail-dkimpy
-authres==1.1.0
+authres==1.1.1
 python-daemon==2.2.0
 
 # vendored dependencies from django12factor
