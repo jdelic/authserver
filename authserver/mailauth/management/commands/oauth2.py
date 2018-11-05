@@ -20,11 +20,9 @@ class Command(BaseCommand):
     requires_migrations_checks = True
 
     def add_arguments(self, parser: CommandParser) -> None:
-        cmd = self
-
         class SubCommandParser(CommandParser):
             def __init__(self, **kwargs: Any) -> None:
-                super().__init__(cmd, **kwargs)
+                super().__init__(**kwargs)
 
         subparsers = parser.add_subparsers(
             dest='scmd',
