@@ -13,13 +13,13 @@ django-ratelimit==1.1.0
 django-select2==6.3.1
 envdir==1.0.1
 gunicorn==19.9.0
-hvac==0.6.4
+hvac==0.7.0
 passlib==1.7.1
 psycopg2-binary==2.7.5
 pyjwt==1.6.4
 python-consul==1.1.0
 python-json-logger==0.1.9
-requests==2.19.1
+requests==2.20.0
 sqlparse==0.2.4
 typing==3.6.6
 whitenoise==4.1
@@ -27,7 +27,7 @@ whitenoise==4.1
 # DKIM filter dependencies
 dkimpy==0.9.0
 # undeclared dependency of dkimpy
-authres==1.1.0
+authres==1.1.1
 python-daemon==2.2.0
 
 # vendored dependencies from django12factor
