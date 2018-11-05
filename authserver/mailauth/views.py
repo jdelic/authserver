@@ -101,7 +101,7 @@ class FakeUserInfoView(ProtectedResourceView):
                 "sub": str(user.uuid),
                 "email": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
                 "user_id": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
-                "groups": [str(g.uuid) for g in user.app_groups.all()],
+                "groups": [str(g.name) for g in user.app_groups.all()],
                 "email_verified": True,
                 "scopes": list(user.get_all_app_permission_strings()),
                 "nbf": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) - 5,
