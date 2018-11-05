@@ -5,6 +5,7 @@ from typing import Tuple, Dict, Optional
 
 from django.contrib.auth import hashers
 from django.core.exceptions import ValidationError
+from django.http import HttpRequest
 from django.utils.translation import ugettext_lazy as _
 from typing import Union
 
@@ -105,7 +106,7 @@ class UnixCryptCompatibleSHA256Hasher(object):
 
 
 class MNUserAuthenticationBackend(object):
-    def authenticate(self, username: str, password: str) -> Optional[MNUser]:
+    def authenticate(self, request: HttpRequest, username: str=None, password: str=None) -> Optional[MNUser]:
         # the argument names must be 'username' and 'password' because the authenticator interface is tightly coupled
         # to the parameter names between login forms and authenticators
 
