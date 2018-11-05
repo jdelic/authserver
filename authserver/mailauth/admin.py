@@ -158,6 +158,7 @@ class EmailAliasAdmin(admin.ModelAdmin):
     search_fields = ('mailprefix', 'domain__name',)
 
     def get_user(self, obj: EmailAlias) -> str:
+        ret = "[Error: Unassigned]"
         if obj.user is not None:
             ret = format_html(
                 "<a href=\"{}\">{}</a>",

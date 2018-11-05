@@ -124,7 +124,8 @@ class EmailAlias(models.Model):
             raise ValidationError({'forward_to': "An email alias can't be associated with a user and be a mailing list "
                                                  "at the same time"})
 
-        if not hasattr(self, 'forward_to') and not hasattr(self, 'user'):
+        if (not hasattr(self, 'forward_to') or self.forward_to is None) and \
+                (not hasattr(self, 'user') or self.user is None):
             raise ValidationError({'user': "An email alias must either be a mailing list or be associated with an "
                                            "user."})
 
