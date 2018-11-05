@@ -110,6 +110,9 @@ class MNUserAuthenticationBackend(object):
         # the argument names must be 'username' and 'password' because the authenticator interface is tightly coupled
         # to the parameter names between login forms and authenticators
 
+        if username is None:
+            return None
+
         tocheck_password = None  # type: Optional[str]
         if "@" not in username or username.count("@") > 1:
             try:
@@ -138,7 +141,7 @@ class MNUserAuthenticationBackend(object):
                 tocheck_password = service_user.password
                 user = service_user.user
         else:
-            _log.debug("logging in email alis %s", username)
+            _log.debug("logging in email alias %s", username)
             mailprefix, domain = username.split("@")
 
             if Domain.objects.filter(name=domain).count() == 0:
