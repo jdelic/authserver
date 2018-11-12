@@ -22,7 +22,7 @@ python-json-logger==0.1.10
 requests==2.20.1
 sqlparse==0.2.4
 typing==3.6.6
-whitenoise==4.1
+whitenoise==4.1.1
 
 # DKIM filter dependencies
 valimail-dkimpy==0.7.1
