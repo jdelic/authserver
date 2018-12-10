@@ -19,7 +19,7 @@ psycopg2-binary==2.7.6.1
 pyjwt==1.7.1
 python-consul==1.1.0
 python-json-logger==0.1.10
-requests==2.20.1
+requests==2.21.0
 sqlparse==0.2.4
 typing==3.6.6
 whitenoise==4.1.2
@@ -34,7 +34,7 @@ python-daemon==2.2.0
 dj-database-url==0.5.0
 dj-email-url==0.1.0
 django-cache-url==3.0.0
-six==1.11.0
+six==1.12.0
 
 # pytz is consciously unpinned, I trust this collection of timezones to not fuck up
 pytz
