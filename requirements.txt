@@ -13,7 +13,7 @@ django-ratelimit==1.1.0
 django-select2==5.11.1  # rq.filter: <6.0.0
 envdir==1.0.1
 gunicorn==19.9.0
-hvac==0.7.0
+hvac==0.7.1
 passlib==1.7.1
 psycopg2-binary==2.7.6.1
 pyjwt==1.7.1
