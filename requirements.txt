@@ -8,7 +8,7 @@ django-mama-cas==2.4.0
 # django-oauth-toolkit drops support for Django 1.11
 django-oauth-toolkit==1.1.3  # rq.filter: <1.2.0
 django-postgresql-setrole==1.0.10
-django-ratelimit==1.1.0
+django-ratelimit==2.0.0
 # select2 6.0.0 drops support for Python 3.5 which we need
 django-select2==5.11.1  # rq.filter: <6.0.0
 envdir==1.0.1
