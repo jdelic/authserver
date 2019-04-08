@@ -15,7 +15,7 @@ envdir==1.0.1
 gunicorn==19.9.0
 hvac==0.8.2
 passlib==1.7.1
-psycopg2-binary==2.8
+psycopg2-binary==2.8.1
 pyjwt==1.7.1
 python-consul==1.1.0
 python-json-logger==0.1.11
