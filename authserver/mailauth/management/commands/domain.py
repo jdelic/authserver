@@ -21,8 +21,8 @@ KEY_CHOICES = ["jwt", "dkim"]
 class Command(BaseCommand):
     requires_migrations_checks = True
 
-    def _create(self, domain: str, create_keys: List[str]=None, dkim_selector: str="", redirect_to: str="",
-                jwt_allow_subdomain_signing: bool=False, **kwargs: Any) -> None:
+    def _create(self, domain: str, create_keys: List[str] = None, dkim_selector: str = "", redirect_to: str = "",
+                jwt_allow_subdomain_signing: bool = False, **kwargs: Any) -> None:
         try:
             domobj = Domain.objects.get(name__iexact=domain)
         except Domain.DoesNotExist:
@@ -44,7 +44,7 @@ class Command(BaseCommand):
 
         sys.stderr.write("Domain %s created" % domain)
 
-    def _pubkey(self, domain: str, output: str, key: str="jwt", create_key: bool=False, format: str="pem",
+    def _pubkey(self, domain: str, output: str, key: str = "jwt", create_key: bool = False, format: str = "pem",
                 **kwargs: Any) -> None:
         try:
             domobj = Domain.objects.get(name=domain)
@@ -87,8 +87,8 @@ class Command(BaseCommand):
         if output != "-":
             sys.stderr.write("Public key exported to %s\n" % output)
 
-    def _list(self, contains: str, include_parent_domain: bool=False, format: str="list",
-              require_jwt_subdomains: bool=True, **kwargs: Any) -> None:
+    def _list(self, contains: str, include_parent_domain: bool = False, format: str = "list",
+              require_jwt_subdomains: bool = True, **kwargs: Any) -> None:
         if contains and include_parent_domain:
             try:
                 dom = Domain.objects.find_parent_domain(
@@ -185,7 +185,7 @@ class Command(BaseCommand):
         domain_list.add_argument("contains", nargs="?",
                                  help="Filer list by this string")
 
-    def handle(self, *args:Any, **options: Any) -> None:
+    def handle(self, *args: Any, **options: Any) -> None:
         if options["scmd"] == "create":
             self._create(**options)
         elif options["scmd"] == "remove":
