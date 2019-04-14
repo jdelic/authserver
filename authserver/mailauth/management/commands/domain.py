@@ -102,17 +102,24 @@ class Command(BaseCommand):
 
     def _pubkey(self, domain: str, output: str, key: str = "jwt", create_key: bool = False, format: str = "pem",
                 **kwargs: Any) -> None:
-        try:
-            domobj = Domain.objects.get(name=domain)
-        except Domain.DoesNotExist:
-            sys.stderr.write("Error: Domain %s does not exist\n" % domain)
-            sys.exit(1)
-
-        if key == "jwt":
-            attr = "jwtkey"
-        elif key == "dkim":
+        attr = None
+        if key == "dkim":
             attr = "dkimkey"
+            try:
+                domobj = Domain.objects.get(name=domain)
+            except Domain.DoesNotExist:
+                sys.stderr.write("Error: Domain %s does not exist\n" % domain)
+                sys.exit(1)
         else:
+            attr = "jwtkey"
+            try:
+                domobj = Domain.objects.find_parent_domain(domain)
+            except Domain.DoesNotExist:
+                sys.stderr.write("Error: Domain does not exist and no parent domain exists with signing rights "
+                                 "for %s\n" % domain)
+                sys.exit(1)
+
+        if not attr:
             sys.stderr.write("Unknown key type: %s\n" % key)
             sys.exit(1)
 
@@ -133,7 +140,7 @@ class Command(BaseCommand):
             if format == "pem":
                 print(public_key, file=cast(IO[str], f))
             elif format == "dkimdns":
-                outstr = "\"v=DKIM1\; k=rsa\; p=\" {split_key}".format(
+                outstr = "\"v=DKIM1\\; k=rsa\\; p=\" {split_key}".format(
                     split_key="\n".join(
                         ['"%s"' % line for line in
                          cast(Match[str], re.search("--\n(.*?)\n--", public_key, re.DOTALL)).group(1).split("\n")])
