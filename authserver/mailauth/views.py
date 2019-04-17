@@ -50,7 +50,7 @@ class ScopeValidationAuthView(AuthorizationView):
         # super.get will initialize self.oauth2_data and now we can do additional validation
         resp = super().get(request, *args, **kwargs)
 
-        if not resp.status_code == 200:
+        if not resp.status_code >= 200 and resp.status_code < 300:
             return resp
 
         app = self.oauth2_data['application']  # type: MNApplication
