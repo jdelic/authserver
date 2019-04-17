@@ -272,7 +272,7 @@ class Command(BaseCommand):
         check_sp_g.add_argument("--installed", dest="check_installed", action="store_true", default=False)
         check_sp_g.add_argument("--grant", dest="user", type=str)
 
-    def handle(self, *args:Any, **options: Any) -> None:
+    def handle(self, *args: Any, **options: Any) -> None:
         if options["scmd"] == "install":
             self._install(**options)
         elif options["scmd"] == "grant":
