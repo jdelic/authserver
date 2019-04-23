@@ -22,7 +22,7 @@ class Command(BaseCommand):
     requires_migrations_checks = True
 
     def _create(self, domain: str, create_keys: List[str] = None, dkim_selector: str = "", redirect_to: str = "",
-                jwt_allow_subdomain_signing: bool = False, **kwargs: Any) -> None:
+                jwt_allow_subdomain_signing: str = "false", **kwargs: Any) -> None:
         try:
             domobj = Domain.objects.get(name__iexact=domain)
         except Domain.DoesNotExist:
@@ -42,7 +42,7 @@ class Command(BaseCommand):
             domobj.dkimkey = generate_rsa_key(2048).private_key
         domobj.save()
 
-        sys.stderr.write("Domain %s created" % domain)
+        sys.stderr.write("Domain %s created\n" % domain)
 
     def _edit(self, domain: str, create_keys: List[str] = None, remove_keys: List[str] = None,
               dkim_selector: str = "", redirect_to: str = "", overwrite: bool = False,
@@ -61,7 +61,7 @@ class Command(BaseCommand):
 
         if create_keys and remove_keys:
             sys.stderr.write("As it is impossible to discern your intentions, please don't use --create-key and "
-                             "--remove-key in the same command, instead split it in two commands in the right order.")
+                             "--remove-key in the same command, instead split it in two commands in the right order.\n")
             sys.exit(1)
 
         if "jwt" in create_keys:
@@ -72,16 +72,16 @@ class Command(BaseCommand):
                     sys.stderr.write("Generating JWT key for domain %s" % domain)
                 domobj.jwtkey = generate_rsa_key(2048).private_key
             else:
-                sys.stderr.write("JWT key for domain %s already exists and --overwrite not specified" % domain)
+                sys.stderr.write("JWT key for domain %s already exists and --overwrite not specified\n" % domain)
         if "dkim" in create_keys:
             if (domobj.dkimkey and overwrite) or not domobj.dkimkey:
                 if domobj.dkimkey and overwrite:
-                    sys.stderr.write("Overwriting DKIM key for domain %s" % domain)
+                    sys.stderr.write("Overwriting DKIM key for domain %s\n" % domain)
                 elif not domobj.dkimkey:
-                    sys.stderr.write("Generating DKIM key for domain %s" % domain)
+                    sys.stderr.write("Generating DKIM key for domain %s\n" % domain)
                 domobj.dkimkey = generate_rsa_key(2048).private_key
             else:
-                sys.stderr.write("DKIM key for domain %s already exists and --overwrite not specified" % domain)
+                sys.stderr.write("DKIM key for domain %s already exists and --overwrite not specified\n" % domain)
 
         if "jwt" in remove_keys:
             domobj.jwtkey = None
@@ -95,10 +95,10 @@ class Command(BaseCommand):
             domobj.redirect_to = redirect_to
 
         if jwt_allow_subdomain_signing:
-            domobj.jwt_subdomains = jwt_allow_subdomain_signing
+            domobj.jwt_subdomains = jwt_allow_subdomain_signing == "true"
 
         domobj.save()
-        sys.stderr.write("Domain %s edited" % domain)
+        sys.stderr.write("Domain %s edited\n" % domain)
 
     def _pubkey(self, domain: str, output: str, key: str = "jwt", create_key: bool = False, format: str = "pem",
                 **kwargs: Any) -> None:
@@ -160,7 +160,7 @@ class Command(BaseCommand):
                 dom = None
             qs = [dom] if dom is not None else []  # type: Union[QuerySet, Domain, List[Domain]]
         elif contains and not include_parent_domain:
-            qs = Domain.objects.filter(name__icontains=contains)
+            qs = Domain.objects.filter(name__icontains=contains, jwt_subdomains=require_jwt_subdomains)
         else:
             qs = Domain.objects.all()
 
@@ -174,6 +174,8 @@ class Command(BaseCommand):
                         "name": domain.name,
                         "id": domain.id,
                         "jwt_sign_subdomains": domain.jwt_subdomains,
+                        "has_jwtkey": bool(domain.jwtkey),
+                        "has_dkimkey": bool(domain.dkimkey),
                         "dkimselector": domain.dkimselector,
                     })
             if format == "json":
@@ -209,7 +211,7 @@ class Command(BaseCommand):
         domain_create.add_argument("--dkim-selector", dest="dkim_selector", default="",
                                    help="The DKIM selector to print in the DKIM records (for the pubkey command, for "
                                         "example)")
-        domain_create.add_argument("domain",
+        domain_create.add_argument("domain", nargs="?",
                                    help="The domain name to create as FQDN")
 
         domain_remove = subparsers.add_parser("remove", help="Remove domain entries")
@@ -219,8 +221,6 @@ class Command(BaseCommand):
                                    help="Do not ask for confirmation on removal")
         domain_remove.add_argument("contains",
                                    help="A string matching the domain(s) to remove")
-
-        domain_manage = subparsers.add_parser("manage", help="Manage domain entries")
 
         domain_pubkey = subparsers.add_parser("pubkey", help="Export public keys")
         domain_pubkey.add_argument("--key", dest="key", choices=KEY_CHOICES, default="jwt",
@@ -232,7 +232,7 @@ class Command(BaseCommand):
                                         "suitable for being added to a DNS TXT entry")
         domain_pubkey.add_argument("-o", "--output", dest="output", default="-",
                                    help="Output filename (or '-' for stdout)")
-        domain_pubkey.add_argument("domain",
+        domain_pubkey.add_argument("domain", nargs="?",
                                    help="The domain to export public keys from")
 
         domain_list = subparsers.add_parser("list", help="List domains")
@@ -246,7 +246,7 @@ class Command(BaseCommand):
                                       "command will only list domains that can sign for subdomains if "
                                       "--include-parent-domain is set.")
         domain_list.add_argument("contains", nargs="?",
-                                 help="Filer list by this string")
+                                 help="Filter list by this string")
 
         domain_edit = subparsers.add_parser("edit", help="Edit domains")
         domain_edit.add_argument("--jwt-allow-subdomain-signing", dest="jwt_allow_subdomain_signing",
@@ -263,7 +263,7 @@ class Command(BaseCommand):
                                       "example)")
         domain_edit.add_argument("--overwrite", dest="overwrite", default=False, action="store_true",
                                  help="Overwrite existing values (like keys on --create-key)")
-        domain_edit.add_argument("domain", help="The domain to edit as FQDN")
+        domain_edit.add_argument("domain", nargs="?", help="The domain to edit as FQDN")
 
     def handle(self, *args: Any, **options: Any) -> None:
         if options["scmd"] == "create":
