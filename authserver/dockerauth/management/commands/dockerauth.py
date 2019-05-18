@@ -24,23 +24,21 @@ class Command(BaseCommand):
                                              dest="accesssubcmd")  # type: _SubParsersAction
 
         def create_allow_deny_cmds(localsubparser: _SubParsersAction, entity_name: str) -> None:
-            allow_p = localsubparser.add_parser("allow", help="Give a %s access" % entity_name)  # type: CommandParser
+            allow_p = localsubparser.add_parser("allow", help="Give a %s access" % entity_name)
             allow_p.add_argument("--name", dest="name", default=None,
                                  help="Find %s by name." % entity_name)
-            deny_p = localsubparser.add_parser("deny", help="Deny a %s access" % entity_name)  # type: CommandParser
+            deny_p = localsubparser.add_parser("deny", help="Deny a %s access" % entity_name)
             deny_p.add_argument("--name", dest="name", default=None,
                                 help="Find %s by name." % entity_name)
-            list_p = localsubparser.add_parser("list", help="List all %ss" % entity_name)  # type: CommandParser
+            list_p = localsubparser.add_parser("list", help="List all %ss" % entity_name)
 
         create_allow_deny_cmds(group_sp, "group")
         create_allow_deny_cmds(user_sp, "user")
 
     def add_arguments(self, parser: CommandParser) -> None:
-        cmd = self
-
         class SubCommandParser(CommandParser):
             def __init__(self, **kwargs: Any) -> None:
-                super().__init__(cmd, **kwargs)
+                super().__init__(**kwargs)
 
         subparsers = parser.add_subparsers(
             dest='type',
@@ -53,7 +51,7 @@ class Command(BaseCommand):
 
         reg_subparser = registry_parser.add_subparsers(title="Registry management", parser_class=SubCommandParser,
                                                        dest="subcommand")  # type: _SubParsersAction
-        reg_add_parser = reg_subparser.add_parser("create", help="Add a Docker Registry")  # type: CommandParser
+        reg_add_parser = reg_subparser.add_parser("create", help="Add a Docker Registry")
 
         reg_add_parser.add_argument("--client-id", dest="client_id", required=True,
                                     help="The client_id/service id to set (docker config value: "
@@ -73,7 +71,7 @@ class Command(BaseCommand):
         reg_add_parser.add_argument("--allow-unauthenticated-push", dest="unauthenticated_push", action="store_true",
                                     default=False)
 
-        reg_remove_parser = reg_subparser.add_parser("remove", help="Remove a Docker registry")  # type: CommandParser
+        reg_remove_parser = reg_subparser.add_parser("remove", help="Remove a Docker registry")
         reg_remove_parser.add_argument("--name", dest="name", default=None,
                                        help="Delete the registry with this name.")
         reg_remove_parser.add_argument("--client-id", dest="client_id", default=None,
@@ -81,7 +79,7 @@ class Command(BaseCommand):
         reg_remove_parser.add_argument("--force", dest="force", action="store_true", default=False,
                                        help="Do not ask for confirmation.")
 
-        reg_list_parser = reg_subparser.add_parser("list", help="List Docker registries")  # type: CommandParser
+        reg_list_parser = reg_subparser.add_parser("list", help="List Docker registries")
         reg_show_parser = reg_subparser.add_parser("show", help="Show details for a Docker registry.")
         reg_show_parser.add_argument("--name", dest="name", default=None,
                                      help="Human-readable name for the Docker registry.")
@@ -254,11 +252,11 @@ class Command(BaseCommand):
                     self.stderr.write("You have to provide at least ONE of --name or --client-id or both.")
                     sys.exit(1)
                 self._remove_registry(options["name"], options["client_id"], options["force"])
-        if "accesssubcmd" in options:
-            if options["accesssubcmd"] == "user":
-                pass
-            elif options["accesssubcmd"] == "group":
-                pass
+            if "accesssubcmd" in options:
+                if options["accesssubcmd"] == "user":
+                    pass
+                elif options["accesssubcmd"] == "group":
+                    pass
         else:
             self.stderr.write("Please specify a command.")
             self.stderr.write("Use django-admin.py dockerauth --settings=authserver.settings --help to get help.")

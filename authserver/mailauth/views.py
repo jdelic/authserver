@@ -50,6 +50,9 @@ class ScopeValidationAuthView(AuthorizationView):
         # super.get will initialize self.oauth2_data and now we can do additional validation
         resp = super().get(request, *args, **kwargs)
 
+        if not resp.status_code >= 200 and resp.status_code < 300:
+            return resp
+
         app = self.oauth2_data['application']  # type: MNApplication
 
         missing_permissions = find_missing_permissions(app, request.user)
@@ -101,7 +104,7 @@ class FakeUserInfoView(ProtectedResourceView):
                 "sub": str(user.uuid),
                 "email": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
                 "user_id": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
-                "groups": [str(g.uuid) for g in user.app_groups.all()],
+                "groups": [str(g.name) for g in user.app_groups.all()],
                 "email_verified": True,
                 "scopes": list(user.get_all_app_permission_strings()),
                 "nbf": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) - 5,

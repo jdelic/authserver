@@ -2,7 +2,7 @@
 import argparse
 import json
 import os
-from typing import TypeVar, Any
+from typing import TypeVar, Any, List
 from urllib.parse import urlparse
 
 import consul
@@ -95,3 +95,14 @@ def _handle_client_registration(client: OT, mgr: CMDT, **options: Any) -> bool:
         mgr.stderr.write(mgr.style.SUCCESS("INFO: Client credentials published to Vault"))
 
     return True
+
+
+def table_left_format_str(strs: List[str]) -> str:
+    maxlen = 10
+    for s in strs:
+        if len(s) + 2 > maxlen:
+            maxlen = len(s) + 2
+
+    if maxlen > 38:
+        maxlen = 38
+    return "{:<%s.%s} {}" % (maxlen, maxlen)

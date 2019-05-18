@@ -246,11 +246,9 @@ class Command(BaseCommand):
                 """.format(fnsignature=sig, username=u))
 
     def add_arguments(self, parser: CommandParser) -> None:
-        cmd = self
-
         class SubCommandParser(CommandParser):
             def __init__(self, **kwargs: Any) -> None:
-                super().__init__(cmd, **kwargs)
+                super().__init__(**kwargs)
 
         subparsers = parser.add_subparsers(
             dest='scmd',
@@ -274,7 +272,7 @@ class Command(BaseCommand):
         check_sp_g.add_argument("--installed", dest="check_installed", action="store_true", default=False)
         check_sp_g.add_argument("--grant", dest="user", type=str)
 
-    def handle(self, *args:Any, **options: Any) -> None:
+    def handle(self, *args: Any, **options: Any) -> None:
         if options["scmd"] == "install":
             self._install(**options)
         elif options["scmd"] == "grant":

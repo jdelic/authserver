@@ -26,7 +26,7 @@ _log = logging.getLogger(__name__)
 
 class InvalidKeyRequest(Exception):
     def __init__(self, response: HttpResponse, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args)
         self.response = response
 
 

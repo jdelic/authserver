@@ -47,7 +47,8 @@ class PretendHasherPasswordField(models.CharField):
 
 
 class DomainManager(Manager):
-    def find_parent_domain(self, fqdn: str, require_jwt_subdomains_set: bool=True) -> 'Domain':
+    def find_parent_domain(self, fqdn: str, require_jwt_subdomains_set: bool = True,
+                           require_jwt_key: bool = False) -> 'Domain':
         req_domain = None  # type: Optional[Domain]
 
         # results in ['sub.example.com', 'example.com', 'com']
@@ -58,11 +59,11 @@ class DomainManager(Manager):
             except Domain.DoesNotExist:
                 continue
             else:
-                if req_domain is None or req_domain.jwtkey == "":
+                if req_domain is None or (req_domain.jwtkey == "" and require_jwt_key):
                     req_domain = None
                     continue
 
-                if req_domain.jwtkey is not None and req_domain.jwtkey != "":
+                if (req_domain.jwtkey is not None and req_domain.jwtkey != "") or not require_jwt_key:
                     if domainstr == fqdn or (req_domain.jwt_subdomains and require_jwt_subdomains_set):
                         break
                     elif not require_jwt_subdomains_set:
@@ -124,7 +125,8 @@ class EmailAlias(models.Model):
             raise ValidationError({'forward_to': "An email alias can't be associated with a user and be a mailing list "
                                                  "at the same time"})
 
-        if not hasattr(self, 'forward_to') and not hasattr(self, 'user'):
+        if (not hasattr(self, 'forward_to') or self.forward_to is None) and \
+                (not hasattr(self, 'user') or self.user is None):
             raise ValidationError({'user': "An email alias must either be a mailing list or be associated with an "
                                            "user."})
 
