@@ -2,7 +2,6 @@ builder=noisolation
 
 assembler=[django]
 
-django-gen-secret-key=.gopythongo/etc/appconfig/authserver/env/SECRET_KEY
 django-settings=authserver.settings
 django-settings-envfile=.gopythongo/etc/appconfig/authserver/env/DJANGO_SETTINGS_MODULE
 envfile-mode=envdir

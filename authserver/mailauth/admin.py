@@ -1,4 +1,5 @@
 # -* encoding: utf-8 *-
+import urllib.parse
 from typing import Any, Union, Tuple, Dict, Optional
 
 import django.contrib.auth.admin as auth_admin
@@ -6,13 +7,11 @@ import django.contrib.auth.admin as auth_admin
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
-from django.core import urlresolvers
 from django.http import HttpResponse, HttpResponseRedirect
 from django.http.request import HttpRequest
 from django.urls import reverse
 from django.utils.encoding import force_text
 from django.utils.html import format_html
-from django.utils.http import urlquote
 from django.utils.translation import gettext_lazy as _
 
 from oauth2_provider.admin import ApplicationAdmin
@@ -88,17 +87,16 @@ class DomainAdmin(admin.ModelAdmin):
 
     def response_add(self, request: HttpRequest, obj: Domain, post_url_continue: str=None) -> \
             HttpResponse:
-        opts = self.model._meta
-        pk_value = obj._get_pk_val()
+        opts = self.opts
         preserved_filters = self.get_preserved_filters(request)
 
         msg_dict = {
             'name': force_text(opts.verbose_name),
-            'obj': format_html('<a href="{}">{}</a>', urlquote(request.path), obj),
+            'obj': format_html('<a href="{}">{}</a>', urllib.parse.quote(request.path), obj),
         }
         obj_url = reverse(
-            'admin:%s_%s_change' % (opts.app_label, opts.model_name),
-            args=(urlquote(pk_value),),
+            'admin:%s_%s_change' % (self.opts.app_label, self.opts.model_name),
+            args=(urllib.parse.quote(str(obj.pk)),),
             current_app=self.admin_site.name,
         )
 
@@ -128,7 +126,7 @@ class DomainAdmin(admin.ModelAdmin):
 
         msg_dict = {
             'name': force_text(opts.verbose_name),
-            'obj': format_html('<a href="{}">{}</a>', urlquote(request.path), obj),
+            'obj': format_html('<a href="{}">{}</a>', urllib.parse.quote(request.path), obj),
         }
         for key in request.POST.keys():
             if key.startswith("_genkey-"):
@@ -160,16 +158,17 @@ class EmailAliasAdmin(admin.ModelAdmin):
     search_fields = ('mailprefix', 'domain__name',)
 
     def get_user(self, obj: EmailAlias) -> str:
+        ret = "[Error: Unassigned]"
         if obj.user is not None:
             ret = format_html(
                 "<a href=\"{}\">{}</a>",
-                urlresolvers.reverse('admin:mailauth_mnuser_change', args=[obj.user.uuid]),
+                reverse('admin:mailauth_mnuser_change', args=[obj.user.uuid]),
                 obj.user.identifier,
             )
         elif obj.forward_to is not None:
             ret = format_html(
                 "<a href=\"{}\">{}</a>",
-                urlresolvers.reverse('admin:mailauth_mailinglist_change', args=[obj.forward_to.id]),
+                reverse('admin:mailauth_mailinglist_change', args=[obj.forward_to.id]),
                 obj.forward_to.name,
             )
         return ret

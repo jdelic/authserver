@@ -155,7 +155,10 @@ class ArrayFieldWidget(Select2TagWidget):
 
     def optgroups(self, name: str, value: Sequence[str], attrs: Dict[str, str]=None) -> \
             List[Tuple[Optional[str], List[Dict[str, str]], int]]:
-        values = value[0].split(',') if value[0] else []
+        if value is not None and value:
+            values = value[0].split(',') if value[0] else []
+        else:
+            values = []
         selected = set(values)
         subgroup = [self.create_option(name, v, v, selected, i) for i, v in enumerate(values)]
         return [(None, subgroup, 0)]

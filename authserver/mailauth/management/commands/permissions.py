@@ -12,17 +12,16 @@ from django.db import DatabaseError, transaction
 from django.db.models import Q
 
 from mailauth import models
+from mailauth.management.commands._common import table_left_format_str
 
 
 class Command(BaseCommand):
     requires_migrations_checks = True
 
     def add_arguments(self, parser: CommandParser) -> None:
-        cmd = self
-
         class SubCommandParser(CommandParser):
             def __init__(self, **kwargs: Any) -> None:
-                super().__init__(cmd, **kwargs)
+                super().__init__(**kwargs)
 
         subparsers = parser.add_subparsers(
             dest='scmd',
@@ -57,18 +56,18 @@ class Command(BaseCommand):
         grant_usp = sps_grant.add_parser("user", help="Grant application permission to an user")
         grant_usp.add_argument("userid",
                                help="The user identifier or name to add the permission to")
-        grant_usp.add_argument("scopes", nargs="+",
+        grant_usp.add_argument("perms", nargs="+",
                                help="The permission to add to the user")
         grant_gsp = sps_grant.add_parser("group", help="Grant application permission to a group")
         grant_gsp.add_argument("groupid",
-                               help="The group identifier UUID or name to add the permission to")
-        grant_gsp.add_argument("scopes", nargs="+",
+                               help="The group id or name to add the permission to")
+        grant_gsp.add_argument("perms", nargs="+",
                                help="The permission to add to the group")
         grant_msp = sps_grant.add_parser("membership", help="Grant group membership to a user")
         grant_msp.add_argument("userid",
                                help="The user identifier UUID or name to add to the groups")
         grant_msp.add_argument("groups", nargs="+",
-                               help="Group UUIDs or names to add the user into")
+                               help="Group IDs or names to add the user into")
 
         revoke_menu = subparsers.add_parser("revoke", help="Revoke application permission from an user or group")
         sps_revoke = revoke_menu.add_subparsers(
@@ -81,14 +80,14 @@ class Command(BaseCommand):
                                 help="Revoke all permissions from an user")
         revoke_usp.add_argument("userid",
                                 help="The user identifier UUID or name whose permission is being revoked")
-        revoke_usp.add_argument("scopes", nargs="*",
+        revoke_usp.add_argument("perms", nargs="*",
                                 help="The permissions to remove from the user")
         revoke_gsp = sps_revoke.add_parser("group", help="Revoke application permission from a group")
         revoke_gsp.add_argument("--all", dest="revoke_all", action="store_true",
                                 help="Revoke all permissions from a group")
         revoke_gsp.add_argument("groupid",
-                                help="The group UUID or name whose permission is being revoked")
-        revoke_gsp.add_argument("scopes", nargs="*",
+                                help="The group id or name whose permission is being revoked")
+        revoke_gsp.add_argument("perms", nargs="*",
                                 help="The permissions to remove from the group")
         revoke_msp = sps_revoke.add_parser("membership", help="Revoke group membership from an user")
         revoke_msp.add_argument("--all", dest="revoke_all", action="store_true",
@@ -159,7 +158,7 @@ class Command(BaseCommand):
 
         self.stderr.write(self.style.SUCCESS("Deleted scope %s\n") % scope)
 
-    def _list(self, filter_scope: str=None, filter_name: str=None, format: str="table", **kwargs: Any) -> None:
+    def _list(self, filter_scope: str = None, filter_name: str = None, format: str = "table", **kwargs: Any) -> None:
         filter_args = {}
         if filter_scope:
             filter_args.update({
@@ -174,7 +173,7 @@ class Command(BaseCommand):
         else:
             scopes = list(models.MNApplicationPermission.objects.filter(**filter_args))
 
-        fmtstr = self._table_left_format_str([p.scope_name for p in scopes])
+        fmtstr = table_left_format_str([p.scope_name for p in scopes])
 
         if len(scopes) > 0:
             if format == "table":
@@ -200,17 +199,7 @@ class Command(BaseCommand):
                 print("[]")
                 sys.exit(0)
 
-    def _table_left_format_str(self, strs: List[str]) -> str:
-        maxlen = 10
-        for s in strs:
-            if len(s) + 2 > maxlen:
-                maxlen = len(s) + 2
-
-        if maxlen > 30:
-            maxlen = 30
-        return "{:<%s.%s} {}" % (maxlen, maxlen)
-
-    def _get_user(self, name: str, exit: bool=True) -> Optional[models.MNUser]:
+    def _get_user(self, name: str, exit: bool = True) -> Optional[models.MNUser]:
         u = None
         try:
             uuid.UUID(name)
@@ -224,12 +213,15 @@ class Command(BaseCommand):
             sys.exit(1)
         return u
 
-    def _get_group(self, name: str, exit: bool=True) -> Optional[models.MNGroup]:
+    def _get_group(self, name: str, exit: bool = True) -> Optional[models.MNGroup]:
         try:
-            uuid.UUID(name)
-            g = models.MNGroup.objects.get(Q(pk=name) | Q(name=name))
-        except (ValueError, models.MNGroup.DoesNotExist):
-            self.stderr.write("Unresolvable group %s" % name)
+            try:
+                int(name)
+                g = models.MNGroup.objects.get(pk=int(name))
+            except ValueError:
+                g = models.MNGroup.objects.get(name=name)
+        except models.MNGroup.DoesNotExist as e:
+            self.stderr.write("Unresolvable group %s: %s" % (name, str(e)))
             if exit:
                 sys.exit(1)
             else:
@@ -285,10 +277,10 @@ class Command(BaseCommand):
                           (cl.name, ", ".join(list(removed)),
                            ", ".join([p.scope_name for p in cl.required_permissions.all()])))
 
-    def _show_user(self, userid: str, format: str="table", **kwargs: Any) -> None:
+    def _show_user(self, userid: str, format: str = "table", **kwargs: Any) -> None:
         user = cast(models.MNUser, self._get_user(userid))
         if format == "table":
-            fmtstr = self._table_left_format_str([p.scope_name for p in user.app_permissions.all()])
+            fmtstr = table_left_format_str([p.scope_name for p in user.app_permissions.all()])
             print("Permissions for user %s (%s)" % (user.get_username(), str(user.uuid)))
             print(fmtstr.format("PERMISSION", "NAME"))
             print("-" * 78)
@@ -297,11 +289,11 @@ class Command(BaseCommand):
         else:
             print(json.dumps([{perm.scope_name: perm.name} for perm in user.app_permissions.all()]))
 
-    def _show_group(self, groupid: str, format: str="table", **kwargs: Any) -> None:
+    def _show_group(self, groupid: str, format: str = "table", **kwargs: Any) -> None:
         group = cast(models.MNGroup, self._get_group(groupid))
         if format == "table":
-            fmtstr = self._table_left_format_str([p.scope_name for p in group.group_permissions.all()])
-            print("Permissions for group %s (%s)" % (group.name, str(group.uuid)))
+            fmtstr = table_left_format_str([p.scope_name for p in group.group_permissions.all()])
+            print("Permissions for group %s (%s)" % (group.name, str(group.pk)))
             print(fmtstr.format("PERMISSION", "NAME"))
             print("-" * 78)
             for perm in group.group_permissions.all():
@@ -309,10 +301,10 @@ class Command(BaseCommand):
         else:
             print(json.dumps([{perm.scope_name: perm.name} for perm in group.group_permissions.all()]))
 
-    def _show_client(self, client_name: str, format: str="table", **kwargs: Any) -> None:
+    def _show_client(self, client_name: str, format: str = "table", **kwargs: Any) -> None:
         cl = self._get_client(client_name)
         if format == "table":
-            fmtstr = self._table_left_format_str([p.scope_name for p in cl.required_permissions.all()])
+            fmtstr = table_left_format_str([p.scope_name for p in cl.required_permissions.all()])
             print("Permissions for client %s (%s)" % (cl.name, cl.client_id,))
             print(fmtstr.format("PERMISSION", "NAME"))
             print("-" * 78)
@@ -321,10 +313,10 @@ class Command(BaseCommand):
         else:
             print(json.dumps([{perm.scope_name: perm.name} for perm in cl.required_permissions.all()]))
 
-    def _show_membership(self, userid: str, format: str="table", **kwargs: Any) -> None:
+    def _show_membership(self, userid: str, format: str = "table", **kwargs: Any) -> None:
         user = cast(models.MNUser, self._get_user(userid))
         if format == "table":
-            fmtstr = self._table_left_format_str([g.name for g in user.app_groups.all()])
+            fmtstr = table_left_format_str([g.name for g in user.app_groups.all()])
             print("Group memberships for user %s (%s)" % (user.get_username(), str(user.uuid)))
             print(fmtstr.format("GROUP", "PERMISSIONS"))
             print("-" * 78)
@@ -376,7 +368,7 @@ class Command(BaseCommand):
         self.stderr.write(self.style.SUCCESS("Granted user %s (%s) membership in: %s" %
                                              (user.get_username(), str(user.uuid), ", ".join(list(added)))))
 
-    def _revoke_from_user(self, userid: str, revoke_all: bool=False, perms: List[str]=None, **kwargs: Any) -> None:
+    def _revoke_from_user(self, userid: str, revoke_all: bool = False, perms: List[str] = None, **kwargs: Any) -> None:
         user = cast(models.MNUser, self._get_user(userid))
         revoked = set()  # type: Set[str]
         permissions_missing = False
@@ -429,7 +421,8 @@ class Command(BaseCommand):
         self.stderr.write(self.style.SUCCESS("Granted group %s (%s) permissions: %s" %
                                              (group.name, str(group.id), ", ".join(list(added)))))
 
-    def _revoke_from_group(self, groupid: str, revoke_all: bool=False, perms: List[str]=None, **kwargs: Any) -> None:
+    def _revoke_from_group(self, groupid: str, revoke_all: bool = False, perms: List[str] = None,
+                           **kwargs: Any) -> None:
         group = cast(models.MNGroup, self._get_group(groupid))
         revoked = set()  # type: Set[str]
         permissions_missing = False
@@ -457,10 +450,11 @@ class Command(BaseCommand):
                 if permissions_missing:
                     sys.exit(1)
 
-        self.stderr.write(self.style.SUCCESS("Revoked permissions from user %s (%s): %s" %
-                                             (group.name, str(group.uuid), ", ".join(list(revoked)))))
+        self.stderr.write(self.style.SUCCESS("Revoked permissions from group %s (%s): %s" %
+                                             (group.name, str(group.pk), ", ".join(list(revoked)))))
 
-    def _revoke_membership(self, userid: str, revoke_all: bool=False, groups: List[str]=None, **kwargs: Any) -> None:
+    def _revoke_membership(self, userid: str, revoke_all: bool = False, groups: List[str] = None,
+                           **kwargs: Any) -> None:
         user = cast(models.MNUser, self._get_user(userid))
         revoked = set()  # type: Set[str]
 
