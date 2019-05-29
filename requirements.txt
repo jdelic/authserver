@@ -2,7 +2,7 @@
 # cryptography is an optional dependency of pyjwt for RSA support
 cryptography==2.6.1
 Django==2.2.1
-django-cors-headers==3.0.1
+django-cors-headers==3.0.2
 django-dbconn-retry==0.1.5
 django-mama-cas==2.4.0
 # django-oauth-toolkit drops support for Django 1.11
