@@ -18,6 +18,8 @@ params:
     APTLY_PUBLISH_ENDPOINT:
     APTLY_DISTRIBUTION:
     REPO:
+    # this is for collectstatic only. The built package will generate a new SECRET_KEY on installation
+    SECRET_KEY: secretsekrit
 
 
 run:
