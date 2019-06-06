@@ -3,12 +3,23 @@
 # add the authserver user and group if it doesn't exist yet
 adduser --quiet --home /run/authserver --disabled-login --disabled-password --system --group authserver
 
-if [ ! -e /etc/appconfig/authserver/env/SECRET_KEY ]; then
+appconfdir="/etc/appconfig/authserver/env"
+
+if [ ! -e $appconfdir/SECRET_KEY ]; then
     # initialize Django secret key
-    touch /etc/appconfig/authserver/env/SECRET_KEY
-    chmod 600 /etc/appconfig/authserver/env/SECRET_KEY
-    head -c 48 /dev/urandom | base64 > /etc/appconfig/authserver/env/SECRET_KEY
+    touch $appconfdir/SECRET_KEY
+    chmod 600 $appconfdir/SECRET_KEY
+    head -c 48 /dev/urandom | base64 > $appconfdir/SECRET_KEY
 fi
+
+for subconfdir in /etc/appconfig/dkimsigner/env /etc/appconfig/mailforwarder/env; do
+    if [ ! -d $subconfdir ]; then
+        mkdir -p $subconfdir
+    fi
+    if [ ! -e $subconfdir/SECRET_KEY ]; then
+        ln -s $appconfdir/SECRET_KEY $subconfdir/SECRET_KEY
+    fi
+done
 
 chown -R authserver:authserver /etc/appconfig/authserver/* > /dev/null
 chown -R authserver:authserver /etc/appconfig/dkimsigner/* > /dev/null
