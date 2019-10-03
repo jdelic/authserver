@@ -122,12 +122,12 @@ def _main() -> None:
 
     grp_network = parser.add_argument_group("Network options")
     grp_network.add_argument("--input-ip", dest="input_ip", default="127.0.0.1", help="The network address to bind to")
-    grp_network.add_argument("--input-port", dest="input_port", metavar="PORT", type=int, default=10035,
+    grp_network.add_argument("--input-port", dest="input_port", metavar="PORT", type=int, default=10036,
                              help="The port to bind to")
     grp_network.add_argument("--output-ip", dest="output_ip", default="127.0.0.1",
                              help="The OpenSMTPD instance IP to return processed email to")
-    grp_network.add_argument("--output-port", dest="output_port", metavar="PORT", type=int, default=10036,
-                             help="THe port where OpenSMTPD listens for processed email")
+    grp_network.add_argument("--output-port", dest="output_port", metavar="PORT", type=int, default=10035,
+                             help="The port where OpenSMTPD listens for processed email")
 
     grp_django = parser.add_argument_group("Django options")
     grp_django.add_argument("--settings", dest="django_settings", default="authserver.settings",

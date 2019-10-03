@@ -195,7 +195,7 @@ def _main() -> None:
                              default=10045, help="The port where OpenSMTPD listens for local email to be delivered")
     grp_network.add_argument("--remote-relay-ip", dest="remote_relay_ip", default="127.0.0.1",
                              help="The OpenSMTPD instance IP that accepts mail for relay to external domains.")
-    grp_network.add_argument("--remote-relay-port", dest="remote_relay_port", default=10036,
+    grp_network.add_argument("--remote-relay-port", dest="remote_relay_port", default=10045,
                              help="The port where OpenSMTPD listens for mail to relay.")
 
     grp_django = parser.add_argument_group("Django options")
