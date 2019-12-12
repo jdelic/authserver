@@ -22,7 +22,7 @@ python-json-logger==0.1.11
 requests==2.22.0
 sqlparse==0.3.0
 typing==3.7.4.1
-whitenoise==5.0
+whitenoise==5.0.1
 
 # DKIM filter dependencies
 dkimpy==1.0.0
