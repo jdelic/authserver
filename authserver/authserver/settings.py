@@ -14,7 +14,6 @@ INSTALLED_APPS = [
     'django_dbconn_retry',
     'vault12factor',
     'oauth2_provider',
-    'mama_cas',
     'corsheaders',
     'django_select2',
     'django.contrib.admin',
@@ -179,9 +178,6 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "authserver", "static")]
-
-# Authentication providers
-MAMA_CAS_SERVICES = []  # type: List[str]  # currently none
 
 # APP CONFIG
 COMPANY_NAME = "maurus.networks"
