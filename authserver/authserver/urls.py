@@ -22,7 +22,6 @@ urlpatterns = [
             auth_views.PasswordResetConfirmView.as_view()),
     re_path(r"^action/reset/done/", auth_views.PasswordResetCompleteView.as_view()),
     re_path(r"^admin/", admin.site.urls),
-    re_path(r"^cas/", include('mama_cas.urls')),
 
     # manually assign oauth2 views instead of importing them since we override the authorize view
     re_path(r'^o2/authorize/$', mail_views.ScopeValidationAuthView.as_view(), name="authorize"),

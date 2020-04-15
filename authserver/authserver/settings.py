@@ -14,7 +14,6 @@ INSTALLED_APPS = [
     'django_dbconn_retry',
     'vault12factor',
     'oauth2_provider',
-    'mama_cas',
     'corsheaders',
     'django_select2',
     'django.contrib.admin',
@@ -108,19 +107,17 @@ if DATABASES["default"]["ENGINE"] == 'django.db.backends.postgresql' or \
         DATABASES["default"]["OPTIONS"]["sslmode"] = "verify-full"
         DATABASES["default"]["OPTIONS"]["sslrootcert"] = os.getenv("POSTGRESQL_CA")
 
-    if os.getenv("DB_SSLCERT", None) and not (VaultAuth12Factor.has_envconfig() and
-                                                  os.getenv("VAULT_DATABASE_PATH", None)):
+    if os.getenv("DB_SSLCERT", None) and not \
+            (VaultAuth12Factor.has_envconfig() and os.getenv("VAULT_DATABASE_PATH", None)):
         DATABASES["default"]["OPTIONS"]["sslcert"] = os.getenv("DB_SSLCERT")
         DATABASES["default"]["OPTIONS"]["sslkey"] = os.getenv("DB_SSLKEY")
 
 if DEBUG:
-    ALLOWED_HOSTS = ['*',]  # type: List[str]
+    ALLOWED_HOSTS = ['*']  # type: List[str]
     CORS_ORIGIN_ALLOW_ALL = True
 else:
-    CORS_ORIGIN_WHITELIST = os.getenv("CORS_ORIGIN_WHITELIST").split(',') if \
-        os.getenv("CORS_ORIGIN_WHITELIST", False) else []
-    CORS_ORIGIN_REGEX_WHITELIST = os.getenv("CORS_ORIGIN_REGEX_WHITELIST").split(',') if \
-        os.getenv("CORS_ORIGIN_REGEX_WHITELIST", False) else []
+    CORS_ORIGIN_WHITELIST = os.getenv("CORS_ORIGIN_WHITELIST", "").split(',')
+    CORS_ORIGIN_REGEX_WHITELIST = os.getenv("CORS_ORIGIN_REGEX_WHITELIST", "").split(',')
 
 DOCKERAUTH_ALLOW_UNCONFIGURED_REPOS = django12factor.getenv_bool("DOCKERAUTH_ALLOW_UNCONFIGURED_REPOS")
 
@@ -179,9 +176,6 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "authserver", "static")]
-
-# Authentication providers
-MAMA_CAS_SERVICES = []  # type: List[str]  # currently none
 
 # APP CONFIG
 COMPANY_NAME = "maurus.networks"

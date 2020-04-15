@@ -74,10 +74,10 @@ def validate(url: str, username: str, password: Optional[str], jwtkeyfile: str, 
 
     # if we get a X509 certificate, convert it to a public key that can then be deserialized by pyjwt
     if jwtkey.startswith("-----BEGIN CERTIFICATE"):
-        cert = x509.load_pem_x509_certificate(jwtkey, backend=default_backend())  # type: Certificate
-        pk = cert.public_key()  # type: RSAPublicKeyWithSerialization
+        cert = x509.load_pem_x509_certificate(jwtkey.encode("ascii"), backend=default_backend())  # type: Certificate
+        pk = cert.public_key()
         jwtkey = pk.public_bytes(encoding=serialization.Encoding.PEM,
-                                 format=serialization.PublicFormat.SubjectPublicKeyInfo)
+                                 format=serialization.PublicFormat.SubjectPublicKeyInfo).decode("ascii")
 
     try:
         resp = requests.post(url, json={"username": username, "password": password}, verify=validate_ssl)

@@ -61,8 +61,8 @@ class SMTPWrapper:
         msg.set_payload(txt, charset='utf-8')
         return msg.as_bytes(policy=policy.SMTP)
 
-    def sendmail(self, from_addr: str, to_addrs: Sequence[str], msg: bytes, mail_options: List[str]=[],
-                 rcpt_options: List[str]=[]) -> Union[str, None]:
+    def sendmail(self, from_addr: str, to_addrs: Sequence[str], msg: bytes, mail_options: List[str] = [],
+                 rcpt_options: List[str] = []) -> Union[str, None]:
         """
         Wraps smtplib.sendmail and handles all the exceptions it can throw.
         :return: a SMTP return string or None
@@ -76,7 +76,7 @@ class SMTPWrapper:
                 else:
                     errorstr = str(e.smtp_error)
                 _log.info("Downstream server refused sender: %s (%s %s)", e.sender, e.smtp_code, errorstr)
-                return "%s %s" % (e.smtp_code, e.smtp_error)
+                return "%s %s" % (e.smtp_code, errorstr)
             except smtplib.SMTPResponseException as e:
                 # This exception baseclass is for all exceptions that have a SMTP response code.
                 # Return the downstream error code upstream

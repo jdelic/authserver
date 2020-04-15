@@ -47,8 +47,6 @@ Planned features
 * Service-specific username and passwords for systems that don't support
   OAuth2/OIDC
 
-* CAS support through ``mama-cas``
-
 * add Google Authenticator support via ``django-otp``
 
 
@@ -157,7 +155,7 @@ Access methods
 ==============
 
 There are multiple ways to authenticate user accounts against this program.
-Offered APIs include OAuth2, CAS and a "if nothing else works" abstraction
+Offered APIs include OAuth2 and a "if nothing else works" abstraction
 layer for direct user database access based on stored procedures.
 
 Stored Procedure API
