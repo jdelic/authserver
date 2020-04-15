@@ -27,13 +27,13 @@ run:
     args:
         - -c
         - |
-            echo "deb http://repo.gopythongo.com/nightly/buster gopythongo main" > /etc/apt/sources.list.d/gopythongo.list;
             apt-get -q update &&
             apt-get -q -y upgrade &&
             apt-get --no-install-recommends -q -y -o DPkg::Options::=--force-confold \
                 -o DPkg::Options::=--force-confdef install \
                 curl gnupg
             curl http://repo.gopythongo.com/02CBD940A78049AF.pem | apt-key add;
+            echo "deb http://repo.gopythongo.com/nightly/buster gopythongo main" > /etc/apt/sources.list.d/gopythongo.list;
             apt-get -q update &&
             apt-get --no-install-recommends -q -y -o DPkg::Options::=--force-confold \
                 -o DPkg::Options::=--force-confdef install \
