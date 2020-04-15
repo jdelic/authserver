@@ -27,7 +27,7 @@ run:
     args:
         - -c
         - |
-            echo "deb http://repo.gopythongo.com/nightly/stretch gopythongo main" > /etc/apt/sources.list.d/gopythongo.list;
+            echo "deb http://repo.gopythongo.com/nightly/buster gopythongo main" > /etc/apt/sources.list.d/gopythongo.list;
             apt-get -q update &&
             apt-get -q -y upgrade &&
             apt-get --no-install-recommends -q -y -o DPkg::Options::=--force-confold \

@@ -34,7 +34,7 @@ jobs:
           - task: gopythongo
             file: authserver/.ci/concourse/gopythongo.yaml
             params:
-                APTLY_PUBLISH_ENDPOINT: s3:maurusnet:nightly/stretch
+                APTLY_PUBLISH_ENDPOINT: s3:maurusnet:nightly/buster
                 APTLY_DISTRIBUTION: mn-nightly
                 REPO: maurusnet
             on_failure:
