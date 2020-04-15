@@ -15,7 +15,10 @@ except ImportError:
 try:
     from pip._internal.download import PipSession
 except ImportError:
-    from pip.download import PipSession
+    try:
+        from pip.download import PipSession
+    except ImportError:
+        from pip._internal.network.session import PipSession
 
 
 _INCLUDE = re.compile("\.(txt|gif|jpg|png|css|html|js|xml|po|mo)$")
