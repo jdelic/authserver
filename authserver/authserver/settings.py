@@ -116,8 +116,9 @@ if DEBUG:
     ALLOWED_HOSTS = ['*']  # type: List[str]
     CORS_ORIGIN_ALLOW_ALL = True
 else:
-    CORS_ORIGIN_WHITELIST = os.getenv("CORS_ORIGIN_WHITELIST", "").split(',')
-    CORS_ORIGIN_REGEX_WHITELIST = os.getenv("CORS_ORIGIN_REGEX_WHITELIST", "").split(',')
+    # remove empty strings '' from the list
+    CORS_ORIGIN_WHITELIST = [l for l in os.getenv("CORS_ORIGIN_WHITELIST", "").split(',') if l]
+    CORS_ORIGIN_REGEX_WHITELIST = [l for l in os.getenv("CORS_ORIGIN_REGEX_WHITELIST", "").split(',') if l]
 
 DOCKERAUTH_ALLOW_UNCONFIGURED_REPOS = django12factor.getenv_bool("DOCKERAUTH_ALLOW_UNCONFIGURED_REPOS")
 
