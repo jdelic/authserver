@@ -184,4 +184,5 @@ COMPANY_LOGO_URL = "/static/mn.png"
 
 SELECT2_JS = '/static/vendor/select2/select2.full.min.js'
 SELECT2_CSS = '/static/vendor/select2/select2.min.css'
-SELECT2_I18N = '/static/vendor/select2/i18n'
+SELECT2_I18N_PATH = '/static/vendor/select2/i18n'
+SELECT2_I18N_AVAILABLE_LANGUAGES = ['en']
