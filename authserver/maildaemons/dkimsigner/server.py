@@ -56,7 +56,7 @@ class DKIMSignerServer(SaneSMTPServer):
         if dom is not None and dom.dkimkey:
             sig = dkim.sign(data, dom.dkimselector.encode("utf-8"), dom.name.encode("utf-8"),
                             dom.dkimkey.replace("\r\n", "\n").encode("utf-8"),
-                            canonicalize=('relaxed', 'relaxed'))
+                            canonicalize=(b'relaxed', b'relaxed'))
             data = b"%s%s" % (sig, data)
             try:
                 logstr = data.decode('utf-8')
