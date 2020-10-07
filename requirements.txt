@@ -18,7 +18,7 @@ pyjwt==1.7.1
 python-consul==1.1.0
 python-json-logger==2.0.0
 requests==2.24.0
-sqlparse==0.3.1
+sqlparse==0.4.0
 typing==3.7.4.3
 whitenoise==5.2.0
 
