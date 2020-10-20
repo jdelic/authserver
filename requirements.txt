@@ -4,7 +4,7 @@ cryptography==3.1.1
 Django==3.1.2
 django-cors-headers==3.5.0
 django-dbconn-retry==0.1.5
-django-oauth-toolkit==1.3.2
+django-oauth-toolkit==1.3.3
 django-postgresql-setrole==1.0.10
 django-ratelimit==3.0.1
 django-select2==7.4.2
