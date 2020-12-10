@@ -61,11 +61,11 @@ from this repository:
     $ authserver/bin/pip install net.maurus.authserver
 
 
-Or for Debian 9.0 Stretch:
+Or for Debian 9.0 Buster:
 
 .. code-block:: shell
 
-    $ echo "deb http://repo.maurus.net/release/stretch mn-release main" >> /etc/apt/sources.list.d/maurusnet.list
+    $ echo "deb http://repo.maurus.net/nightly/buster mn-nightly main" >> /etc/apt/sources.list.d/maurusnet.list
     $ apt update
     $ apt install authserver authclient
 
