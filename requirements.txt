@@ -25,7 +25,7 @@ whitenoise==5.2.0
 dkimpy==1.0.5
 # undeclared dependency of dkimpy
 authres==1.2.0
-python-daemon==2.2.4
+python-daemon==2.3.0
 
 # vendored dependencies from django12factor
 dj-database-url==0.5.0
