@@ -1,4 +1,4 @@
-12factor-vault==0.1.20
+12factor-vault==0.1.21
 # cryptography is an optional dependency of pyjwt for RSA support
 cryptography==3.4.7
 Django==3.2
