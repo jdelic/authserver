@@ -14,7 +14,7 @@ fi
 # make sure we have gem
 if ! test -e /usr/bin/gem; then
     $EATMYDATA apt-get update
-    $EATMYDATA apt-get --no-install-recommends -y install ruby ruby-dev
+    $EATMYDATA apt-get --no-install-recommends -y install ruby ruby-dev git
 fi
 
 $EATMYDATA gem install fpm
