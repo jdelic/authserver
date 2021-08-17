@@ -1,7 +1,7 @@
 12factor-vault==0.1.21
 # cryptography is an optional dependency of pyjwt for RSA support
 cryptography==3.4.7
-Django==3.2
+Django==3.2.4
 django-cors-headers==3.7.0
 django-dbconn-retry==0.1.5
 django-oauth-toolkit==1.5.0
@@ -10,15 +10,15 @@ django-ratelimit==3.0.1
 django-select2==7.7.1
 envdir==1.0.1
 gunicorn==20.1.0
-hvac==0.10.9
+hvac==0.10.14
 passlib==1.7.4
 psycopg2-binary==2.8.6
-pyjwt==2.0.1
+pyjwt==2.1.0
 python-consul==1.1.0
 python-json-logger==2.0.1
 requests==2.25.1
 sqlparse==0.4.1
-typing==3.7.4.3
+typing==3.10.0.0
 whitenoise==5.2.0
 
 # DKIM filter dependencies
@@ -31,7 +31,7 @@ python-daemon==2.3.0
 dj-database-url==0.5.0
 dj-email-url==1.0.2
 django-cache-url==3.2.3
-six==1.15.0
+six==1.16.0
 
 # pytz is consciously unpinned, I trust this collection of timezones to not fuck up
 pytz
