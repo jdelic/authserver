@@ -1,7 +1,7 @@
 12factor-vault==0.1.21
 # cryptography is an optional dependency of pyjwt for RSA support
 cryptography==3.4.7
-Django==3.2.4
+Django==3.2.6
 django-cors-headers==3.7.0
 django-dbconn-retry==0.1.5
 django-oauth-toolkit==1.5.0
@@ -18,7 +18,7 @@ python-consul==1.1.0
 python-json-logger==2.0.1
 requests==2.25.1
 sqlparse==0.4.1
-typing==3.10.0.0
+typing-extensions==3.10.0.0
 whitenoise==5.2.0
 
 # DKIM filter dependencies
