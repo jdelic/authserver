@@ -47,7 +47,7 @@ class ForwarderServer(SaneSMTPServer):
         combined_rcptto = {}  # type: Dict[str, List[str]]  # { new_mailfrom: [recipients] }
 
         def add_rcptto(mfrom: str, rcpt: Union[str, List]) -> None:
-            if mailfrom in combined_rcptto:
+            if mfrom in combined_rcptto:
                 if isinstance(rcpt, list):
                     combined_rcptto[mfrom] += rcpt
                 else:
@@ -141,6 +141,7 @@ class ForwarderServer(SaneSMTPServer):
                 return ret
             results[new_mailfrom] = "success"
 
+        # TODO: log results
         _log.debug("Done processing.")
         return None
 
