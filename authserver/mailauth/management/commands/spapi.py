@@ -23,7 +23,7 @@ class Command(BaseCommand):
         cur = connection.cursor()  # type: CursorWrapper
         cur.execute("""
             DROP FUNCTION IF EXISTS authserver_resolve_alias(varchar, boolean);
-            CREATE OR REPLACE FUNCTION authserver_resolve_alias(email varchar,
+            CREATE OR REPLACE FUNCTION authserver_resolve_alias(checkemail varchar,
                                                                 resolve_to_virtmail boolean DEFAULT FALSE)
                               RETURNS TABLE (alias varchar) AS $$
             DECLARE
@@ -32,9 +32,22 @@ class Command(BaseCommand):
                 primary_email varchar;
                 the_alias record;
                 the_domain record;
+                is_blacklisted boolean;
             BEGIN
-                SELECT split_part(email, '@', 1) INTO user_mailprefix;
-                SELECT split_part(email, '@', 2) INTO user_domain;
+                -- check for blacklist
+                SELECT EXISTS(SELECT email FROM
+                                  mailauth_emailblacklist AS "blacklist"
+                              WHERE
+                                  "blacklist".email=checkemail
+                       )
+                    INTO is_blacklisted;
+
+                IF is_blacklisted THEN
+                    RETURN;
+                END IF;
+
+                SELECT split_part(checkemail, '@', 1) INTO user_mailprefix;
+                SELECT split_part(checkemail, '@', 2) INTO user_domain;
 
                 -- handle dashext by resolving it to plusext
                 IF position('-' in user_mailprefix) > 0 THEN
@@ -50,7 +63,12 @@ class Command(BaseCommand):
                 SELECT domain.* INTO the_domain FROM
                         mailauth_domain AS "domain"
                     WHERE
-                        "domain".name=user_domain;
+                        "domain".name=user_domain AND
+                        "domain".blacklisted=FALSE;
+
+                IF NOT FOUND THEN
+                    RETURN;
+                END IF;
 
                 IF the_domain.redirect_to IS NOT NULL AND the_domain.redirect_to != '' THEN
                     IF resolve_to_virtmail IS TRUE THEN
@@ -98,7 +116,7 @@ class Command(BaseCommand):
                         "domain".name=user_domain AND
                         "user".is_active=TRUE;
 
-                IF primary_email = email AND resolve_to_virtmail IS TRUE THEN
+                IF primary_email = checkemail AND resolve_to_virtmail IS TRUE THEN
                     RETURN QUERY SELECT 'virtmail'::varchar;  -- primary email aliases are directed to delivery
                     RETURN;
                 ELSE
@@ -164,7 +182,7 @@ class Command(BaseCommand):
             DECLARE
                 ret varchar;
             BEGIN
-                SELECT name INTO ret FROM mailauth_domain WHERE name=domain;
+                SELECT name INTO ret FROM mailauth_domain WHERE name=domain AND blacklisted=FALSE;
                 RETURN ret;
             END;
             $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -181,11 +199,41 @@ class Command(BaseCommand):
                     WHERE
                         "alias".id="user".delivery_mailbox_id AND
                         "domain".id="alias".domain_id AND
-                        "user".is_active=TRUE;
+                        "user".is_active=TRUE AND
+                        "alias".blacklisted=FALSE;
                 RETURN QUERY SELECT ('@' || "domain".name)::varchar AS userid FROM
                         mailauth_domain AS "domain"
                     WHERE
-                        "domain".redirect_to<>'';
+                        "domain".redirect_to<>'' AND
+                        "domain".blacklisted=FALSE;
+                RETURN;
+            END;
+            $$ LANGUAGE plpgsql SECURITY DEFINER;
+        """)
+        cur.execute("""
+            DROP FUNCTION IF EXISTS authserver_is_blacklisted(varchar);
+            CREATE OR REPLACE FUNCTION authserver_is_blacklisted(checkemail varchar)
+                RETURNS TABLE (blacklisted varchar) AS $$
+            BEGIN
+                SELECT split_part(checkemail, '@', 1) INTO user_mailprefix;
+                SELECT split_part(checkemail, '@', 2) INTO user_domain;
+
+                SELECT blacklist.* INTO blentry FROM
+                    mailauth_emailblacklist AS blacklist
+                WHERE
+                    "blacklist".email=checkemail;
+
+                IF FOUND
+                    RETURN QUERY SELECT checkmail;
+                    RETURN;
+                END IF;
+
+                -- TODO: implement gradual expansion
+                IF blentry.block_ext THEN
+                    RETURN QUERY SELECT email FROM
+                        mailauth_emailblacklist
+                    WHERE
+                        email=checkemail;
                 RETURN;
             END;
             $$ LANGUAGE plpgsql SECURITY DEFINER;

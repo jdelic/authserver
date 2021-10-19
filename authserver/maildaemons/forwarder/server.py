@@ -19,6 +19,7 @@ from django.db.utils import OperationalError
 import authserver
 from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer
 
+from authserver.mailauth.models import EmailBlacklist
 
 _log = logging.getLogger(__name__)
 pool = Pool()
@@ -83,6 +84,16 @@ class ForwarderServer(SaneSMTPServer):
                               mailfrom, rcptto, domain.redirect_to)
                     add_rcptto(mailfrom, new_rcptto)
                     continue
+                if domain.blacklisted:
+                    continue
+
+            # check for a full match in the blacklist
+            try:
+                EmailBlacklist.objects.get(email__iexact=rcptto)
+            except EmailBlacklist.DoesNotExist:
+                pass
+            else:
+                continue
 
             # follow the same path like the stored procedure authserver_resolve_alias(...)
             if "-" in rcptuser:

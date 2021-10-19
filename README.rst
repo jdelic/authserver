@@ -190,6 +190,8 @@ N   Function Name                        Description
                                          input unchanged.
 4   ``authserver_iterate_users()``       Returns a list of all valid delivery
                                          mailboxes.
+5   ``authserver_is_blacklisted(         Simply checks if an email address is
+    varchar)``                           blacklisted on ``EmailBlacklist``.
 ==  ===================================  =====================================
 
 Access to the stored procedure API is managed by the ``django-admin.py spapi``

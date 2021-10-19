@@ -91,6 +91,7 @@ class Domain(models.Model):
     jwt_subdomains = models.BooleanField(verbose_name="Use JWT key to sign for subdomains", default=False)
     redirect_to = models.CharField(verbose_name="Redirect all mail to domain", max_length=255, null=False, blank=True,
                                    default="")
+    blacklisted = models.BooleanField(verbose_name="Don't deliver to this domain", null=False, default=False)
 
     objects = DomainManager()
 
@@ -137,6 +138,18 @@ class EmailAlias(models.Model):
         elif self.forward_to is not None:
             s = "%s (List: %s)" % (s, self.forward_to.name,)
         return s
+
+
+class EmailBlacklist(models.Model):
+    email = models.CharField("Email address",
+                             help_text="This can include dashext and plusext email aliases/suffixes",
+                             max_length=255)
+    block_ext = models.BooleanField("Block Dashext/Plusext Extensions",
+                                    help_text="Will also block name+ext@domain",
+                                    default=False)
+
+    def __str__(self) -> str:
+        return self.email
 
 
 class MNApplicationPermission(models.Model):

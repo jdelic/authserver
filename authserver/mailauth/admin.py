@@ -20,7 +20,7 @@ from oauth2_provider.models import get_application_model
 from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm, MailingListForm, \
     MNServiceUserCreationForm, MNServiceUserChangeForm
 from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroup, MNApplication, MailingList, \
-    MNServiceUser
+    MNServiceUser, EmailBlacklist
 from mailauth.utils import generate_rsa_key
 
 admin.site.unregister(auth_admin.Group)
@@ -185,6 +185,11 @@ class EmailAliasAdmin(admin.ModelAdmin):
 @admin.register(MNApplicationPermission)
 class MNApplicationPermissionAdmin(admin.ModelAdmin):
     search_fields = ('name',)
+
+
+@admin.register(EmailBlacklist)
+class EmailBlacklistAdmin(admin.ModelAdmin):
+    search_field = ('email',)
 
 
 @admin.register(MNGroup)
