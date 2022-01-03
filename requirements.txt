@@ -16,7 +16,7 @@ psycopg2-binary==2.8.6
 pyjwt==2.1.0
 python-consul==1.1.0
 python-json-logger==2.0.1
-requests==2.25.1
+requests==2.26.0
 sqlparse==0.4.2
 typing-extensions==3.10.0.0
 whitenoise==5.2.0
