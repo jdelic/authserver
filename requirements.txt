@@ -13,7 +13,7 @@ gunicorn==20.1.0
 hvac==0.10.14
 passlib==1.7.4
 psycopg2-binary==2.8.6
-pyjwt==2.1.0
+pyjwt==2.3.0
 python-consul==1.1.0
 python-json-logger==2.0.1
 requests==2.25.1
