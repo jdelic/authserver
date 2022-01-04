@@ -49,7 +49,7 @@ class UnixCryptCompatibleSHA256Hasher(object):
         """
         Generates a cryptographically secure nonce salt in ASCII
         """
-        return hashers.get_random_string()
+        return hashers.get_random_string(length=15)
 
     def verify(self, password: str, encoded: str) -> bool:
         """
