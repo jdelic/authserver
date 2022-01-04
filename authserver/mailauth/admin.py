@@ -10,7 +10,7 @@ from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
 from django.http import HttpResponse, HttpResponseRedirect
 from django.http.request import HttpRequest
 from django.urls import reverse
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
@@ -91,7 +91,7 @@ class DomainAdmin(admin.ModelAdmin):
         preserved_filters = self.get_preserved_filters(request)
 
         msg_dict = {
-            'name': force_text(opts.verbose_name),
+            'name': force_str(opts.verbose_name),
             'obj': format_html('<a href="{}">{}</a>', urllib.parse.quote(request.path), obj),
         }
         obj_url = reverse(
@@ -125,7 +125,7 @@ class DomainAdmin(admin.ModelAdmin):
         preserved_filters = self.get_preserved_filters(request)
 
         msg_dict = {
-            'name': force_text(opts.verbose_name),
+            'name': force_str(opts.verbose_name),
             'obj': format_html('<a href="{}">{}</a>', urllib.parse.quote(request.path), obj),
         }
         for key in request.POST.keys():
