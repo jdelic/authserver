@@ -6,7 +6,7 @@ from typing import Tuple, Dict, Optional
 from django.contrib.auth import hashers
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from typing import Union
 
 from mailauth.models import Domain, EmailAlias, MNUser, MNServiceUser
