@@ -25,10 +25,11 @@ run:
                 python3 python3-virtualenv virtualenv python3-pip
             python3 -m pip install -U pip virtualenv setuptools wheel
             pip3 install -U mypy typing-extensions django-stubs types-cryptography \
-                types-requests;
+                types-requests types-jwt ;
             cd authserver;
-            /usr/local/bin/mypy --install-types --non-interactive --follow-imports=skip \
-                --disallow-untyped-calls --disallow-untyped-defs authserver &&
+            /usr/local/bin/mypy --ignore-missing-imports --install-types --non-interactive \
+                --follow-imports=skip --disallow-untyped-calls --disallow-untyped-defs \
+                authserver &&
             echo "*************************" &&
             echo "*** All tests passed! ***" &&
             echo "*************************"
