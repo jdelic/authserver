@@ -26,7 +26,7 @@ run:
             python3 -m pip install -U pip virtualenv setuptools wheel
             pip3 install -U mypy typing-extensions;
             cd authserver;
-            /usr/local/bin/mypy --install-types --ignore-missing-imports --follow-imports=skip \
+            /usr/local/bin/mypy --install-types --non-interactive --follow-imports=skip \
                 --disallow-untyped-calls --disallow-untyped-defs authserver &&
             echo "*************************" &&
             echo "*** All tests passed! ***" &&
