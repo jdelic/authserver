@@ -12,8 +12,8 @@ import json
 import logging
 import base64
 from typing import List, NamedTuple, Dict, Any, Union, Optional
+from zoneinfo import ZoneInfo
 
-import pytz
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.http import QueryDict
@@ -144,7 +144,7 @@ class DockerAuthView(JWTViewHelperMixin, View):
             except ValueError:
                 return HttpResponseForbidden("Invalid basic auth string")
 
-            rightnow = datetime.datetime.now(tz=pytz.UTC)
+            rightnow = datetime.datetime.now(tz=ZoneInfo("UTC"))
             user = authenticate(request, username=username, password=password)
             if user is None:
                 return HttpResponseForbidden("Authentication failed")
@@ -209,7 +209,7 @@ class DockerAuthView(JWTViewHelperMixin, View):
                         return HttpResponseNotFound("No such repo '%s'" % tp.path)
 
                 if drepo.registry.has_access(user, tp) or drepo.has_access(user, tp):
-                    rightnow = datetime.datetime.now(tz=pytz.UTC)
+                    rightnow = datetime.datetime.now(tz=ZoneInfo("UTC"))
                     return HttpResponse(content=json.dumps({
                         "access_token": self._create_jwt(
                             self._make_access_token(request, tr, rightnow, tp, user),

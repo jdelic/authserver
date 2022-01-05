@@ -3,8 +3,8 @@ import datetime
 import json
 import logging
 from typing import Any, Tuple
+from zoneinfo import ZoneInfo
 
-import pytz
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
@@ -113,9 +113,10 @@ class JWTPublicKeyView(RatelimitMixin, View):
                 .issuer_name(crt_subject)\
                 .public_key(key.key.public_key())\
                 .serial_number(x509.random_serial_number())\
-                .not_valid_before(datetime.datetime.now(tz=pytz.UTC))\
+                .not_valid_before(datetime.datetime.now(tz=ZoneInfo("UTC")))\
                 .not_valid_after(
-                    datetime.datetime.now(tz=pytz.UTC) + datetime.timedelta(days=settings.JWT_CERTIFICATE_DAYS_VALID)
+                    datetime.datetime.now(tz=ZoneInfo("UTC")) +
+                    datetime.timedelta(days=settings.JWT_CERTIFICATE_DAYS_VALID)
                 )\
                 .add_extension(
                     x509.BasicConstraints(ca=False, path_length=None), critical=True

@@ -3,8 +3,8 @@ import json
 import logging
 from datetime import datetime
 from typing import Any, Union, List, NamedTuple, Set
+from zoneinfo import ZoneInfo
 
-import pytz
 from django.contrib.auth import authenticate
 from django.http import HttpResponseBadRequest
 from django.http.request import HttpRequest
@@ -107,8 +107,8 @@ class FakeUserInfoView(ProtectedResourceView):
                 "groups": [str(g.name) for g in user.app_groups.all()],
                 "email_verified": True,
                 "scopes": list(user.get_all_app_permission_strings()),
-                "nbf": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) - 5,
-                "exp": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) + 3600,
+                "nbf": int(datetime.timestamp(datetime.now(tz=ZoneInfo("UTC")))) - 5,
+                "exp": int(datetime.timestamp(datetime.now(tz=ZoneInfo("UTC")))) + 3600,
                 "iss": req_domain.name,
             }),
             content_type="application/jwt", status=200
@@ -213,8 +213,8 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
                 "authenticated": authenticated,
                 "authorized": user.has_app_permissions(userdesc.scopes or set()),
                 "scopes": list(user.get_all_app_permission_strings()),
-                "nbf": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) - 5,
-                "exp": int(datetime.timestamp(datetime.now(tz=pytz.UTC))) + 3600,
+                "nbf": int(datetime.timestamp(datetime.now(tz=ZoneInfo("UTC")))) - 5,
+                "exp": int(datetime.timestamp(datetime.now(tz=ZoneInfo("UTC")))) + 3600,
                 "iss": req_domain.name,
                 "aud": "net.maurus.authclient",
             }, key_pemstr=req_domain.jwtkey)
