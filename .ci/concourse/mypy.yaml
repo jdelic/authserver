@@ -5,7 +5,7 @@ image_resource:
     type: docker-image
     source:
         repository: debian
-        tag: 'buster-slim'
+        tag: 'bullseye-slim'
 
 
 inputs:
@@ -24,7 +24,7 @@ run:
                 -o DPkg::Options::=--force-confdef install \
                 python3 python3-virtualenv virtualenv python3-pip
             python3 -m pip install -U pip virtualenv setuptools wheel
-            pip3 install -U mypy typing;
+            pip3 install -U mypy typing-extensions;
             cd authserver;
             /usr/local/bin/mypy --ignore-missing-imports --follow-imports=skip \
                 --disallow-untyped-calls --disallow-untyped-defs authserver &&
