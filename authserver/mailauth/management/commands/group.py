@@ -3,7 +3,7 @@ import argparse
 import json
 
 import sys
-from django.core.management import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand, CommandParser
 from typing import Any
 
 from django.db import IntegrityError, DatabaseError

@@ -108,9 +108,9 @@ class Command(BaseCommand):
         else:
             self.stdout.write("No Docker registries have been setup for Docker Token Auth. (0 found)")
 
-    def _show_registry(self, name: str=None, client_id: str=None, allow_partial: bool=False,
-                       case_insensitive: bool=False, allow_multiple: bool=False,
-                       output_private_key: bool=False) -> None:
+    def _show_registry(self, name: str = None, client_id: str = None, allow_partial: bool = False,
+                       case_insensitive: bool = False, allow_multiple: bool = False,
+                       output_private_key: bool = False) -> None:
         name_query = "name__"
         clientid_query = "client_id__"
         if case_insensitive:
@@ -157,7 +157,7 @@ class Command(BaseCommand):
                 for group in reg.group_push_access.all():
                     self.stdout.write("    %s (%s)" % (group.name, group.pk))
             if output_private_key:
-                self.stdout.write("Private key:\n%s\n" % reg.sign_key)
+                self.stdout.write("Private key:\n%s\n" % reg.domain.jwtkey)
             self.stdout.write("\n")
 
     def _create_registry(self, name: str, client_id: str, domain: str, domain_exact_match: bool=False,

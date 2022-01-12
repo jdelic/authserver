@@ -2,13 +2,13 @@
 import json
 import logging
 from datetime import datetime
-from typing import Any, Union, List, NamedTuple, Set
+from typing import Any, Union, List, NamedTuple, Set, cast
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth import authenticate
 from django.http import HttpResponseBadRequest
 from django.http.request import HttpRequest
-from django.http.response import HttpResponse
+from django.http.response import HttpResponse, HttpResponseBase
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -24,6 +24,7 @@ from dockerauth.jwtutils import JWTViewHelperMixin
 from mailauth.models import MNApplication, UnresolvableUserException, Domain
 from mailauth.models import MNUser
 from mailauth.permissions import find_missing_permissions
+from mailauth.utils import AuthenticatedHttpRequest
 
 
 _log = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ class ScopeValidationAuthView(AuthorizationView):
 
         return super().form_valid(form)
 
-    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+    def get(self, request: AuthenticatedHttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         _log.debug("ScopeValidationAuthView.get()")
         # super.get will initialize self.oauth2_data and now we can do additional validation
         resp = super().get(request, *args, **kwargs)
@@ -58,7 +59,8 @@ class ScopeValidationAuthView(AuthorizationView):
         missing_permissions = find_missing_permissions(app, request.user)
 
         _log.debug("missing_permissions: %s (%s)" %
-                   (",".join([m.scope_name for m in missing_permissions]), bool(missing_permissions)))
+                   (",".join([m.scope_name for m in missing_permissions if m.scope_name is not None]),
+                    bool(missing_permissions)))
 
         if missing_permissions:
             return render(
@@ -82,7 +84,7 @@ class FakeUserInfoView(ProtectedResourceView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
-    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+    def get(self, request: AuthenticatedHttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         _log.debug("LimitedUserInfoView.get()")
 
         if not hasattr(request, "resource_owner"):
@@ -99,6 +101,9 @@ class FakeUserInfoView(ProtectedResourceView):
                                           content_type="application/json")
 
         user = request.resource_owner  # type: MNUser
+        if user.delivery_mailbox is None:
+            return HttpResponseBadRequest('{"error": "User has no primary email address"')
+
         return HttpResponse(
             json.dumps({
                 "sub": str(user.uuid),
@@ -160,7 +165,7 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
         )
 
     @method_decorator(csrf_exempt)
-    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
+    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponseBase:
         return super().dispatch(*args, **kwargs)
 
     def post(self, request: HttpRequest) -> HttpResponse:
@@ -182,7 +187,7 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
             return HttpResponseBadRequest('{"error": "Missing parameters"}', content_type="application/json")
 
         if userdesc.password:
-            user = authenticate(username=userdesc.username, password=userdesc.password)  # type: Optional[MNUser]
+            user = cast(MNUser, authenticate(username=userdesc.username, password=userdesc.password))
             authenticated = True
         else:
             authenticated = False

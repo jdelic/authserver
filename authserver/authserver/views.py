@@ -11,7 +11,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.x509 import Certificate
 from cryptography.x509 import NameOID
 from django.conf import settings
-from django.http import HttpResponse, HttpResponseNotFound, HttpRequest, HttpResponseBadRequest
+from django.http.request import HttpRequest
+from django.http.response import HttpResponse, HttpResponseBase, HttpResponseNotFound, HttpResponseBadRequest
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -39,7 +40,7 @@ class JWTPublicKeyView(RatelimitMixin, View):
         super().__init__(**kwargs)
 
     @method_decorator(csrf_exempt)
-    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
+    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponseBase:
         return super().dispatch(*args, **kwargs)
 
     def _get_domain_key(self, fqdn: str) -> Tuple[str, Key]:

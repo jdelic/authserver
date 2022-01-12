@@ -92,7 +92,7 @@ def run(_args: argparse.Namespace) -> None:
     asyncore.loop()
 
 
-def _sigint_handler(sig: int, frame: FrameType) -> None:
+def _sigint_handler(sig: int, frame: Optional[FrameType]) -> None:
     print("CTRL+C exiting")
     pool.shutdown(wait=False)
     sys.exit(1)

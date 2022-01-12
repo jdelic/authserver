@@ -75,7 +75,7 @@ def _handle_client_registration(client: OT, mgr: CMDT, **options: Any) -> bool:
 
         mgr.stderr.write(mgr.style.SUCCESS("INFO: Client credentials published to Consul"))
 
-    if options["publish_to_vault"]:
+    if options["publish_to_vault"] and hasattr(settings, "VAULT") and settings.VAULT is not None:
         try:
             cl = settings.VAULT.authenticated_client(
                 url=settings.VAULT_ADDRESS,

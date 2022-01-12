@@ -1,11 +1,18 @@
 import os
 from typing import List
 
+import django_stubs_ext
 import dj_database_url
 from vault12factor import VaultCredentialProvider, VaultAuth12Factor, DjangoAutoRefreshDBCredentialsDict
 
+
+django_stubs_ext.monkeypatch()
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Initialize some module-level attributes later overwritten by django12factor
+DATABASES = {}
 
 INSTALLED_APPS = [
     'mailauth.MailAuthApp',
@@ -75,6 +82,7 @@ if DEBUG:
 VAULT_ADDRESS = os.getenv("VAULT_ADDR", "https://vault.local:8200/")
 VAULT_CA = os.getenv("VAULT_CA", None)
 
+VAULT = None
 if VaultAuth12Factor.has_envconfig() and os.getenv("VAULT_DATABASE_PATH"):
     VAULT = VaultAuth12Factor.fromenv()
     CREDS = VaultCredentialProvider(VAULT_ADDRESS, VAULT,

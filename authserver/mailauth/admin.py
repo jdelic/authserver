@@ -3,8 +3,10 @@ import urllib.parse
 from typing import Any, Union, Tuple, Dict, Optional
 
 import django.contrib.auth.admin as auth_admin
+import django.contrib.auth.forms as auth_forms
 
 from django import forms
+from django.db import models
 from django.contrib import admin, messages
 from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
 from django.http import HttpResponse, HttpResponseRedirect
@@ -13,6 +15,7 @@ from django.urls import reverse
 from django.utils.encoding import force_str
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from django.contrib.auth import models as auth_models
 
 from oauth2_provider.admin import ApplicationAdmin
 from oauth2_provider.models import get_application_model
@@ -23,11 +26,11 @@ from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission,
     MNServiceUser
 from mailauth.utils import generate_rsa_key
 
-admin.site.unregister(auth_admin.Group)
+admin.site.unregister(auth_models.Group)
 
 
 @admin.register(MNServiceUser)
-class MNServiceUserAdmin(admin.ModelAdmin):
+class MNServiceUserAdmin(admin.ModelAdmin[MNServiceUser]):
     form = MNServiceUserChangeForm
     add_form = MNServiceUserCreationForm
     list_display = ('user', 'username', 'description',)
@@ -37,7 +40,7 @@ class MNServiceUserAdmin(admin.ModelAdmin):
 
     fields = ['username', 'password', 'description', 'user']
 
-    def get_form(self, request: HttpRequest, obj: forms.ModelForm=None, **kwargs: Any) -> forms.ModelForm:
+    def get_form(self, request: Any, obj: MNServiceUser = None, change: bool = False, **kwargs: Any) -> Any:
         """
         Use special form during user creation
         """
@@ -45,9 +48,10 @@ class MNServiceUserAdmin(admin.ModelAdmin):
         if obj is None:
             defaults['form'] = self.add_form
         defaults.update(kwargs)
-        return super().get_form(request, obj, **defaults)
+        return super().get_form(request, obj, change, **defaults)
 
-    def formfield_for_foreignkey(self, db_field: forms.BoundField, request: HttpRequest, **kwargs: Any) -> forms.Field:
+    def formfield_for_foreignkey(self, db_field: models.ForeignKey, request: Optional[HttpRequest],
+                                 **kwargs: Any) -> Optional[forms.ModelChoiceField]:
         if db_field.name == "user":
             kwargs['queryset'] = MNUser.objects.exclude(delivery_mailbox__isnull=True)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
@@ -72,7 +76,7 @@ class MNUserAdmin(auth_admin.UserAdmin):
     )  # type: Tuple
     form = MNUserChangeForm
     add_form = MNUserCreationForm
-    change_password_form = auth_admin.AdminPasswordChangeForm
+    change_password_form = auth_forms.AdminPasswordChangeForm
     list_display = ('identifier', 'fullname', 'delivery_mailbox', 'is_staff', )
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups')
     search_fields = ('identifier', 'fullname')
@@ -85,7 +89,7 @@ class DomainAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     form = DomainForm
 
-    def response_add(self, request: HttpRequest, obj: Domain, post_url_continue: str=None) -> \
+    def response_add(self, request: HttpRequest, obj: Domain, post_url_continue: str = None) -> \
             HttpResponse:
         opts = self.opts
         preserved_filters = self.get_preserved_filters(request)
@@ -121,7 +125,6 @@ class DomainAdmin(admin.ModelAdmin):
 
     def response_change(self, request: HttpRequest, obj: Domain) -> HttpResponse:
         opts = self.model._meta
-        pk_value = obj._get_pk_val()
         preserved_filters = self.get_preserved_filters(request)
 
         msg_dict = {
@@ -193,7 +196,7 @@ class MNGroupAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {'fields': ('name',)}),
         ("Application permissions", {'fields': ('group_permissions',)}),
-    )  # type: Tuple[Tuple[Union[str, None], Dict[str, Tuple[str, ...]]], ...]
+    )
     filter_horizontal = ('group_permissions',)
 
 

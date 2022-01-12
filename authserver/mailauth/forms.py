@@ -16,6 +16,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.forms.renderers import BaseRenderer
 from django.utils.html import format_html
+from django.utils.safestring import SafeString
 from django_select2.forms import Select2TagWidget
 
 from mailauth.models import MNUser, Domain, MailingList, MNServiceUser
@@ -46,7 +47,7 @@ class MNServiceUserCreationForm(forms.ModelForm):
 
     class Meta:
         model = MNServiceUser
-        fields = forms.ALL_FIELDS
+        fields = forms.models.ALL_FIELDS
 
     def save(self, commit: bool=True) -> 'MNUser':
         user = super().save(commit=False)
@@ -72,7 +73,7 @@ class MNServiceUserChangeForm(forms.ModelForm):
 
     class Meta:
         model = MNServiceUser
-        fields = forms.ALL_FIELDS
+        fields = forms.models.ALL_FIELDS
 
     def clean_password(self) -> str:
         # Regardless of what the user provides, return the initial value.
@@ -102,17 +103,17 @@ class MNUserChangeForm(auth_forms.UserChangeForm):
 
     class Meta:
         model = MNUser
-        fields = forms.ALL_FIELDS
+        fields = forms.models.ALL_FIELDS
         field_classes = {'identifier': auth_forms.UsernameField}
 
 
 class RSAKeyWidget(widgets.AdminTextareaWidget):
-    def __init__(self, *args: Any, show_dkim: bool=False, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, show_dkim: bool = False, **kwargs: Any) -> None:
         self.show_dkim = show_dkim
         super().__init__(*args, **kwargs)
 
-    def render(self, name: str, value: str, attrs: Optional[Dict[str, str]]=None,
-               renderer: Optional[BaseRenderer]=None) -> str:
+    def render(self, name: str, value: str, attrs: Optional[Dict[str, str]] = None,
+               renderer: Optional[BaseRenderer] = None) -> SafeString:
         ret = super().render(name, value, attrs)
         if value and value.startswith("-----BEGIN RSA PRIVATE KEY"):
             public_key = import_rsa_key(value).public_key
@@ -145,7 +146,7 @@ class DomainForm(forms.ModelForm):
             'dkimkey': RSAKeyWidget(show_dkim=True),
             'jwtkey': RSAKeyWidget(),
         }
-        fields = forms.ALL_FIELDS
+        fields = forms.models.ALL_FIELDS
 
 
 class ArrayFieldWidget(Select2TagWidget):
@@ -168,4 +169,4 @@ class MailingListForm(forms.ModelForm):
     class Meta:
         model = MailingList
         widgets = {'addresses': ArrayFieldWidget(attrs={"style": "width: 750px"})}
-        fields = forms.ALL_FIELDS
+        fields = forms.models.ALL_FIELDS

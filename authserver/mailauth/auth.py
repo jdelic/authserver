@@ -7,7 +7,6 @@ from django.contrib.auth import hashers
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest
 from django.utils.translation import gettext_lazy as _
-from typing import Union
 
 from mailauth.models import Domain, EmailAlias, MNUser, MNServiceUser
 # noinspection PyUnresolvedReferences
@@ -49,7 +48,7 @@ class UnixCryptCompatibleSHA256Hasher(object):
         """
         Generates a cryptographically secure nonce salt in ASCII
         """
-        return hashers.get_random_string(length=15)
+        return hashers.get_random_string(length=15)  # type: ignore
 
     def verify(self, password: str, encoded: str) -> bool:
         """
@@ -155,7 +154,7 @@ class MNUserAuthenticationBackend(object):
             else:
                 tocheck_password = user.password
 
-        if hashers.check_password(password, tocheck_password):
+        if tocheck_password is not None and hashers.check_password(password, tocheck_password):
             return user
         else:
             return None

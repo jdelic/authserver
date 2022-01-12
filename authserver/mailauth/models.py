@@ -7,7 +7,7 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.postgres.fields.array import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
-from typing import Any, Optional, Set, Iterable, Union, List
+from typing import Any, Optional, Set, Iterable, Union, List, cast
 
 from django.db.models import Manager
 from oauth2_provider import models as oauth2_models
@@ -83,28 +83,29 @@ class DomainManager(Manager):
 
 
 class Domain(models.Model):
-    name = models.CharField(max_length=255, unique=True)
-    dkimselector = models.CharField(verbose_name="DKIM DNS selector", max_length=255, null=False, blank=True,
-                                    default="default")
-    dkimkey = models.TextField(verbose_name="DKIM private key (PEM)", blank=True)
-    jwtkey = models.TextField(verbose_name="JWT signing key (PEM)", blank=True)
-    jwt_subdomains = models.BooleanField(verbose_name="Use JWT key to sign for subdomains", default=False)
-    redirect_to = models.CharField(verbose_name="Redirect all mail to domain", max_length=255, null=False, blank=True,
-                                   default="")
+    name: models.CharField = models.CharField(max_length=255, unique=True)
+    dkimselector: models.CharField = models.CharField(verbose_name="DKIM DNS selector", max_length=255, null=False,
+                                                      blank=True, default="default")
+    dkimkey: models.TextField = models.TextField(verbose_name="DKIM private key (PEM)", blank=True)
+    jwtkey: models.TextField = models.TextField(verbose_name="JWT signing key (PEM)", blank=True)
+    jwt_subdomains: models.BooleanField = models.BooleanField(verbose_name="Use JWT key to sign for subdomains",
+                                                              default=False)
+    redirect_to: models.CharField = models.CharField(verbose_name="Redirect all mail to domain", max_length=255,
+                                                     null=False, blank=True, default="")
 
     objects = DomainManager()
 
     def __str__(self) -> str:
-        return self.name
+        return str(self.name)
 
 
 class MailingList(models.Model):
-    name = models.CharField("Descriptive name", max_length=255)
-    addresses = ArrayField(models.EmailField(max_length=255))
-    new_mailfrom = models.EmailField(max_length=255, null=False, blank=True, default="")
+    name: models.CharField = models.CharField("Descriptive name", max_length=255)
+    addresses: ArrayField = ArrayField(models.EmailField(max_length=255))
+    new_mailfrom: models.EmailField = models.EmailField(max_length=255, null=False, blank=True, default="")
 
     def __str__(self) -> str:
-        return self.name
+        return str(self.name)
 
 
 class EmailAlias(models.Model):
@@ -112,12 +113,13 @@ class EmailAlias(models.Model):
         unique_together = (('mailprefix', 'domain'),)
         verbose_name_plural = "Email aliases"
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="aliases",
-                             null=True, blank=True)
-    domain = models.ForeignKey(Domain, verbose_name="On domain", on_delete=models.CASCADE)
-    mailprefix = models.CharField("Mail prefix", max_length=255)
-    forward_to = models.ForeignKey(MailingList, verbose_name="Forward to list", on_delete=models.CASCADE, null=True,
-                                   blank=True)
+    user: models.ForeignKey = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                                          related_name="aliases", null=True, blank=True)
+    domain: models.ForeignKey = models.ForeignKey(Domain, verbose_name="On domain",
+                                                                  on_delete=models.CASCADE)
+    mailprefix: models.CharField = models.CharField("Mail prefix", max_length=255)
+    forward_to: models.ForeignKey = models.ForeignKey(MailingList, verbose_name="Forward to list",
+                                                                   on_delete=models.CASCADE, null=True, blank=True)
 
     def clean(self) -> None:
         if hasattr(self, 'forward_to') and self.forward_to is not None \
@@ -334,7 +336,7 @@ class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.Permissi
         return user_permissions
 
     def get_all_app_permission_strings(self) -> List[str]:
-        return [p.scope_name for p in self.get_all_app_permissions()]
+        return cast(List[str], [p.scope_name for p in self.get_all_app_permissions()])
 
     def has_app_permission(self, perm: str) -> bool:
         return perm in self.get_all_app_permissions()

@@ -5,7 +5,7 @@ import json
 import sys
 import uuid
 
-from django.core.management import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand, CommandParser
 from typing import Any, List, Optional, cast, Set
 
 from django.db import DatabaseError, transaction
@@ -173,7 +173,7 @@ class Command(BaseCommand):
         else:
             scopes = list(models.MNApplicationPermission.objects.filter(**filter_args))
 
-        fmtstr = table_left_format_str([p.scope_name for p in scopes])
+        fmtstr = table_left_format_str([p.scope_name if p.scope_name is not None else p.name for p in scopes])
 
         if len(scopes) > 0:
             if format == "table":
@@ -249,8 +249,9 @@ class Command(BaseCommand):
                 except models.MNApplicationPermission.DoesNotExist as e:
                     self.stderr.write("No such permission (%s): %s\n" % (perm, str(e)))
                 else:
-                    cl.required_permissions.add(p)
-                    added.add(p.scope_name)
+                    # apparently, django-stubs doesn't handle ManyToManyFields correctly, yet
+                    cl.required_permissions.add(p)  # type: ignore
+                    added.add(p.scope_name if p.scope_name is not None else p.name)
 
         self.stderr.write(self.style.SUCCESS("Added permission requirements to client '%s':\n%s") %
                           (cl.name, ", ".join(list(added))))
@@ -267,20 +268,23 @@ class Command(BaseCommand):
                     self.stderr.write("No such permission (%s): %s\n" % (perm, str(e)))
                 else:
                     if p in cur_perm:
-                        cl.required_permissions.remove(p)
-                        removed.add(p.scope_name)
+                        # apparently, django-stubs doesn't handle ManyToManyFields correctly, yet
+                        cl.required_permissions.remove(p)  # type: ignore
+                        removed.add(p.scope_name if p.scope_name is not None else p.name)
                     else:
                         self.stderr.write("Client doesn't require permission: %s.\n" % perm)
 
         self.stderr.write(self.style.SUCCESS("Dropped permission requirements from client '%s':\n%s\n"
                                              "Remaining:\n%s") %
                           (cl.name, ", ".join(list(removed)),
-                           ", ".join([p.scope_name for p in cl.required_permissions.all()])))
+                           ", ".join([p.scope_name if p.scope_name is not None else p.name
+                                      for p in cl.required_permissions.all()])))
 
     def _show_user(self, userid: str, format: str = "table", **kwargs: Any) -> None:
         user = cast(models.MNUser, self._get_user(userid))
         if format == "table":
-            fmtstr = table_left_format_str([p.scope_name for p in user.app_permissions.all()])
+            fmtstr = table_left_format_str([p.scope_name if p.scope_name is not None else p.name
+                                            for p in user.app_permissions.all()])
             print("Permissions for user %s (%s)" % (user.get_username(), str(user.uuid)))
             print(fmtstr.format("PERMISSION", "NAME"))
             print("-" * 78)
@@ -292,7 +296,8 @@ class Command(BaseCommand):
     def _show_group(self, groupid: str, format: str = "table", **kwargs: Any) -> None:
         group = cast(models.MNGroup, self._get_group(groupid))
         if format == "table":
-            fmtstr = table_left_format_str([p.scope_name for p in group.group_permissions.all()])
+            fmtstr = table_left_format_str([p.scope_name if p.scope_name is not None else p.name
+                                            for p in group.group_permissions.all()])
             print("Permissions for group %s (%s)" % (group.name, str(group.pk)))
             print(fmtstr.format("PERMISSION", "NAME"))
             print("-" * 78)
@@ -304,7 +309,8 @@ class Command(BaseCommand):
     def _show_client(self, client_name: str, format: str = "table", **kwargs: Any) -> None:
         cl = self._get_client(client_name)
         if format == "table":
-            fmtstr = table_left_format_str([p.scope_name for p in cl.required_permissions.all()])
+            fmtstr = table_left_format_str([p.scope_name if p.scope_name is not None else p.name
+                                            for p in cl.required_permissions.all()])
             print("Permissions for client %s (%s)" % (cl.name, cl.client_id,))
             print(fmtstr.format("PERMISSION", "NAME"))
             print("-" * 78)
@@ -321,7 +327,8 @@ class Command(BaseCommand):
             print(fmtstr.format("GROUP", "PERMISSIONS"))
             print("-" * 78)
             for group in user.app_groups.all():
-                print(fmtstr.format(group.name, ", ".join([gp.scope_name for gp in group.group_permissions.all()])))
+                print(fmtstr.format(group.name, ", ".join([gp.scope_name if gp.scope_name is not None else gp.name
+                                                           for gp in group.group_permissions.all()])))
         else:
             print(json.dumps([{group.name: [gp.scope_name for gp in group.group_permissions.all()]}
                               for group in user.app_groups.all()]))
@@ -338,8 +345,9 @@ class Command(BaseCommand):
                     self.stderr.write("No such permission: %s" % perm)
                     permissions_missing = True
                 else:
-                    user.app_permissions.add(p)
-                    added.add(p.scope_name)
+                    # Apparently, django-stubs does not handle ManyToManyFields yet, so type=ignore
+                    user.app_permissions.add(p)  # type: ignore
+                    added.add(p.scope_name if p.scope_name is not None else p.name)
 
             if permissions_missing:
                 sys.exit(1)
@@ -356,7 +364,8 @@ class Command(BaseCommand):
             for group in groups:
                 g = self._get_group(group, exit=False)
                 if g:
-                    user.app_groups.add(g)
+                    # Apparently, django-stubs does not handle ManyToManyFields yet, so type=ignore
+                    user.app_groups.add(g)  # type: ignore
                     added.add(g.name)
                 else:
                     self.stderr.write("No such group: %s" % group)
@@ -378,8 +387,10 @@ class Command(BaseCommand):
             sys.exit(1)
 
         if revoke_all:
-            revoked = set([p.scope_name for p in user.app_permissions.all()])
-            user.app_permissions.clear()
+            revoked = set([p.scope_name if p.scope_name is not None else p.name
+                           for p in user.app_permissions.all()])
+            # Apparently, django-stubs does not handle ManyToManyFields yet, so type=ignore
+            user.app_permissions.clear()  # type: ignore
         else:
             with transaction.atomic():
                 if perms:
@@ -390,8 +401,9 @@ class Command(BaseCommand):
                             self.stderr.write("No such permission: %s" % perm)
                             permissions_missing = True
                         else:
-                            user.app_permissions.remove(p)
-                            revoked.add(p.scope_name)
+                            # Apparently, django-stubs does not handle ManyToManyFields yet, so type=ignore
+                            user.app_permissions.remove(p)  # type: ignore
+                            revoked.add(p.scope_name if p.scope_name is not None else p.name)
 
                 if permissions_missing:
                     sys.exit(1)
@@ -412,8 +424,9 @@ class Command(BaseCommand):
                     self.stderr.write("No such permission: %s" % perm)
                     permissions_missing = True
                 else:
-                    group.group_permissions.add(p)
-                    added.add(p.scope_name)
+                    # Apparently, django-stubs does not handle ManyToManyFields yet, so type=ignore
+                    group.group_permissions.add(p)  # type: ignore
+                    added.add(p.scope_name if p.scope_name is not None else p.name)
 
             if permissions_missing:
                 sys.exit(1)
@@ -432,8 +445,10 @@ class Command(BaseCommand):
             sys.exit(1)
 
         if revoke_all:
-            revoked = set([p.scope_name for p in group.group_permissions.all()])
-            group.group_permissions.clear()
+            revoked = set([p.scope_name if p.scope_name is not None else p.name
+                           for p in group.group_permissions.all()])
+            # Apparently, django-stubs does not handle ManyToManyFields yet, so type=ignore
+            group.group_permissions.clear()  # type: ignore
         else:
             with transaction.atomic():
                 if perms:
@@ -444,8 +459,9 @@ class Command(BaseCommand):
                             self.stderr.write("No such permission: %s" % perm)
                             permissions_missing = True
                         else:
-                            group.group_permissions.remove(p)
-                            revoked.add(p.scope_name)
+                            # Apparently, django-stubs does not handle ManyToManyFields yet, so type=ignore
+                            group.group_permissions.remove(p)  # type: ignore
+                            revoked.add(p.scope_name if p.scope_name is not None else p.name)
 
                 if permissions_missing:
                     sys.exit(1)
@@ -464,14 +480,16 @@ class Command(BaseCommand):
 
         if revoke_all:
             revoked = set([g.name for g in user.app_groups.all()])
-            user.app_groups.clear()
+            # Apparently, django-stubs does not handle ManyToManyFields yet, so type=ignore
+            user.app_groups.clear()  # type: ignore
         else:
             with transaction.atomic():
                 if groups:
                     for group in groups:
                         g = self._get_group(group, exit=False)
                         if g:
-                            user.app_groups.remove(g)
+                            # Apparently, django-stubs does not handle ManyToManyFields yet, so type=ignore
+                            user.app_groups.remove(g)  # type: ignore
                             revoked.add(g.name)
                         else:
                             self.stderr.write("No such group: %s" % group)

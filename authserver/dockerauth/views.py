@@ -11,14 +11,15 @@ import datetime
 import json
 import logging
 import base64
-from typing import List, NamedTuple, Dict, Any, Union, Optional
+from typing import List, NamedTuple, Dict, Any, Union, Optional, cast
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.http import QueryDict
 from django.http.request import HttpRequest
-from django.http.response import HttpResponse, HttpResponseNotFound, HttpResponseForbidden, HttpResponseBadRequest
+from django.http.response import HttpResponse, HttpResponseBase, HttpResponseNotFound, HttpResponseForbidden, \
+    HttpResponseBadRequest
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
@@ -118,15 +119,15 @@ class DockerAuthView(JWTViewHelperMixin, View):
                 drepo = DockerRepo()
                 drepo.name = tp.path
                 drepo.registry = client
-                drepo.unauthenticated_read = True
-                drepo.unauthenticated_write = True
+                drepo.unauthenticated_pull = True
+                drepo.unauthenticated_push = True
                 drepo.save()
             elif tp.type == "login":
                 drepo = DockerRepo()
                 drepo.name = tp.path
                 drepo.registry = client
-                drepo.unauthenticated_read = False
-                drepo.unauthenticated_write = False
+                drepo.unauthenticated_pull = False
+                drepo.unauthenticated_push = False
             else:
                 return HttpResponseNotFound("No such repo '%s'" % tp.path)
 
@@ -145,7 +146,7 @@ class DockerAuthView(JWTViewHelperMixin, View):
                 return HttpResponseForbidden("Invalid basic auth string")
 
             rightnow = datetime.datetime.now(tz=ZoneInfo("UTC"))
-            user = authenticate(request, username=username, password=password)
+            user = cast(MNUser, authenticate(request, username=username, password=password))
             if user is None:
                 return HttpResponseForbidden("Authentication failed")
             elif tp.type == "login":
@@ -203,8 +204,8 @@ class DockerAuthView(JWTViewHelperMixin, View):
                         drepo = DockerRepo()
                         drepo.name = tp.path
                         drepo.registry = client
-                        drepo.unauthenticated_read = True
-                        drepo.unauthenticated_write = True
+                        drepo.unauthenticated_pull = True
+                        drepo.unauthenticated_push = True
                     else:
                         return HttpResponseNotFound("No such repo '%s'" % tp.path)
 
@@ -230,5 +231,5 @@ class DockerAuthView(JWTViewHelperMixin, View):
             return HttpResponseBadRequest("POSTing to this endpoint requires a refresh_token")
 
     @method_decorator(csrf_exempt)
-    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponseBase:
         return super().dispatch(request, *args, **kwargs)

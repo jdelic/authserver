@@ -10,12 +10,22 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKeyWithSerialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKeyWithSerialization
 
+from django.http import HttpRequest
+from mailauth.models import MNUser
+
+
 Key = NamedTuple(
     'Key', [
         ("public_key", str),
         ("private_key", str),
         ("key", RSAPrivateKeyWithSerialization),
 ])
+
+
+# type helper
+class AuthenticatedHttpRequest(HttpRequest):
+    user: MNUser
+    resource_owner: MNUser
 
 
 def _create_key(pkey: RSAPrivateKeyWithSerialization) -> Key:

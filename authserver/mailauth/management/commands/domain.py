@@ -5,7 +5,7 @@ import re
 
 import sys
 
-from django.core.management import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand, CommandParser
 from typing import Any, Union, List, cast, IO, Match
 
 from django.db.models.query import QuerySet
@@ -158,7 +158,7 @@ class Command(BaseCommand):
                     contains, require_jwt_subdomains_set=require_jwt_subdomains)  # type: Optional[Domain]
             except Domain.DoesNotExist:
                 dom = None
-            qs = [dom] if dom is not None else []  # type: Union[QuerySet, Domain, List[Domain]]
+            qs = [dom] if dom is not None else []  # type: Union[QuerySet, List[Domain]]
         elif contains and not include_parent_domain:
             qs = Domain.objects.filter(name__icontains=contains, jwt_subdomains=require_jwt_subdomains)
         else:
