@@ -30,5 +30,5 @@ python-daemon==2.3.0
 # vendored dependencies from django12factor
 dj-database-url==0.5.0
 dj-email-url==1.0.5
-django-cache-url==3.2.3
+django-cache-url==3.3.0
 six==1.16.0
