@@ -35,6 +35,7 @@ six==1.16.0
 
 # typing extensions (must be installed at runtime because of Django stubs)
 django-stubs
+django-stubs-ext
 types-cryptography
 types-oauthlib
 types-requests
