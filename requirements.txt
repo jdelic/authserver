@@ -1,6 +1,6 @@
 12factor-vault==0.1.22
 # cryptography is an optional dependency of pyjwt for RSA support
-cryptography==36.0.1
+cryptography==36.0.2
 Django==4.0.2
 django-cors-headers==3.11.0
 django-dbconn-retry==0.1.6
