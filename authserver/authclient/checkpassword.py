@@ -146,7 +146,7 @@ def loadkey(url: str, domain: str=None, jwtkeyfile: str=None, response_format: s
     if resp.status_code == 404:
         sys.stderr.write("Server returned 404. Domain probably not initialized for JWT.\n")
         if resp.headers["content-type"] == "application/json":
-            if "error" is resp.json():
+            if "error" in resp.json():
                 sys.stderr.write("With error: %s\n" % resp.json()["error"])
         sys.exit(1)
 
@@ -166,7 +166,7 @@ def loadkey(url: str, domain: str=None, jwtkeyfile: str=None, response_format: s
         sys.stderr.write("Server returned status code %s\n" % resp.status_code)
 
         if resp.headers["content-type"] == "application/json":
-            if "error" is resp.json():
+            if "error" in resp.json():
                 sys.stderr.write("With error: %s\n" % resp.json()["error"])
                 sys.exit(3)
 
