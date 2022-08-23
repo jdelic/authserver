@@ -51,7 +51,7 @@ class ScopeValidationAuthView(AuthorizationView):
         # super.get will initialize self.oauth2_data and now we can do additional validation
         resp = super().get(request, *args, **kwargs)
 
-        if not resp.status_code >= 200 and resp.status_code < 300:
+        if not (resp.status_code >= 200 and resp.status_code < 300):
             return resp
 
         app = self.oauth2_data['application']  # type: MNApplication
@@ -86,6 +86,7 @@ class FakeUserInfoView(ProtectedResourceView):
 
     def get(self, request: AuthenticatedHttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         _log.debug("LimitedUserInfoView.get()")
+        # TODO: validate bearer token like oauth2_provider
 
         if not hasattr(request, "resource_owner"):
             return HttpResponseBadRequest("Unauthenticated")

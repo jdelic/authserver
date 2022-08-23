@@ -8,6 +8,20 @@ from mailauth.permissions import find_missing_permissions
 from mailauth.utils import AuthenticatedHttpRequest
 
 
+def check_pkce_required(client_id: str) -> bool:
+    """
+    Checks if PKCE is enforced for a client
+    :param client_id:
+    :return: True or False
+    """
+    try:
+        client = MNApplication.objects.get(client_id=client_id)
+    except MNApplication.DoesNotExist:
+        return True
+
+    return client.pkce_enforced
+
+
 class ClientPermissionValidator(OAuth2Validator):
     def validate_refresh_token(self, refresh_token: str, client: MNApplication,
                                request: AuthenticatedHttpRequest, *args: Any, **kwargs: Any) -> bool:
