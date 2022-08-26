@@ -31,14 +31,14 @@ class PretendHasherPasswordField(models.CharField):
     def get_prep_value(self, value: str) -> str:
         # we might get a value previously modified by the password getter below. In that case we remove
         # the unwanted prefix.
-        from mailauth.auth.auth import UnixCryptCompatibleSHA256Hasher
+        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
         if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
             return value[len(UnixCryptCompatibleSHA256Hasher.algorithm):]
         else:
             return value
 
     def value_from_object(self, obj: Any) -> str:
-        from mailauth.auth.auth import UnixCryptCompatibleSHA256Hasher
+        from mailauth.auth import UnixCryptCompatibleSHA256Hasher
         value = super().value_from_object(obj)
         if value.startswith(UnixCryptCompatibleSHA256Hasher.algorithm):
             return value
