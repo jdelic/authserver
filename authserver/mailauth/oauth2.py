@@ -28,7 +28,8 @@ def check_pkce_required(client_id: str) -> bool:
 class ClientPermissionValidator(OAuth2Validator):
     oidc_claim_scope = OAuth2Validator.oidc_claim_scope
     oidc_claim_scope.update({
-        "username": "profile"
+        "username": "profile",
+        "groups": "profile",
     })
 
     def validate_refresh_token(self, refresh_token: str, client: MNApplication,
@@ -43,13 +44,14 @@ class ClientPermissionValidator(OAuth2Validator):
             return False
 
     def get_additional_claims(self, request) -> Dict[str, str]:
+        user = request.user
         return {
-            "sub": request.user.identifier,
-            "username": "%s@%s" % (request.user.delivery_mailbox.mailprefix,
-                                   request.user.delivery_mailbox.domain.name),
-            "email": request.user.identifier,
+            "sub": str(user.uuid),
+            "email": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
+            "username": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
+            "groups": [str(g.name) for g in user.app_groups.all()],
             "email_verified": True,
-            "permissions": list(request.user.get_all_app_permission_strings()),
+            "scopes": list(user.get_all_app_permission_strings()),
             "nbf": int(datetime.timestamp(datetime.now(tz=ZoneInfo("UTC")))) - 5,
             "exp": int(datetime.timestamp(datetime.now(tz=ZoneInfo("UTC")))) + 3600,
             "iss": request.client.domain.name,
