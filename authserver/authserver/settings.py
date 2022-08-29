@@ -145,7 +145,7 @@ AUTHENTICATION_BACKENDS = [
 OAUTH2_PROVIDER_APPLICATION_MODEL = 'mailauth.MNApplication'
 
 OAUTH2_PROVIDER = {
-    #'SCOPES_BACKEND_CLASS': 'mailauth.scopes.MNAuthScopes',
+    'SCOPES_BACKEND_CLASS': 'mailauth.scopes.MNAuthScopes',
     'OIDC_ENABLED': True,
     'OAUTH2_VALIDATOR_CLASS': 'mailauth.oauth2.ClientPermissionValidator',
     'PKCE_REQUIRED': 'mailauth.oauth2.check_pkce_required',

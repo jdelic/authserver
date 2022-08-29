@@ -15,10 +15,11 @@ oauth2_patterns = ([
     re_path(r'^authorize/$', mail_views.ScopeValidationAuthView.as_view(), name='authorize'),
     re_path(r'^token/$', oauth2_views.TokenView.as_view(), name='token'),
     re_path(r'^revoke_token/$', oauth2_views.RevokeTokenView.as_view(), name='revoke-token'),
-    re_path(r'^fake-userinfo/$', mail_views.FakeUserInfoView.as_view(), name='user-info'),
+    re_path(r'^fake-userinfo/$', mail_views.FakeUserInfoView.as_view(), name='fake-user-info'),
+    re_path(r'^userinfo/$', oauth2_views.UserInfoView.as_view(), name='user-info'),
     re_path(r'^\.well-known/openid-configuration/$', oidc_views.ConnectDiscoveryInfoView.as_view(),
             name='oidc-connect-discovery-info'),
-    re_path(r"^\.well-known/jwks.json$", oidc_views.JwksInfoView.as_view(), name="jwks-info")
+    re_path(r"^\.well-known/jwks.json$", mail_views.JwksInfoView.as_view(), name="jwks-info")
 ], 'oauth2_provider')
 
 

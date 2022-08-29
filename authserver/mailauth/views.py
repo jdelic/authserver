@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from django.contrib.auth import authenticate
 from django.http import HttpResponseBadRequest
 from django.http.request import HttpRequest
-from django.http.response import HttpResponse, HttpResponseBase
+from django.http.response import HttpResponse, HttpResponseBase, JsonResponse
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -17,15 +17,15 @@ from oauth2_provider.forms import AllowForm
 from oauth2_provider.models import get_application_model
 from oauth2_provider.views import ProtectedResourceView
 from oauth2_provider.views.base import AuthorizationView
+from oauth2_provider.settings import oauth2_settings
 from ratelimit.mixins import RatelimitMixin
-from typing import Optional
+from jwcrypto import jwk
 
 from dockerauth.jwtutils import JWTViewHelperMixin
 from mailauth.models import MNApplication, UnresolvableUserException, Domain
 from mailauth.models import MNUser
 from mailauth.permissions import find_missing_permissions
-from mailauth.utils import AuthenticatedHttpRequest
-
+from mailauth.utils import AuthenticatedHttpRequest, import_rsa_key
 
 _log = logging.getLogger(__name__)
 
@@ -229,3 +229,29 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
                 jwtstr,
                 content_type="application/jwt", status=200
             )
+
+
+class JwksInfoView(View):
+    def get(self, request: HttpRequest) -> HttpResponse:
+        keys = []
+        for dom in Domain.objects.all():
+            if dom.jwtkey:
+                key = jwk.JWK.from_pem(import_rsa_key(dom.jwtkey).public_key.encode('utf-8'))
+                data = {
+                    "alg": "RS256",
+                    "use": "sig",
+                    "kid": key.thumbprint(),
+                    "domain": dom.name,
+                }
+                data.update(json.loads(key.export_public()))
+                keys.append(data)
+
+        response = JsonResponse({"keys": keys})
+        response["Access-Control-Allow-Origin"] = "*"
+        response["Cache-Control"] = (
+                "Cache-Control: public, "
+                + f"max-age={oauth2_settings.OIDC_JWKS_MAX_AGE_SECONDS}, "
+                + f"stale-while-revalidate={oauth2_settings.OIDC_JWKS_MAX_AGE_SECONDS}, "
+                + f"stale-if-error={oauth2_settings.OIDC_JWKS_MAX_AGE_SECONDS}"
+        )
+        return response

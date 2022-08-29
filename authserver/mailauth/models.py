@@ -1,5 +1,6 @@
 # -* encoding: utf-8 *-
 import uuid
+from urllib.parse import urlparse
 
 from django.contrib.auth import models as auth_models, base_user
 from django.conf import settings
@@ -7,10 +8,11 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.postgres.fields.array import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
-from typing import Any, Optional, Set, Iterable, List, cast
+from typing import Any, Optional, Set, Iterable, List, cast, Union
 
 from django.db.models import Manager
-from oauth2_provider import models as oauth2_models
+from oauth2_provider import models as oauth2_models, validators as oauth2_validators
+from jwcrypto import jwk
 
 #
 # The data model here is:
@@ -83,14 +85,14 @@ class DomainManager(Manager):
 
 
 class Domain(models.Model):
-    name: models.CharField = models.CharField(max_length=255, unique=True)
-    dkimselector: models.CharField = models.CharField(verbose_name="DKIM DNS selector", max_length=255, null=False,
+    name = models.CharField(max_length=255, unique=True)
+    dkimselector = models.CharField(verbose_name="DKIM DNS selector", max_length=255, null=False,
                                                       blank=True, default="default")
-    dkimkey: models.TextField = models.TextField(verbose_name="DKIM private key (PEM)", blank=True)
-    jwtkey: models.TextField = models.TextField(verbose_name="JWT signing key (PEM)", blank=True)
-    jwt_subdomains: models.BooleanField = models.BooleanField(verbose_name="Use JWT key to sign for subdomains",
+    dkimkey = models.TextField(verbose_name="DKIM private key (PEM)", blank=True)
+    jwtkey = models.TextField(verbose_name="JWT signing key (PEM)", blank=True)
+    jwt_subdomains = models.BooleanField(verbose_name="Use JWT key to sign for subdomains",
                                                               default=False)
-    redirect_to: models.CharField = models.CharField(verbose_name="Redirect all mail to domain", max_length=255,
+    redirect_to = models.CharField(verbose_name="Redirect all mail to domain", max_length=255,
                                                      null=False, blank=True, default="")
 
     objects = DomainManager()
@@ -100,9 +102,9 @@ class Domain(models.Model):
 
 
 class MailingList(models.Model):
-    name: models.CharField = models.CharField("Descriptive name", max_length=255)
-    addresses: ArrayField = ArrayField(models.EmailField(max_length=255))
-    new_mailfrom: models.EmailField = models.EmailField(max_length=255, null=False, blank=True, default="")
+    name = models.CharField("Descriptive name", max_length=255)
+    addresses = ArrayField(models.EmailField(max_length=255))
+    new_mailfrom = models.EmailField(max_length=255, null=False, blank=True, default="")
 
     def __str__(self) -> str:
         return str(self.name)
@@ -113,12 +115,12 @@ class EmailAlias(models.Model):
         unique_together = (('mailprefix', 'domain'),)
         verbose_name_plural = "Email aliases"
 
-    user: models.ForeignKey = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
                                                           related_name="aliases", null=True, blank=True)
-    domain: models.ForeignKey = models.ForeignKey(Domain, verbose_name="On domain",
+    domain = models.ForeignKey(Domain, verbose_name="On domain",
                                                                   on_delete=models.CASCADE)
-    mailprefix: models.CharField = models.CharField("Mail prefix", max_length=255)
-    forward_to: models.ForeignKey = models.ForeignKey(MailingList, verbose_name="Forward to list",
+    mailprefix = models.CharField("Mail prefix", max_length=255)
+    forward_to = models.ForeignKey(MailingList, verbose_name="Forward to list",
                                                                    on_delete=models.CASCADE, null=True, blank=True)
 
     def clean(self) -> None:
@@ -147,10 +149,10 @@ class MNApplicationPermission(models.Model):
         verbose_name_plural = "Application permissions"
 
     name = models.CharField("Human readable name", max_length=255, blank=True, null=False)
-    scope_name = models.CharField("OAuth2 scope string", max_length=255, blank=False, null=True, unique=True)
+    permission_name = models.CharField("Permission identifier", max_length=255, blank=False, null=True, unique=True)
 
     def __str__(self) -> str:
-        return "%s (%s)" % (self.name, self.scope_name)
+        return "%s (%s)" % (self.name, self.permission_name)
 
 
 class MNGroup(models.Model):
@@ -336,13 +338,17 @@ class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.Permissi
         return user_permissions
 
     def get_all_app_permission_strings(self) -> List[str]:
-        return cast(List[str], [p.scope_name for p in self.get_all_app_permissions()])
+        return cast(List[str], [p.permission_name for p in self.get_all_app_permissions()])
 
     def has_app_permission(self, perm: str) -> bool:
         return perm in self.get_all_app_permissions()
 
     def has_app_permissions(self, perms: Iterable[str]) -> bool:
         return set(self.get_all_app_permission_strings()).issuperset(set(perms))
+
+    @property
+    def id(self):
+        return self.uuid
 
 
 class MNServiceUser(PasswordMaskMixin, models.Model):
@@ -395,5 +401,66 @@ class MNApplication(oauth2_models.AbstractApplication):
         related_query_name='application',
     )
 
+    domain = models.ForeignKey(Domain, on_delete=models.DO_NOTHING, null=True,
+                               help_text="To enable OpenID Connect, the application must "
+                                         "be connected to (and served under) a domain instance "
+                                         "with a JWT signing key or a parent domain with a "
+                                         "JWT signing key and subdomain signing turned on.")
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+
+    @property
+    def jwk_key(self) -> Union[jwk.JWK, None]:
+        dom = self.domain
+        if self.domain and not self.domain.jwtkey:
+            dom = Domain.objects.find_parent_domain(self.domain.name, True, True)
+
+        if dom and dom.jwtkey:
+            key = jwk.JWK.from_pem(dom.jwtkey.encode('utf-8'))
+            return key
+        return None
+
+    @property
+    def algorithm(self):
+        return "RS256"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        grant_types = (
+            oauth2_models.AbstractApplication.GRANT_AUTHORIZATION_CODE,
+            oauth2_models.AbstractApplication.GRANT_IMPLICIT,
+            oauth2_models.AbstractApplication.GRANT_OPENID_HYBRID,
+        )
+        hs_forbidden_grant_types = (
+            oauth2_models.AbstractApplication.GRANT_IMPLICIT,
+            oauth2_models.AbstractApplication.GRANT_OPENID_HYBRID,
+        )
+
+        redirect_uris = self.redirect_uris.strip().split()
+        allowed_schemes = set(s.lower() for s in self.get_allowed_schemes())
+
+        if redirect_uris:
+            validator = oauth2_validators.RedirectURIValidator(oauth2_validators.WildcardSet())
+            for uri in redirect_uris:
+                validator(uri)
+                scheme = urlparse(uri).scheme
+                if scheme not in allowed_schemes:
+                    raise ValidationError(_("Unauthorized redirect scheme: {scheme}").format(scheme=scheme))
+
+        elif self.authorization_grant_type in grant_types:
+            raise ValidationError(
+                _("redirect_uris cannot be empty with grant_type {grant_type}").format(
+                    grant_type=self.authorization_grant_type
+                )
+            )
+
+        if self.algorithm == oauth2_models.AbstractApplication.HS256_ALGORITHM:
+            if any(
+                    (
+                            self.authorization_grant_type in hs_forbidden_grant_types,
+                            self.client_type == oauth2_models.Application.CLIENT_PUBLIC,
+                    )
+            ):
+                raise ValidationError(_("You cannot use HS256 with public grants or clients"))
