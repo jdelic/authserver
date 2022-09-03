@@ -1,14 +1,17 @@
 # -* encoding: utf-8 *-
+import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from django.http.request import HttpRequest
 from oauth2_provider.oauth2_validators import OAuth2Validator
-from typing import Any, Dict
+from typing import Any, Dict, List, Union
 
 from mailauth.models import MNApplication, MNUser
 from mailauth.permissions import find_missing_permissions
 from mailauth.utils import AuthenticatedHttpRequest
+
+
+_log = logging.getLogger(__name__)
 
 
 def check_pkce_required(client_id: str) -> bool:
@@ -43,8 +46,9 @@ class ClientPermissionValidator(OAuth2Validator):
         else:
             return False
 
-    def get_additional_claims(self, request) -> Dict[str, str]:
+    def get_additional_claims(self, request) -> Dict[str, Union[str, List]]:
         user = request.user
+        _log.debug("Adding id_token claims (%s groups)", user.app_groups.count())
         return {
             "sub": str(user.uuid),
             "email": "%s@%s" % (user.delivery_mailbox.mailprefix, user.delivery_mailbox.domain.name),
@@ -57,3 +61,11 @@ class ClientPermissionValidator(OAuth2Validator):
             "iss": request.client.domain.name,
             "aud": "net.maurus.authclient",
         }
+
+    def get_userinfo_claims(self, request):
+        cl = super().get_userinfo_claims(request)
+        cl.update({
+            "user_id": "%s@%s" % (request.user.delivery_mailbox.mailprefix, request.user.delivery_mailbox.domain.name),
+        })
+        _log.debug("Userinfo claims %s", cl)
+        return cl

@@ -39,7 +39,7 @@ class ScopeValidationAuthView(AuthorizationView):
         use the base class' form logic, but always behave like users didn't authorize the app
         if they doesn't have the permissions to do so.
         """
-        app = get_application_model().get(client_id=form.cleaned_data.get('client_id'))
+        app = get_application_model().objects.get(client_id=form.cleaned_data.get('client_id'))
         missing_permissions = find_missing_permissions(app, self.request.user)
         if missing_permissions:
             form.cleaned_data['allow'] = False
@@ -59,7 +59,7 @@ class ScopeValidationAuthView(AuthorizationView):
         missing_permissions = find_missing_permissions(app, request.user)
 
         _log.debug("missing_permissions: %s (%s)" %
-                   (",".join([m.scope_name for m in missing_permissions if m.scope_name is not None]),
+                   (",".join([m.permission_name for m in missing_permissions if m.permission_name is not None]),
                     bool(missing_permissions)))
 
         if missing_permissions:

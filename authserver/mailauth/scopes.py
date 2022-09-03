@@ -15,6 +15,11 @@ USER_SCOPES = [
     "email",
     "address",
     "phone",
+    "groups",
+    "scopes",
+    "permissions",
+    "access",
+    "username",
 ]
 
 
