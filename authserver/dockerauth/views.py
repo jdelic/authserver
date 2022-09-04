@@ -1,5 +1,4 @@
-# -* encoding: utf-8 *-
-
+#
 # Support for the Docker OAuth2 token authentication
 # The Docker client submits username and password through basic authentication,
 # but using a GET request. Using the actual OAuth2 spec would be *just* *too* *hard*.

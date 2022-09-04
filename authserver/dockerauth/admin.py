@@ -1,4 +1,3 @@
-# -* encoding: utf-8 *-
 from typing import Dict, Any, Optional
 
 from django.contrib import admin

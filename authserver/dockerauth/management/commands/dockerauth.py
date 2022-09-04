@@ -1,4 +1,3 @@
-# -* encoding: utf-8 *-
 import sys
 from argparse import _SubParsersAction
 from typing import Type, Any, Optional

@@ -1,4 +1,3 @@
-# -* encoding: utf-8 *-
 import logging
 from collections import OrderedDict
 from typing import Tuple, Dict, Optional

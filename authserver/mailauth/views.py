@@ -1,8 +1,7 @@
-# -* encoding: utf-8 *-
 import json
 import logging
 from datetime import datetime
-from typing import Any, Union, List, NamedTuple, Set, cast
+from typing import Any, List, NamedTuple, cast
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth import authenticate

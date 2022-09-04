@@ -1,4 +1,3 @@
-# -* encoding: utf-8 *-
 #
 # The forms in here are hooked up to Django admin via mailauth.admin
 #

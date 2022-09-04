@@ -1,4 +1,3 @@
-# -* encoding: utf-8 *-
 import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
