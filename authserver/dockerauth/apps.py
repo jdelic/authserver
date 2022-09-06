@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class MailAuthApp(AppConfig):
+class DockerAuthApp(AppConfig):
     default_auto_field = 'django.db.models.AutoField'
-    name = 'mailauth'
+    name = 'dockerauth'

@@ -229,8 +229,8 @@ registry via the Django admin interface or the ``manage.py dockerauth``
 command.
 
 
-Propietary endpoints and mod_authnz_external
---------------------------------------------
+Proprietary endpoints and mod_authnz_external
+---------------------------------------------
 The ``checkpassword.py`` command-line script, also shipped in the
 ``authclient`` Debian package is compatible with djb checkpassword and Apache2
 mod_authnz_external. It uses two proprietary API endpoints:

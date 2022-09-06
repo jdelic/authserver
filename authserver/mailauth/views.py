@@ -1,14 +1,13 @@
-# -* encoding: utf-8 *-
 import json
 import logging
 from datetime import datetime
-from typing import Any, Union, List, NamedTuple, Set, cast
+from typing import Any, List, NamedTuple, cast
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth import authenticate
 from django.http import HttpResponseBadRequest
 from django.http.request import HttpRequest
-from django.http.response import HttpResponse, HttpResponseBase
+from django.http.response import HttpResponse, HttpResponseBase, JsonResponse
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -17,15 +16,15 @@ from oauth2_provider.forms import AllowForm
 from oauth2_provider.models import get_application_model
 from oauth2_provider.views import ProtectedResourceView
 from oauth2_provider.views.base import AuthorizationView
+from oauth2_provider.settings import oauth2_settings
 from ratelimit.mixins import RatelimitMixin
-from typing import Optional
+from jwcrypto import jwk
 
 from dockerauth.jwtutils import JWTViewHelperMixin
 from mailauth.models import MNApplication, UnresolvableUserException, Domain
 from mailauth.models import MNUser
 from mailauth.permissions import find_missing_permissions
-from mailauth.utils import AuthenticatedHttpRequest
-
+from mailauth.utils import AuthenticatedHttpRequest, import_rsa_key
 
 _log = logging.getLogger(__name__)
 
@@ -39,7 +38,7 @@ class ScopeValidationAuthView(AuthorizationView):
         use the base class' form logic, but always behave like users didn't authorize the app
         if they doesn't have the permissions to do so.
         """
-        app = get_application_model().get(client_id=form.cleaned_data.get('client_id'))
+        app = get_application_model().objects.get(client_id=form.cleaned_data.get('client_id'))
         missing_permissions = find_missing_permissions(app, self.request.user)
         if missing_permissions:
             form.cleaned_data['allow'] = False
@@ -51,7 +50,7 @@ class ScopeValidationAuthView(AuthorizationView):
         # super.get will initialize self.oauth2_data and now we can do additional validation
         resp = super().get(request, *args, **kwargs)
 
-        if not resp.status_code >= 200 and resp.status_code < 300:
+        if not (resp.status_code >= 200 and resp.status_code < 300):
             return resp
 
         app = self.oauth2_data['application']  # type: MNApplication
@@ -59,7 +58,7 @@ class ScopeValidationAuthView(AuthorizationView):
         missing_permissions = find_missing_permissions(app, request.user)
 
         _log.debug("missing_permissions: %s (%s)" %
-                   (",".join([m.scope_name for m in missing_permissions if m.scope_name is not None]),
+                   (",".join([m.permission_name for m in missing_permissions if m.permission_name is not None]),
                     bool(missing_permissions)))
 
         if missing_permissions:
@@ -86,6 +85,7 @@ class FakeUserInfoView(ProtectedResourceView):
 
     def get(self, request: AuthenticatedHttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         _log.debug("LimitedUserInfoView.get()")
+        # TODO: validate bearer token like oauth2_provider
 
         if not hasattr(request, "resource_owner"):
             return HttpResponseBadRequest("Unauthenticated")
@@ -228,3 +228,29 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
                 jwtstr,
                 content_type="application/jwt", status=200
             )
+
+
+class JwksInfoView(View):
+    def get(self, request: HttpRequest) -> HttpResponse:
+        keys = []
+        for dom in Domain.objects.all():
+            if dom.jwtkey:
+                key = jwk.JWK.from_pem(import_rsa_key(dom.jwtkey).public_key.encode('utf-8'))
+                data = {
+                    "alg": "RS256",
+                    "use": "sig",
+                    "kid": key.thumbprint(),
+                    "domain": dom.name,
+                }
+                data.update(json.loads(key.export_public()))
+                keys.append(data)
+
+        response = JsonResponse({"keys": keys})
+        response["Access-Control-Allow-Origin"] = "*"
+        response["Cache-Control"] = (
+                "Cache-Control: public, "
+                + f"max-age={oauth2_settings.OIDC_JWKS_MAX_AGE_SECONDS}, "
+                + f"stale-while-revalidate={oauth2_settings.OIDC_JWKS_MAX_AGE_SECONDS}, "
+                + f"stale-if-error={oauth2_settings.OIDC_JWKS_MAX_AGE_SECONDS}"
+        )
+        return response

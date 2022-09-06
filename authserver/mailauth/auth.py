@@ -1,4 +1,3 @@
-# -* encoding: utf-8 *-
 import logging
 from collections import OrderedDict
 from typing import Tuple, Dict, Optional
@@ -16,7 +15,7 @@ from passlib.hash import sha256_crypt
 _log = logging.getLogger(__name__)
 
 
-class UnixCryptCompatibleSHA256Hasher(object):
+class UnixCryptCompatibleSHA256Hasher(hashers.BasePasswordHasher):
     """
     This uses passlib to implement a Django password hasher that encodes passwords using
     the Debian mkpasswd supported "lowest common denominator but still secure" password
@@ -48,7 +47,7 @@ class UnixCryptCompatibleSHA256Hasher(object):
         """
         Generates a cryptographically secure nonce salt in ASCII
         """
-        return hashers.get_random_string(length=15)  # type: ignore
+        return super().salt()[0:16]
 
     def verify(self, password: str, encoded: str) -> bool:
         """
@@ -59,6 +58,21 @@ class UnixCryptCompatibleSHA256Hasher(object):
         if encoded.startswith(self.algorithm):
             encoded = encoded[len(self.algorithm):]
         return sha256_crypt.verify(password, encoded)
+
+    def decode(self, encoded: str) -> Dict[str, str]:
+        """
+        Return a decoded database value.
+
+        The result is a dictionary and should contain `algorithm`, `hash`, and
+        `salt`. Extra keys can be algorithm specific like `iterations` or
+        `work_factor`.
+        """
+        _, salt, hash = self._split_encoded(encoded)
+        return {
+            "algorithm": self.algorithm,
+            "hash": hash,
+            "salt": salt,
+        }
 
     def encode(self, password: str, salt: str) -> str:
         """

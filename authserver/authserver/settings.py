@@ -3,6 +3,8 @@ from typing import List
 
 import django_stubs_ext
 import dj_database_url
+import mailauth.patches.auth
+
 from vault12factor import VaultCredentialProvider, VaultAuth12Factor, DjangoAutoRefreshDBCredentialsDict
 
 
@@ -15,8 +17,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATABASES = {}
 
 INSTALLED_APPS = [
-    'mailauth.MailAuthApp',
-    'dockerauth.DockerAuthApp',
+    'mailauth',
+    'dockerauth',
     'postgresql_setrole',
     'django_dbconn_retry',
     'vault12factor',
@@ -102,10 +104,7 @@ if VaultAuth12Factor.has_envconfig() and os.getenv("VAULT_DATABASE_PATH"):
         }),
     }
 
-
-# dj_database_url sets the old psycopg2 database provider for Django, so we need to check for that too
-if DATABASES["default"]["ENGINE"] == 'django.db.backends.postgresql' or \
-        DATABASES["default"]["ENGINE"] == 'django.db.backends.postgresql_psycopg2':
+if DATABASES["default"]["ENGINE"] == 'django.db.backends.postgresql_psycopg2':
     if "OPTIONS" not in DATABASES["default"]:
         DATABASES["default"]["OPTIONS"] = {}
 
@@ -143,12 +142,16 @@ AUTHENTICATION_BACKENDS = [
 OAUTH2_PROVIDER_APPLICATION_MODEL = 'mailauth.MNApplication'
 
 OAUTH2_PROVIDER = {
-    #'SCOPES_BACKEND_CLASS': 'mailauth.scopes.MNAuthScopes',
+    'SCOPES_BACKEND_CLASS': 'mailauth.scopes.MNAuthScopes',
+    'OIDC_ENABLED': True,
     'OAUTH2_VALIDATOR_CLASS': 'mailauth.oauth2.ClientPermissionValidator',
+    'PKCE_REQUIRED': 'mailauth.oauth2.check_pkce_required',
 }
 
 # we use our own modular crypt format sha256 hasher for maximum compatibility
 # with Dovecot, OpenSMTPD etc.
+# setup() must be called here for earliest possible monkeypatching of identify_hasher
+mailauth.patches.auth.setup()
 PASSWORD_HASHERS = ['mailauth.auth.UnixCryptCompatibleSHA256Hasher']
 
 AUTH_PASSWORD_VALIDATORS = [

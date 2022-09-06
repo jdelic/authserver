@@ -1,6 +1,4 @@
 #!/usr/bin/env python3 -u
-# -* encoding: utf-8 *-
-
 import argparse
 import asyncore
 import json

@@ -1,4 +1,3 @@
-# -* encoding: utf-8 *-
 import argparse
 import json
 
@@ -32,11 +31,11 @@ class Command(BaseCommand):
         create_sp = subparsers.add_parser("create", help="Create application permissions")
         create_sp.add_argument("--name", dest="name", required=True,
                                help="The human-readable name for this permission")
-        create_sp.add_argument("scope",
-                               help="The scope string to use in JWT claims and OAuth2 for this permission")
+        create_sp.add_argument("permission",
+                               help="The permission string to use in JWT claims and OAuth2 for this permission")
 
         list_sp = subparsers.add_parser("list", help="List application permissions")
-        list_sp.add_argument("--filter-scope", dest="filter_scope", metavar="CONTAINS",
+        list_sp.add_argument("--filter-permission", dest="filter_permission", metavar="CONTAINS",
                              help="Filter the list for permissions containing this string")
         list_sp.add_argument("--filter-name", dest="filter_name", metavar="CONTAINS",
                              help="Filter the list for permission names containing this string")
@@ -44,8 +43,8 @@ class Command(BaseCommand):
                              help="The output format for the results")
 
         remove_sp = subparsers.add_parser("remove", help="Remove application permissions")
-        remove_sp.add_argument("scope",
-                               help="The scope name to be removed")
+        remove_sp.add_argument("permission",
+                               help="The permission name to be removed")
 
         grant_menu = subparsers.add_parser("grant", help="Grant application permission to an user or group")
         sps_grant = grant_menu.add_subparsers(
@@ -135,65 +134,68 @@ class Command(BaseCommand):
                               help="The output format for the results")
         show_msp.add_argument("userid", help="The user to show group memberships for")
 
-    def _create(self, name: str, scope: str, **kwargs: Any) -> None:
-        # permission create --name=xyz scope
+    def _create(self, name: str, permission: str, **kwargs: Any) -> None:
+        # permission create --name=xyz permission
         try:
             scobj = models.MNApplicationPermission.objects.create(
                 name=name,
-                scope_name=scope,
+                permission_name=permission,
             )  # type: models.MNApplicationPermission
         except DatabaseError as e:
-            self.stderr.write("Error while creating application permission scope: %s\n" % str(e))
+            self.stderr.write("Error while creating application permission: %s\n" % str(e))
             sys.exit(1)
 
-        self.stderr.write(self.style.SUCCESS("Created scope %s (Human readable name: %s)\n") %
-                          (scobj.scope_name, scobj.name))
+        self.stderr.write(self.style.SUCCESS("Created permission %s (Human readable name: %s)\n") %
+                          (scobj.permission_name, scobj.name))
 
-    def _remove(self, scope: str) -> None:
+    def _remove(self, permission: str) -> None:
         try:
-            models.MNApplicationPermission.objects.filter(scope_name=scope).delete()
+            models.MNApplicationPermission.objects.filter(permission_name=permission).delete()
         except DatabaseError as e:
-            self.stderr.write("Error while deleting application permission scope: %s\n" % str(e))
+            self.stderr.write("Error while deleting application permission: %s\n" % str(e))
             sys.exit(1)
 
-        self.stderr.write(self.style.SUCCESS("Deleted scope %s\n") % scope)
+        self.stderr.write(self.style.SUCCESS("Deleted permission %s\n") % permission)
 
-    def _list(self, filter_scope: str = None, filter_name: str = None, format: str = "table", **kwargs: Any) -> None:
+    def _list(self, filter_permission: str = None, filter_name: str = None, format: str = "table",
+              **kwargs: Any) -> None:
         filter_args = {}
-        if filter_scope:
+        if filter_permission:
             filter_args.update({
-                "scope_name__icontains": kwargs["filter_scope"],
+                "permission_name__icontains": kwargs["filter_permission"],
             })
         if filter_name:
             filter_args.update({
                 "name__icontains": filter_name,
             })
         if filter_args == {}:
-            scopes = list(models.MNApplicationPermission.objects.all())
+            permissions = list(models.MNApplicationPermission.objects.all())
         else:
-            scopes = list(models.MNApplicationPermission.objects.filter(**filter_args))
+            permissions = list(models.MNApplicationPermission.objects.filter(**filter_args))
 
-        fmtstr = table_left_format_str([p.scope_name if p.scope_name is not None else p.name for p in scopes])
+        fmtstr = table_left_format_str(
+            [p.permission_name if p.permission_name is not None else p.name for p in permissions]
+        )
 
-        if len(scopes) > 0:
+        if len(permissions) > 0:
             if format == "table":
                 print(fmtstr.format("PERMISSION", "NAME"))
                 print("-" * 78)
             export = []
-            for scope in scopes:
+            for perm in permissions:
                 if format == "table":
-                    print(fmtstr.format(scope.scope_name, scope.name))
+                    print(fmtstr.format(perm.permission_name, perm.name))
                 else:
                     export.append({
-                        "scope_name": scope.scope_name,
-                        "name": scope.name,
-                        "id": scope.id,
+                        "permission_name": perm.permission_name,
+                        "name": perm.name,
+                        "id": perm.id,
                     })
             if format == "json":
                 print(json.dumps(export))
         else:
             if format == "table":
-                sys.stderr.write("No matching scopes found.\n")
+                sys.stderr.write("No matching permissions found.\n")
                 sys.exit(1)
             else:
                 print("[]")
@@ -245,13 +247,13 @@ class Command(BaseCommand):
         with transaction.atomic():
             for perm in perms:
                 try:
-                    p = models.MNApplicationPermission.objects.get(Q(scope_name=perm) | Q(name=perm))
+                    p = models.MNApplicationPermission.objects.get(Q(permission_name=perm) | Q(name=perm))
                 except models.MNApplicationPermission.DoesNotExist as e:
                     self.stderr.write("No such permission (%s): %s\n" % (perm, str(e)))
                 else:
                     # apparently, django-stubs doesn't handle ManyToManyFields correctly, yet
                     cl.required_permissions.add(p)  # type: ignore
-                    added.add(p.scope_name if p.scope_name is not None else p.name)
+                    added.add(p.permission_name if p.permission_name is not None else p.name)
 
         self.stderr.write(self.style.SUCCESS("Added permission requirements to client '%s':\n%s") %
                           (cl.name, ", ".join(list(added))))
@@ -263,61 +265,61 @@ class Command(BaseCommand):
         with transaction.atomic():
             for perm in perms:
                 try:
-                    p = models.MNApplicationPermission.objects.get(Q(scope_name=perm) | Q(name=perm))
+                    p = models.MNApplicationPermission.objects.get(Q(permission_name=perm) | Q(name=perm))
                 except models.MNApplicationPermission.DoesNotExist as e:
                     self.stderr.write("No such permission (%s): %s\n" % (perm, str(e)))
                 else:
                     if p in cur_perm:
                         # apparently, django-stubs doesn't handle ManyToManyFields correctly, yet
                         cl.required_permissions.remove(p)  # type: ignore
-                        removed.add(p.scope_name if p.scope_name is not None else p.name)
+                        removed.add(p.permission_name if p.permission_name is not None else p.name)
                     else:
                         self.stderr.write("Client doesn't require permission: %s.\n" % perm)
 
         self.stderr.write(self.style.SUCCESS("Dropped permission requirements from client '%s':\n%s\n"
                                              "Remaining:\n%s") %
                           (cl.name, ", ".join(list(removed)),
-                           ", ".join([p.scope_name if p.scope_name is not None else p.name
+                           ", ".join([p.permission_name if p.permission_name is not None else p.name
                                       for p in cl.required_permissions.all()])))
 
     def _show_user(self, userid: str, format: str = "table", **kwargs: Any) -> None:
         user = cast(models.MNUser, self._get_user(userid))
         if format == "table":
-            fmtstr = table_left_format_str([p.scope_name if p.scope_name is not None else p.name
+            fmtstr = table_left_format_str([p.permission_name if p.permission_name is not None else p.name
                                             for p in user.app_permissions.all()])
             print("Permissions for user %s (%s)" % (user.get_username(), str(user.uuid)))
             print(fmtstr.format("PERMISSION", "NAME"))
             print("-" * 78)
             for perm in user.app_permissions.all():
-                print(fmtstr.format(perm.scope_name, perm.name))
+                print(fmtstr.format(perm.permission_name, perm.name))
         else:
-            print(json.dumps([{perm.scope_name: perm.name} for perm in user.app_permissions.all()]))
+            print(json.dumps([{perm.permission_name: perm.name} for perm in user.app_permissions.all()]))
 
     def _show_group(self, groupid: str, format: str = "table", **kwargs: Any) -> None:
         group = cast(models.MNGroup, self._get_group(groupid))
         if format == "table":
-            fmtstr = table_left_format_str([p.scope_name if p.scope_name is not None else p.name
+            fmtstr = table_left_format_str([p.permission_name if p.permission_name is not None else p.name
                                             for p in group.group_permissions.all()])
             print("Permissions for group %s (%s)" % (group.name, str(group.pk)))
             print(fmtstr.format("PERMISSION", "NAME"))
             print("-" * 78)
             for perm in group.group_permissions.all():
-                print(fmtstr.format(perm.scope_name, perm.name))
+                print(fmtstr.format(perm.permission_name, perm.name))
         else:
-            print(json.dumps([{perm.scope_name: perm.name} for perm in group.group_permissions.all()]))
+            print(json.dumps([{perm.permission_name: perm.name} for perm in group.group_permissions.all()]))
 
     def _show_client(self, client_name: str, format: str = "table", **kwargs: Any) -> None:
         cl = self._get_client(client_name)
         if format == "table":
-            fmtstr = table_left_format_str([p.scope_name if p.scope_name is not None else p.name
+            fmtstr = table_left_format_str([p.permission_name if p.permission_name is not None else p.name
                                             for p in cl.required_permissions.all()])
             print("Permissions for client %s (%s)" % (cl.name, cl.client_id,))
             print(fmtstr.format("PERMISSION", "NAME"))
             print("-" * 78)
             for perm in cl.required_permissions.all():
-                print(fmtstr.format(perm.scope_name, perm.name))
+                print(fmtstr.format(perm.permission_name, perm.name))
         else:
-            print(json.dumps([{perm.scope_name: perm.name} for perm in cl.required_permissions.all()]))
+            print(json.dumps([{perm.permission_name: perm.name} for perm in cl.required_permissions.all()]))
 
     def _show_membership(self, userid: str, format: str = "table", **kwargs: Any) -> None:
         user = cast(models.MNUser, self._get_user(userid))
@@ -327,10 +329,10 @@ class Command(BaseCommand):
             print(fmtstr.format("GROUP", "PERMISSIONS"))
             print("-" * 78)
             for group in user.app_groups.all():
-                print(fmtstr.format(group.name, ", ".join([gp.scope_name if gp.scope_name is not None else gp.name
+                print(fmtstr.format(group.name, ", ".join([gp.permission_name if gp.permission_name is not None else gp.name
                                                            for gp in group.group_permissions.all()])))
         else:
-            print(json.dumps([{group.name: [gp.scope_name for gp in group.group_permissions.all()]}
+            print(json.dumps([{group.name: [gp.permission_name for gp in group.group_permissions.all()]}
                               for group in user.app_groups.all()]))
 
     def _grant_to_user(self, userid: str, perms: List[str], **kwargs: Any) -> None:
@@ -340,14 +342,14 @@ class Command(BaseCommand):
         with transaction.atomic():
             for perm in perms:
                 try:
-                    p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(scope_name=perm))
+                    p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(permission_name=perm))
                 except models.MNApplicationPermission.DoesNotExist:
                     self.stderr.write("No such permission: %s" % perm)
                     permissions_missing = True
                 else:
                     # Apparently, django-stubs does not handle ManyToManyFields yet, so type=ignore
                     user.app_permissions.add(p)  # type: ignore
-                    added.add(p.scope_name if p.scope_name is not None else p.name)
+                    added.add(p.permission_name if p.permission_name is not None else p.name)
 
             if permissions_missing:
                 sys.exit(1)
@@ -387,7 +389,7 @@ class Command(BaseCommand):
             sys.exit(1)
 
         if revoke_all:
-            revoked = set([p.scope_name if p.scope_name is not None else p.name
+            revoked = set([p.permission_name if p.permission_name is not None else p.name
                            for p in user.app_permissions.all()])
             # Apparently, django-stubs does not handle ManyToManyFields yet, so type=ignore
             user.app_permissions.clear()  # type: ignore
@@ -396,14 +398,14 @@ class Command(BaseCommand):
                 if perms:
                     for perm in perms:
                         try:
-                            p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(scope_name=perm))
+                            p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(permission_name=perm))
                         except models.MNApplicationPermission.DoesNotExist:
                             self.stderr.write("No such permission: %s" % perm)
                             permissions_missing = True
                         else:
                             # Apparently, django-stubs does not handle ManyToManyFields yet, so type=ignore
                             user.app_permissions.remove(p)  # type: ignore
-                            revoked.add(p.scope_name if p.scope_name is not None else p.name)
+                            revoked.add(p.permission_name if p.permission_name is not None else p.name)
 
                 if permissions_missing:
                     sys.exit(1)
@@ -419,14 +421,14 @@ class Command(BaseCommand):
         with transaction.atomic():
             for perm in perms:
                 try:
-                    p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(scope_name=perm))
+                    p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(permission_name=perm))
                 except models.MNApplicationPermission.DoesNotExist:
                     self.stderr.write("No such permission: %s" % perm)
                     permissions_missing = True
                 else:
                     # Apparently, django-stubs does not handle ManyToManyFields yet, so type=ignore
                     group.group_permissions.add(p)  # type: ignore
-                    added.add(p.scope_name if p.scope_name is not None else p.name)
+                    added.add(p.permission_name if p.permission_name is not None else p.name)
 
             if permissions_missing:
                 sys.exit(1)
@@ -445,7 +447,7 @@ class Command(BaseCommand):
             sys.exit(1)
 
         if revoke_all:
-            revoked = set([p.scope_name if p.scope_name is not None else p.name
+            revoked = set([p.permission_name if p.permission_name is not None else p.name
                            for p in group.group_permissions.all()])
             # Apparently, django-stubs does not handle ManyToManyFields yet, so type=ignore
             group.group_permissions.clear()  # type: ignore
@@ -454,14 +456,14 @@ class Command(BaseCommand):
                 if perms:
                     for perm in perms:
                         try:
-                            p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(scope_name=perm))
+                            p = models.MNApplicationPermission.objects.get(Q(name=perm) | Q(permission_name=perm))
                         except models.MNApplicationPermission.DoesNotExist:
                             self.stderr.write("No such permission: %s" % perm)
                             permissions_missing = True
                         else:
                             # Apparently, django-stubs does not handle ManyToManyFields yet, so type=ignore
                             group.group_permissions.remove(p)  # type: ignore
-                            revoked.add(p.scope_name if p.scope_name is not None else p.name)
+                            revoked.add(p.permission_name if p.permission_name is not None else p.name)
 
                 if permissions_missing:
                     sys.exit(1)

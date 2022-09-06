@@ -1,4 +1,3 @@
-# -* encoding: utf-8 *-
 import argparse
 import json
 
@@ -6,7 +5,7 @@ import sys
 from django.core.management.base import BaseCommand, CommandParser
 from typing import Any
 
-from django.db import IntegrityError, DatabaseError
+from django.db import DatabaseError
 from django.db.models import Q
 
 from mailauth.management.commands._common import table_left_format_str

@@ -1,4 +1,3 @@
-# -* encoding: utf-8 *-
 import logging
 from typing import Set
 
@@ -22,8 +21,8 @@ def find_missing_permissions(app: MNApplication, user: MNUser) -> Set[MNApplicat
     user_permissions = user.get_all_app_permissions()
 
     _log.debug("combined user permissions: %s; application permissions: %s" %
-               (",".join([perm.scope_name for perm in user_permissions if perm.scope_name is not None]),
-                ",".join([req.scope_name for req in reqs if req.scope_name is not None])))
+               (",".join([perm.permission_name for perm in user_permissions if perm.permission_name is not None]),
+                ",".join([req.permission_name for req in reqs if req.permission_name is not None])))
 
     missing_permissions = reqs - user_permissions.intersection(reqs)
     return missing_permissions

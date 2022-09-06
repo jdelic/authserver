@@ -1,8 +1,8 @@
-# -* encoding: utf-8 *-
 from argparse import _SubParsersAction
 
 import sys
-from typing import List
+from typing import List, TypeVar
+from typing import Type
 
 from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
@@ -13,7 +13,9 @@ from typing import Any
 
 from mailauth.management.commands._common import _handle_client_registration, _add_publishing_args
 
-appmodel = oauth2_models.get_application_model()  # type: oauth2_models.Application
+
+_AT = TypeVar("_AT", bound=oauth2_models.Application)
+appmodel = oauth2_models.get_application_model()  # type: Type[_AT]
 
 
 class Command(BaseCommand):
@@ -43,8 +45,11 @@ class Command(BaseCommand):
                                help="Choose the OAuth2 client type between 'public' and 'confidential'")
         create_gr.add_argument("--grant-type", dest="grant_type", default=appmodel.GRANT_AUTHORIZATION_CODE,
                                choices=[appmodel.GRANT_AUTHORIZATION_CODE, appmodel.GRANT_IMPLICIT,
-                                        appmodel.GRANT_CLIENT_CREDENTIALS, appmodel.GRANT_PASSWORD],
+                                        appmodel.GRANT_CLIENT_CREDENTIALS, appmodel.GRANT_PASSWORD,
+                                        appmodel.GRANT_OPENID_HYBRID,],
                                help="Choose the OAuth2 grant type for this client.")
+        create_gr.add_argument("--skip-pkce", dest="pkce_required", default=True, action="store_false",
+                               help="Allow client to authenticate without PKCE")
         create_gr.add_argument("client_name",
                                help="A human-readable name for the OAuth2 client that can be used to rerieve the same "
                                     "credentials later using this command.")
@@ -54,9 +59,6 @@ class Command(BaseCommand):
                              help="Find the name matching the client id")
         list_sp.add_argument("--search-client-name", dest="search_client_name", default=None,
                              help="Find the client id matching the name")
-
-        publish_sp = subparsers.add_parser("publish", help="Publish OAuth2 clients to consul")
-        _add_publishing_args(publish_sp)
 
         remove_sp = subparsers.add_parser("remove", help="Delete OAuth2 clients")
         remove_sp.add_argument("client_id_or_name", nargs="?",
@@ -69,19 +71,27 @@ class Command(BaseCommand):
                 client = appmodel.objects.get(name=kwargs["client_name"])
             except appmodel.DoesNotExist:
                 try:
-                    client = appmodel.objects.create(
+                    client = appmodel(
                         name=kwargs["client_name"],
                         redirect_uris="\n".join(kwargs["redirect_uris"]),
                         skip_authorization=kwargs["skip_authorization"],
                         authorization_grant_type=kwargs["grant_type"],
                         client_type=kwargs["client_type"],
+                        pkce_enforced=kwargs["pkce_required"],
                     )
                 except DatabaseError as e:
                     self.stderr.write("Error while creating oauth2 client: %s" % str(e))
                     sys.exit(1)
 
-            if not _handle_client_registration(client, self, **kwargs):
-                self.stderr.write(self.style.WARNING("OAuth2 client was created, but not registered"))
+                if not _handle_client_registration(client, self, **kwargs):
+                    self.stderr.write(self.style.WARNING("OAuth2 client was created, but not registered"))
+                    sys.exit(2)
+
+                client.save()
+            else:
+                self.stderr.write(
+                    self.style.WARNING("OAuth2 client already exists and client secret can only be read once")
+                )
                 sys.exit(2)
 
         self.stderr.write(self.style.SUCCESS("Created client %s (ID: %s)") % (kwargs["client_name"],
@@ -117,16 +127,6 @@ class Command(BaseCommand):
         else:
             self.stderr.write("No clients registered (yet)")
 
-    def _publish(self, **kwargs: Any) -> None:
-        clients = list(appmodel.objects.all())
-
-        names = []
-        for cl in clients:
-            if _handle_client_registration(cl, self, **kwargs):
-                names.append(cl.name)
-
-        self.stderr.write(self.style.SUCCESS("(Re-)Published Clients: %s") % (" ".join(names)))
-
     def _remove(self, **kwargs: Any) -> None:
         try:
             client = appmodel.objects.get(
@@ -150,8 +150,6 @@ class Command(BaseCommand):
             self._create(**options)
         elif options["scmd"] == "list":
             self._list(**options)
-        elif options["scmd"] == "publish":
-            self._publish(**options)
         elif options["scmd"] == "remove":
             self._remove(**options)
         else:
