@@ -104,10 +104,7 @@ if VaultAuth12Factor.has_envconfig() and os.getenv("VAULT_DATABASE_PATH"):
         }),
     }
 
-
-# dj_database_url sets the old psycopg2 database provider for Django, so we need to check for that too
-if DATABASES["default"]["ENGINE"] == 'django.db.backends.postgresql' or \
-        DATABASES["default"]["ENGINE"] == 'django.db.backends.postgresql_psycopg2':
+if DATABASES["default"]["ENGINE"] == 'django.db.backends.postgresql_psycopg2':
     if "OPTIONS" not in DATABASES["default"]:
         DATABASES["default"]["OPTIONS"] = {}
 
