@@ -198,8 +198,9 @@ class SaneSMTPServer:
     server_name: str
     daemon_name: str
 
-    def __init__(self, relay_host: str, relay_port: int *,
+    def __init__(self, localaddr: AddressTuple,
                  daemon_name: str, server_name: Optional[str] = None, **kwargs: Any) -> None:
+        self._localaddr = localaddr
         self.server_name = socket.gethostname() if server_name is None else server_name
         self.daemon_name = daemon_name
 

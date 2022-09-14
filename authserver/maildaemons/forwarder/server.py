@@ -15,16 +15,15 @@ import daemon
 from django.db.utils import OperationalError
 
 import authserver
-from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer
-
+from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer, AddressTuple
 
 _log = logging.getLogger(__name__)
 pool = Pool()
 
 
 class ForwarderServer(SaneSMTPServer):
-    def __init__(self, remote_relay_ip: str, remote_relay_port: int, local_delivery_ip: str,
-                 local_delivery_port: int, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, remote_relay: AddressTuple, local_delivery: AddressTuple,
+                 *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.smtp = SMTPWrapper(
             external_ip=remote_relay_ip, external_port=remote_relay_port,

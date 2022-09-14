@@ -26,13 +26,13 @@ pool = Pool()
 class DKIMSignerServer(SaneSMTPServer):
     def __init__(self, localaddr: AddressTuple, remoteaddr: AddressTuple,
                  *args: Any, **kwargs: Any) -> None:
-        super().__init__(localaddr, remoteaddr, *args, **kwargs)
+        super().__init__(localaddr, *args, **kwargs)
         self.smtp = SMTPWrapper(relay=remoteaddr)
 
     # ** must be thread-safe, don't modify shared state,
     # _log should be thread-safe as stated by the docs. Django ORM should be as well.
     def _process_message(self,
-                         peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes, *,
+                         peer: AddressTuple, mailfrom: str, rcpttos: Sequence[str], data: bytes, *,
                          channel: PatchedSMTPChannel,
                          **kwargs: Any) -> Union[str, None]:
         # we can't import the Domain model before Django has been initialized
@@ -89,7 +89,7 @@ def run(_args: argparse.Namespace) -> None:
         remoteaddr=(_args.output_ip, _args.output_port),
         daemon_name="dkimsigner"
     )
-    ctrl = Controller(DKIMSignerServer(),
+    ctrl = Controller(server,
                       hostname=_args.input_ip, port=_args.input_port)
     ctrl.start()
     while True:
