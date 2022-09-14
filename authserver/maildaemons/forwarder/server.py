@@ -1,11 +1,11 @@
 #!/usr/bin/env python3 -u
 import argparse
-import asyncore
 import json
 import logging
 import signal
 import sys
 import os
+import time
 
 from types import FrameType
 from typing import Tuple, Sequence, Any, Union, Optional, List, Dict
@@ -16,6 +16,8 @@ from django.db.utils import OperationalError
 
 import authserver
 from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer, AddressTuple
+from aiosmtpd.smtp import SMTP, Envelope, Session
+from aiosmtpd.controller import Controller
 
 _log = logging.getLogger(__name__)
 pool = Pool()
@@ -26,13 +28,13 @@ class ForwarderServer(SaneSMTPServer):
                  *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.smtp = SMTPWrapper(
-            external_ip=remote_relay_ip, external_port=remote_relay_port,
-            error_relay_ip=local_delivery_ip, error_relay_port=local_delivery_port
+            relay=remote_relay,
+            error_relay=local_delivery,
         )
 
     # ** must be thread-safe, don't modify shared state,
     # _log should be thread-safe as stated by the docs. Django ORM should be as well.
-    def _process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes, *,
+    def _process_message(self, peer: AddressTuple, mailfrom: str, rcpttos: Sequence[str], data: bytes, *,
                          channel: PatchedSMTPChannel,
                          **kwargs: Any) -> Optional[str]:
         # we can't import the Domain model before Django has been initialized
@@ -146,13 +148,23 @@ class ForwarderServer(SaneSMTPServer):
         future = pool.submit(ForwarderServer._process_message, self, *args, **kwargs)
         return future.result()
 
+    async def handle_DATA(self, server: SMTP, session: Session, envelope: Envelope, *args: Any,
+                          **kwargs: Any) -> Optional[str]:
+        future = pool.submit(ForwarderServer._process_message, self, session.peer, envelope.mail_from,
+                             envelope.rcpt_tos, envelope.original_content)
+        return future.result()
+
 
 def run(_args: argparse.Namespace) -> None:
     server = ForwarderServer(_args.remote_relay_ip, _args.remote_relay_port,
                              _args.local_delivery_ip, _args.local_delivery_port,
                              (_args.input_ip, _args.input_port), None, decode_data=False,
                              daemon_name="mailforwarder")
-    asyncore.loop()
+    ctrl = Controller(server,
+                      hostname=_args.input_ip, port=_args.input_port)
+    ctrl.start()
+    while True:
+        time.sleep(1)
 
 
 def _sigint_handler(sig: int, frame: Optional[FrameType]) -> None:
