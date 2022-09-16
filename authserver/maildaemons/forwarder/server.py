@@ -15,7 +15,7 @@ import daemon
 from django.db.utils import OperationalError
 
 import authserver
-from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer, AddressTuple
+from maildaemons.utils import SMTPWrapper, SaneSMTPServer, AddressTuple
 from aiosmtpd.smtp import SMTP, Envelope, Session
 from aiosmtpd.controller import Controller
 
@@ -24,9 +24,10 @@ pool = Pool()
 
 
 class ForwarderServer(SaneSMTPServer):
-    def __init__(self, remote_relay: AddressTuple, local_delivery: AddressTuple,
-                 *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, localaddr: AddressTuple, daemon_name: str,
+                 remote_relay: AddressTuple, local_delivery: AddressTuple,
+                 server_name: Optional[str] = None) -> None:
+        super().__init__(localaddr, daemon_name, server_name)
         self.smtp = SMTPWrapper(
             relay=remote_relay,
             error_relay=local_delivery,
@@ -34,13 +35,12 @@ class ForwarderServer(SaneSMTPServer):
 
     # ** must be thread-safe, don't modify shared state,
     # _log should be thread-safe as stated by the docs. Django ORM should be as well.
-    def _process_message(self, peer: AddressTuple, mailfrom: str, rcpttos: Sequence[str], data: bytes, *,
-                         channel: PatchedSMTPChannel,
-                         **kwargs: Any) -> Optional[str]:
+    def _process_message(self, peer: AddressTuple, helo_name: str, mailfrom: str,
+                         rcpttos: Sequence[str], data: bytes) -> Optional[str]:
         # we can't import the Domain model before Django has been initialized
         from mailauth.models import EmailAlias, Domain
 
-        data = self.add_received_header(peer, data, channel)
+        data = self.add_received_header(peer, helo_name, data)
 
         remaining_rcpttos = list(rcpttos)  # ensure that new_rcpttos is a mutable list
         combined_rcptto = {}  # type: Dict[str, List[str]]  # { new_mailfrom: [recipients] }
@@ -77,8 +77,7 @@ class ForwarderServer(SaneSMTPServer):
                     _log.debug("ix: %s - rcptto: %s - remaining rcpttos: %s", ix, rcptto, remaining_rcpttos)
                     del remaining_rcpttos[ix]
                     new_rcptto = "%s@%s" % (rcptuser, domain.redirect_to)
-                    _log.info("%sForwarding email from <%s> to <%s> to domain @%s",
-                              "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
+                    _log.info("Forwarding email from <%s> to <%s> to domain @%s",
                               mailfrom, rcptto, domain.redirect_to)
                     add_rcptto(mailfrom, new_rcptto)
                     continue
@@ -99,8 +98,7 @@ class ForwarderServer(SaneSMTPServer):
                                                domain__name__iexact=rcptdomain)  # type: EmailAlias
             except EmailAlias.DoesNotExist:
                 # OpenSMTPD shouldn't even call us for invalid addresses if we're configured correctly
-                _log.error("%sUnknown mail address: %s (from: %s, prefix: %s)",
-                           "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
+                _log.error("Unknown mail address: %s (from: %s, prefix: %s)",
                            rcptto, mailfrom, user_mailprefix)
                 continue
             except OperationalError:
@@ -113,15 +111,13 @@ class ForwarderServer(SaneSMTPServer):
                 _newmf = mailfrom
                 if alias.forward_to.new_mailfrom != "":
                     _newmf = alias.forward_to.new_mailfrom
-                _log.info("%sForwarding email from <%s> with new sender <%s> to <%s>",
-                          "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
+                _log.info("Forwarding email from <%s> with new sender <%s> to <%s>",
                           mailfrom, _newmf, alias.forward_to.addresses)
                 add_rcptto(_newmf, alias.forward_to.addresses)
 
         # if there are any remaining non-list/non-forward recipients, we inject them back to OpenSMTPD here
         if len(remaining_rcpttos) > 0:
-            _log.info("%sDelivering email from <%s> to remaining recipients <%s>",
-                      "(Retry) " if "retry" in kwargs and kwargs["retry"] else "",
+            _log.info("Delivering email from <%s> to remaining recipients <%s>",
                       mailfrom, remaining_rcpttos)
             add_rcptto(mailfrom, remaining_rcpttos)
 
@@ -144,24 +140,27 @@ class ForwarderServer(SaneSMTPServer):
         _log.debug("Done processing.")
         return None
 
-    def process_message(self, *args: Any, **kwargs: Any) -> Optional[str]:
-        future = pool.submit(ForwarderServer._process_message, self, *args, **kwargs)
-        return future.result()
-
     async def handle_DATA(self, server: SMTP, session: Session, envelope: Envelope, *args: Any,
                           **kwargs: Any) -> Optional[str]:
-        future = pool.submit(ForwarderServer._process_message, self, session.peer, envelope.mail_from,
-                             envelope.rcpt_tos, envelope.original_content)
+        future = pool.submit(ForwarderServer._process_message, self, session.peer, session.host_name,
+                             envelope.mail_from, envelope.rcpt_tos, envelope.original_content)
         return future.result()
 
 
 def run(_args: argparse.Namespace) -> None:
-    server = ForwarderServer(_args.remote_relay_ip, _args.remote_relay_port,
-                             _args.local_delivery_ip, _args.local_delivery_port,
-                             (_args.input_ip, _args.input_port), None, decode_data=False,
-                             daemon_name="mailforwarder")
-    ctrl = Controller(server,
-                      hostname=_args.input_ip, port=_args.input_port)
+    server = ForwarderServer(
+        remote_relay=(_args.remote_relay_ip, _args.remote_relay_port),
+        local_delivery=(_args.local_delivery_ip, _args.local_delivery_port),
+        localaddr=(_args.input_ip, _args.input_port),
+        daemon_name="mailforwarder",
+    )
+    ctrl = Controller(
+        server,
+        hostname=_args.input_ip,
+        port=_args.input_port,
+        decode_data=False,
+        auth_exclude_mechanism=["LOGIN", "PLAIN"],
+    )
     ctrl.start()
     while True:
         time.sleep(1)
@@ -222,7 +221,7 @@ def _main() -> None:
 
     django.setup()
 
-    _log.info("mailforwarder v%s: Forwarding Alias Service starting" % authserver.version)
+    _log.info("mailforwarder v%s: Forwarding Alias Service starting (aiosmtpd)" % authserver.version)
     _log.info("Django ORM initialized")
 
     pidfile = open(_args.pidfile, "w")

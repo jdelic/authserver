@@ -17,7 +17,7 @@ import authserver
 from aiosmtpd.controller import Controller
 from aiosmtpd.smtp import SMTP, Session, Envelope
 from django.db.utils import OperationalError
-from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer, AddressTuple
+from maildaemons.utils import SMTPWrapper, SaneSMTPServer, AddressTuple
 
 _log = logging.getLogger(__name__)
 pool = Pool()
@@ -31,14 +31,12 @@ class DKIMSignerServer(SaneSMTPServer):
 
     # ** must be thread-safe, don't modify shared state,
     # _log should be thread-safe as stated by the docs. Django ORM should be as well.
-    def _process_message(self,
-                         peer: AddressTuple, mailfrom: str, rcpttos: Sequence[str], data: bytes, *,
-                         channel: PatchedSMTPChannel,
-                         **kwargs: Any) -> Union[str, None]:
+    def _process_message(self, peer: AddressTuple, helo_name: str, mailfrom: str,
+                         rcpttos: Sequence[str], data: bytes) -> Optional[str]:
         # we can't import the Domain model before Django has been initialized
         from mailauth.models import Domain
 
-        data = self.add_received_header(peer, data, channel)
+        data = self.add_received_header(peer, helo_name, data)
 
         dom = None  # type: Optional[Domain]
 
@@ -78,8 +76,8 @@ class DKIMSignerServer(SaneSMTPServer):
 
     async def handle_DATA(self, server: SMTP, session: Session, envelope: Envelope, *args: Any,
                           **kwargs: Any) -> Optional[str]:
-        future = pool.submit(DKIMSignerServer._process_message, self, session.peer, envelope.mail_from,
-                             envelope.rcpt_tos, envelope.original_content)
+        future = pool.submit(DKIMSignerServer._process_message, self, session.peer, session.host_name,
+                             envelope.mail_from, envelope.rcpt_tos, envelope.original_content)
         return future.result()
 
 
@@ -89,8 +87,13 @@ def run(_args: argparse.Namespace) -> None:
         remoteaddr=(_args.output_ip, _args.output_port),
         daemon_name="dkimsigner"
     )
-    ctrl = Controller(server,
-                      hostname=_args.input_ip, port=_args.input_port)
+    ctrl = Controller(
+        server,
+        hostname=_args.input_ip,
+        port=_args.input_port,
+        decode_data=False,
+        auth_exclude_mechanism=["LOGIN", "PLAIN"],
+    )
     ctrl.start()
     while True:
         time.sleep(1)
@@ -147,7 +150,7 @@ def _main() -> None:
 
     django.setup()
 
-    _log.info("dkimsigner v%s: DKIM signer starting" % authserver.version)
+    _log.info("dkimsigner v%s: DKIM signer starting (aiosmtpd)" % authserver.version)
     _log.info("Django ORM initialized")
 
     pidfile = open(_args.pidfile, "w")

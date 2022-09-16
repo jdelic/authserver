@@ -42,7 +42,7 @@ class SMTPWrapper:
     """
     def __init__(self, *,
                  relay: AddressTuple,
-                 error_relay: Optional[AddressTuple]) -> None:
+                 error_relay: Optional[AddressTuple] = (None, None)) -> None:
         self.external_ip = relay[0]
         self.external_port = relay[1]
         self.error_relay_ip = error_relay[0]
@@ -115,39 +115,9 @@ class SMTPWrapper:
             return None
 
 
-# patch the SMTP channel implementation to pass us a reference to the channel
-# and use sane logging
-class PatchedSMTPChannel(smtpd.SMTPChannel):
-    def __init__(self, server: smtpd.SMTPServer, conn: socket.socket, addr: Any, *args: Any, **kwargs: Any) -> None:
-        super().__init__(server, conn, addr, *args, **kwargs)
-        self.__real_pm = self.smtp_server.process_message
-
-        def wrapper(*args: Any, **kwargs: Any) -> Optional[str]:
-            if "channel" not in kwargs:
-                kwargs["channel"] = self
-            return self.__real_pm(*args, **kwargs)
-
-        # it appears that sometimes the framework will create SMTPChannels with previously
-        # instantiated SMTPServer instances. So these can have been patched already. Therefore
-        # we make sure they're not by marking them. Otherwise we'll end up with a really long stacktrace of
-        # nested __real_pm calls.
-        wrapper.mn_is_wrapper = True  # type: ignore  # Assignment to Callable properties is still broken mypy#708
-
-        if not hasattr(self.smtp_server.process_message, 'mn_is_wrapper'):
-            # TODO: remove type annotation when issue is fixed
-            #  until https://github.com/python/mypy/issues/2427
-            self.smtp_server.process_message = wrapper  # type: ignore
-
-    def handle_error(self) -> None:
-        # handle exceptions through asyncore. Using this implementation will make it go
-        # through logging and the JSON wrapper
-        _log.exception("Unexpected error")
-        self.handle_close()
-
-
 class SaneMessage(Message):
     def __init__(self, *args: Any) -> None:
-        self.policy = None  # type: Policy
+        self.policy = None  # type: Optional[Policy]
         self._headers = []  # type: List[Any]
         super().__init__(*args)
 
@@ -199,17 +169,17 @@ class SaneSMTPServer:
     daemon_name: str
 
     def __init__(self, localaddr: AddressTuple,
-                 daemon_name: str, server_name: Optional[str] = None, **kwargs: Any) -> None:
+                 daemon_name: str, server_name: Optional[str] = None) -> None:
         self._localaddr = localaddr
         self.server_name = socket.gethostname() if server_name is None else server_name
         self.daemon_name = daemon_name
 
-    def add_received_header(self, peer: Tuple[str, int], msg: bytes, channel: PatchedSMTPChannel) -> bytes:
+    def add_received_header(self, peer: Tuple[str, int], helo_name: str, msg: bytes) -> bytes:
         parser = BytesParser(_class=SaneMessage, policy=_compat32_smtp_policy)
         new_msg = cast(SaneMessage, parser.parsebytes(msg))
         new_msg.prepend_header("Received",
                                "from %s (%s:%s)\r\n\tby %s (%s [%s:%s]) with SMTP;\r\n\t%s" %
-                               (channel.seen_greeting, peer[0], peer[1], self.server_name, self.daemon_name,
+                               (helo_name, peer[0], peer[1], self.server_name, self.daemon_name,
                                 self._localaddr[0], self._localaddr[1],
                                 timezone.now().strftime("%a, %d %b %Y %H:%M:%S %z (%Z)")))
         return new_msg.as_bytes()
