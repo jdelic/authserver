@@ -10,7 +10,7 @@ django-ratelimit==3.0.1
 django-select2==7.10.1
 envdir==1.0.1
 gunicorn==20.1.0
-hvac==0.11.2
+hvac==1.0.0
 passlib==1.7.4
 psycopg2-binary==2.9.3
 pyjwt==2.4.0
