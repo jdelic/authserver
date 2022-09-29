@@ -1,8 +1,8 @@
 #!/usr/bin/env python3 -u
 import argparse
-import asyncore
 import logging
 import signal
+import time
 import sys
 import os
 
@@ -12,29 +12,31 @@ from concurrent.futures import ThreadPoolExecutor as Pool
 
 import dkim
 import daemon
-from django.db.utils import OperationalError
-
 import authserver
-from maildaemons.utils import SMTPWrapper, PatchedSMTPChannel, SaneSMTPServer
+
+from aiosmtpd.controller import Controller
+from aiosmtpd.smtp import SMTP, Session, Envelope
+from django.db.utils import OperationalError
+from maildaemons.utils import SMTPWrapper, SaneSMTPServer, AddressTuple
 
 _log = logging.getLogger(__name__)
 pool = Pool()
 
 
 class DKIMSignerServer(SaneSMTPServer):
-    def __init__(self, output_ip: str, output_port: int, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.smtp = SMTPWrapper(external_ip=output_ip, external_port=output_port)
+    def __init__(self, localaddr: AddressTuple, remoteaddr: AddressTuple,
+                 *args: Any, **kwargs: Any) -> None:
+        super().__init__(localaddr, *args, **kwargs)
+        self.smtp = SMTPWrapper(relay=remoteaddr)
 
     # ** must be thread-safe, don't modify shared state,
     # _log should be thread-safe as stated by the docs. Django ORM should be as well.
-    def _process_message(self, peer: Tuple[str, int], mailfrom: str, rcpttos: Sequence[str], data: bytes, *,
-                         channel: PatchedSMTPChannel,
-                         **kwargs: Any) -> Union[str, None]:
+    def _process_message(self, peer: AddressTuple, helo_name: str, mailfrom: str,
+                         rcpttos: Sequence[str], data: bytes) -> Optional[str]:
         # we can't import the Domain model before Django has been initialized
         from mailauth.models import Domain
 
-        data = self.add_received_header(peer, data, channel)
+        data = self.add_received_header(peer, helo_name, data)
 
         dom = None  # type: Optional[Domain]
 
@@ -72,22 +74,30 @@ class DKIMSignerServer(SaneSMTPServer):
         ret = self.smtp.sendmail(mailfrom, rcpttos, data)
         return ret
 
-    def process_message(self, *args: Any, **kwargs: Any) -> Optional[str]:
-        future = pool.submit(DKIMSignerServer._process_message, self, *args, **kwargs)
-        return future.result()
-
-    def handle_error(self) -> None:
-        # handle exceptions through asyncore. Using this implementation will make it go
-        # through logging and the JSON wrapper
-        _log.exception("Unexpected error")
-        self.handle_close()
+    async def handle_DATA(self, server: SMTP, session: Session, envelope: Envelope, *args: Any,
+                          **kwargs: Any) -> Optional[bytes]:
+        future = pool.submit(DKIMSignerServer._process_message, self, session.peer, session.host_name,
+                             envelope.mail_from, envelope.rcpt_tos, envelope.original_content)
+        return future.result().encode("utf-8")
 
 
 def run(_args: argparse.Namespace) -> None:
-    server = DKIMSignerServer(_args.output_ip, _args.output_port,
-                              (_args.input_ip, _args.input_port), None, decode_data=False,
-                              daemon_name="dkimsigner")
-    asyncore.loop()
+    server = DKIMSignerServer(
+        localaddr=(_args.input_ip, _args.input_port),
+        remoteaddr=(_args.output_ip, _args.output_port),
+        daemon_name="dkimsigner"
+    )
+    ctrl = Controller(
+        server,
+        hostname=_args.input_ip,
+        port=_args.input_port,
+        decode_data=False,
+        auth_exclude_mechanism=["LOGIN", "PLAIN"],
+        ident="dkimsigner v%s" % authserver.version
+    )
+    ctrl.start()
+    while True:
+        time.sleep(1)
 
 
 def _sigint_handler(sig: int, frame: Optional[FrameType]) -> None:
@@ -141,7 +151,7 @@ def _main() -> None:
 
     django.setup()
 
-    _log.info("dkimsigner v%s: DKIM signer starting" % authserver.version)
+    _log.info("dkimsigner v%s: DKIM signer starting (aiosmtpd)" % authserver.version)
     _log.info("Django ORM initialized")
 
     pidfile = open(_args.pidfile, "w")
