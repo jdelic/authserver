@@ -75,10 +75,10 @@ class DKIMSignerServer(SaneSMTPServer):
         return ret
 
     async def handle_DATA(self, server: SMTP, session: Session, envelope: Envelope, *args: Any,
-                          **kwargs: Any) -> Optional[str]:
+                          **kwargs: Any) -> Optional[bytes]:
         future = pool.submit(DKIMSignerServer._process_message, self, session.peer, session.host_name,
                              envelope.mail_from, envelope.rcpt_tos, envelope.original_content)
-        return future.result()
+        return future.result().encode("utf-8")
 
 
 def run(_args: argparse.Namespace) -> None:
@@ -93,6 +93,7 @@ def run(_args: argparse.Namespace) -> None:
         port=_args.input_port,
         decode_data=False,
         auth_exclude_mechanism=["LOGIN", "PLAIN"],
+        ident="dkimsigner v%s" % authserver.version
     )
     ctrl.start()
     while True:
