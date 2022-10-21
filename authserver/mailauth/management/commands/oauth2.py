@@ -12,7 +12,7 @@ from oauth2_provider import models as oauth2_models
 from typing import Any
 
 from mailauth.management.commands._common import _handle_client_registration, _add_publishing_args
-
+from mailauth.models import Domain
 
 _AT = TypeVar("_AT", bound=oauth2_models.Application)
 appmodel = oauth2_models.get_application_model()  # type: Type[_AT]
@@ -50,6 +50,9 @@ class Command(BaseCommand):
                                help="Choose the OAuth2 grant type for this client.")
         create_gr.add_argument("--skip-pkce", dest="pkce_required", default=True, action="store_false",
                                help="Allow client to authenticate without PKCE")
+        create_gr.add_argument("--domain", dest="domain", default=None,
+                               help="Choose the domain with the JWK to use for signing OpenID Connect JWTs for this "
+                                    "client")
         create_gr.add_argument("client_name",
                                help="A human-readable name for the OAuth2 client that can be used to rerieve the same "
                                     "credentials later using this command.")
@@ -71,6 +74,23 @@ class Command(BaseCommand):
                 client = appmodel.objects.get(name=kwargs["client_name"])
             except appmodel.DoesNotExist:
                 try:
+                    dom = None
+                    if "domain" in kwargs:
+                        try:
+                            dom = Domain.objects.get(name__iexact=kwargs["domain"])
+                        except Domain.DoesNotExist:
+                            try:
+                                dom = Domain.objects.find_parent_domain(kwargs["domain"], True, True)
+                            except Domain.DoesNotExist:
+                                self.stderr.write("There is no domain registered that has a JWK and can sign "
+                                                  "for domain %s" % kwargs["domain"])
+                                sys.exit(1)
+
+                        if not dom.jwtkey:
+                            self.stderr.write("Domain %s has no JWT signing key and can't be tied to an OAuth2 "
+                                              "application" % dom.name)
+                            sys.exit(1)
+
                     client = appmodel(
                         name=kwargs["client_name"],
                         redirect_uris="\n".join(kwargs["redirect_uris"]),
@@ -78,6 +98,7 @@ class Command(BaseCommand):
                         authorization_grant_type=kwargs["grant_type"],
                         client_type=kwargs["client_type"],
                         pkce_enforced=kwargs["pkce_required"],
+                        domain=dom,
                     )
                 except DatabaseError as e:
                     self.stderr.write("Error while creating oauth2 client: %s" % str(e))
