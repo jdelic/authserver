@@ -74,7 +74,7 @@ except IOError:
 _packages = find_packages(where='authserver', exclude=["*.tests", "*.tests.*", "tests.*", "tests"])
 
 pipsession = PipSession()
-reqs_generator = parse_requirements(os.path.join(os.path.abspath(os.path.dirname(__file__)), "requirements.txt"),
+reqs_generator = parse_requirements(os.path.join(_HERE, "requirements.txt"),
                                     session=pipsession)  # prepend setup.py's path (make no assumptions about cwd)
 reqs = [(str(r.requirement) if hasattr(r, 'requirement') else str(r.req)) for r in reqs_generator]
 
