@@ -38,5 +38,5 @@ six==1.16.0
 django-stubs==1.13.0
 django-stubs-ext==0.7.0
 types-cryptography==3.3.23.2
-types-oauthlib==3.2.0
+types-oauthlib==3.2.0.1
 types-requests==2.28.11.4
