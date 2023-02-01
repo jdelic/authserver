@@ -31,7 +31,7 @@ python-daemon==2.3.2
 # vendored dependencies from django12factor
 dj-database-url==1.2.0
 dj-email-url==1.0.6
-django-cache-url==3.4.2
+django-cache-url==3.4.4
 six==1.16.0
 
 # typing extensions (must be installed at runtime because of Django stubs)
