@@ -15,7 +15,7 @@ from django.http.response import HttpResponse, HttpResponseBase, HttpResponseNot
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-from ratelimit.mixins import RatelimitMixin
+from django_ratelimit.decorators import ratelimit
 
 from dockerauth.models import DockerRegistry
 from mailauth.models import Domain
@@ -30,10 +30,7 @@ class InvalidKeyRequest(Exception):
         self.response = response
 
 
-class JWTPublicKeyView(RatelimitMixin, View):
-    ratelimit_key = 'ip'
-    ratelimit_rate = '5/m'
-    ratelimit_block = True
+class JWTPublicKeyView(View):
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -78,6 +75,7 @@ class JWTPublicKeyView(RatelimitMixin, View):
                                                          content_type="application/json")) from e
         return reg.client_id, key
 
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='GET', block=True))
     def get(self, request: HttpRequest) -> HttpResponse:
         if not request.is_secure():
             return HttpResponseBadRequest('{"error": "This endpoint must be called securely"}',
