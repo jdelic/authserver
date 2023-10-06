@@ -17,7 +17,7 @@ from oauth2_provider.models import get_application_model
 from oauth2_provider.views import ProtectedResourceView
 from oauth2_provider.views.base import AuthorizationView
 from oauth2_provider.settings import oauth2_settings
-from ratelimit.mixins import RatelimitMixin
+from django_ratelimit.decorators import ratelimit
 from jwcrypto import jwk
 
 from dockerauth.jwtutils import JWTViewHelperMixin
@@ -133,11 +133,7 @@ class InvalidAuthRequest(Exception):
     pass
 
 
-class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
-    ratelimit_key = 'ip'
-    ratelimit_rate = '20/m'
-    ratelimit_block = True
-
+class UserLoginAPIView(JWTViewHelperMixin, View):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
@@ -168,6 +164,7 @@ class UserLoginAPIView(JWTViewHelperMixin, RatelimitMixin, View):
     def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponseBase:
         return super().dispatch(*args, **kwargs)
 
+    @method_decorator(ratelimit(key='ip', rate='20/m', method="POST", block=True))
     def post(self, request: HttpRequest) -> HttpResponse:
         if not request.is_secure():
             return HttpResponseBadRequest('{"error": "This endpoint must be called securely"}',
