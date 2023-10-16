@@ -15,6 +15,6 @@ jobs:
           - task: gopythongo
             file: authserver/.ci/concourse/gopythongo.yaml
             params:
-                APTLY_PUBLISH_ENDPOINT: s3:maurusnet:release/buster
+                APTLY_PUBLISH_ENDPOINT: s3:maurusnet:release/bookworm
                 APTLY_DISTRIBUTION: mn-release
                 REPO: maurusnet-release
