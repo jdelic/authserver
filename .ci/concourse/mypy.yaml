@@ -21,17 +21,18 @@ run:
     args:
         - -c
         - |
-            apt-get -q update &&
-            apt-get -q -y upgrade &&
-            apt-get -q update &&
-            apt-get --no-install-recommends -q -y -o DPkg::Options::=--force-confold \
+            apt -q update &&
+            apt -q -y upgrade &&
+            apt -q update &&
+            apt --no-install-recommends -q -y -o DPkg::Options::=--force-confold \
                 -o DPkg::Options::=--force-confdef install \
                 python3 python3-virtualenv virtualenv python3-pip
-            python3 -m pip install -U pip virtualenv setuptools wheel
-            pip3 install -U mypy typing-extensions django-stubs types-cryptography \
+            virtualenv .env
+            .env/bin/python -m pip install -U pip virtualenv setuptools wheel
+            .env/bin/pip install -U mypy typing-extensions django-stubs types-cryptography \
                 types-requests types-jwt authserver/;
             cd authserver;
-            /usr/local/bin/mypy --ignore-missing-imports --install-types --non-interactive \
+            ../.env/bin/mypy --ignore-missing-imports --install-types --non-interactive \
                 --follow-imports=skip --disallow-untyped-calls --disallow-untyped-defs \
                 authserver &&
             echo "*************************" &&
