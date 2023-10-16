@@ -1,11 +1,9 @@
 import logging
-import smtpd
 import smtplib
 import socket
 from email import policy
-from smtpd import SMTPServer
 
-from email._policybase import Policy
+from email._policybase import Policy, compat32
 from email.header import Header
 from email.message import Message, _formatparam, SEMISPACE  # type: ignore
 
@@ -31,7 +29,7 @@ Sorry, there is nothing I can do about that.
 """
 
 
-AddressTuple = Tuple[str, int]
+AddressTuple = Tuple[Optional[str], Optional[int]]
 
 
 class SMTPWrapper:
@@ -42,7 +40,7 @@ class SMTPWrapper:
     """
     def __init__(self, *,
                  relay: AddressTuple,
-                 error_relay: Optional[AddressTuple] = (None, None)) -> None:
+                 error_relay: AddressTuple = (None, None)) -> None:
         self.external_ip = relay[0]
         self.external_port = relay[1]
         self.error_relay_ip = error_relay[0]
@@ -117,7 +115,7 @@ class SMTPWrapper:
 
 class SaneMessage(Message):
     def __init__(self, *args: Any) -> None:
-        self.policy = None  # type: Optional[Policy]
+        self.policy = compat32  # type: Policy
         self._headers = []  # type: List[Any]
         super().__init__(*args)
 
