@@ -62,10 +62,10 @@ class SMTPWrapper:
         return msg.as_bytes(policy=policy.SMTP)
 
     def sendmail(self, from_addr: str, to_addrs: Sequence[str], msg: bytes, mail_options: List[str] = [],
-                 rcpt_options: List[str] = []) -> Union[str, None]:
+                 rcpt_options: List[str] = []) -> str:
         """
         Wraps smtplib.sendmail and handles all the exceptions it can throw.
-        :return: a SMTP return string or None
+        :return: a SMTP return string
         """
         with smtplib.SMTP(self.external_ip, self.external_port) as smtp:
             try:
@@ -106,11 +106,11 @@ class SMTPWrapper:
                 else:
                     # Only some recipients were denied. It's probably wrong to tell the upstream to repeat
                     # sending the email
-                    return None
+                    return "250 Some recipients refused"
             except smtplib.SMTPServerDisconnected as e:
                 _log.info("Downstream server unexpectedly disconnected: %s", str(e))
                 return "421 Possible network problem. Please try again."
-            return None
+            return "250 Message relayed."
 
 
 class SaneMessage(Message):
