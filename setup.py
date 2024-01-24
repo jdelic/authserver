@@ -87,6 +87,8 @@ setup(
     },
     install_requires=reqs,
     package_data=get_package_data(),
+    author="Jonas Maurus",
+    url="https://github.com/jdelic/authserver/",
     description="A Python 3 Django-based OAuth2/Docker Auth/JWT SSO server with additional mail routing.",
     long_description=long_description,
 )
