@@ -31,6 +31,8 @@ jobs:
                 params:
                     state: pending
                     commit: authserver
+          - task: setup-env
+            file: authserver/.ci/concourse/mypy-env.yaml
           - task: run-mypy
             file: authserver/.ci/concourse/mypy.yaml
             on_failure:

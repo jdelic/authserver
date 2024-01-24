@@ -7,21 +7,7 @@ import time
 from setuptools import setup, find_packages
 
 
-try:
-    from pip._internal.req import parse_requirements
-except ImportError:
-    from pip.req import parse_requirements
-
-try:
-    from pip._internal.download import PipSession
-except ImportError:
-    try:
-        from pip.download import PipSession
-    except ImportError:
-        from pip._internal.network.session import PipSession
-
-
-_INCLUDE = re.compile("\.(txt|gif|jpg|png|css|html|js|xml|po|mo)$")
+_INCLUDE = re.compile(r"\.(txt|gif|jpg|png|css|html|js|xml|po|mo)$")
 _HERE = os.path.abspath(os.path.dirname(__file__))
 
 
@@ -73,10 +59,8 @@ except IOError:
 
 _packages = find_packages(where='authserver', exclude=["*.tests", "*.tests.*", "tests.*", "tests"])
 
-pipsession = PipSession()
-reqs_generator = parse_requirements(os.path.join(_HERE, "requirements.txt"),
-                                    session=pipsession)  # prepend setup.py's path (make no assumptions about cwd)
-reqs = [(str(r.requirement) if hasattr(r, 'requirement') else str(r.req)) for r in reqs_generator]
+with open(os.path.join(_HERE, "requirements.txt"), "rt") as reqfile:
+    reqs = reqfile.readlines()
 
 # on windows remove python-daemon
 if sys.platform == "win32":

@@ -13,9 +13,8 @@ orig_identify_hasher = None  # type: Union[Callable[[str], hashers.BasePasswordH
 
 def mauth_identify_hasher(encoded: str) -> 'hashers.BasePasswordHasher':
     from mailauth.auth import UnixCryptCompatibleSHA256Hasher
-    from django.contrib.auth import hashers
     _log.debug("mauth_identify_hasher called (%s)", encoded)
-    if encoded.startswith("$5"):
+    if orig_identify_hasher is None or encoded.startswith("$5"):
         return UnixCryptCompatibleSHA256Hasher()
     return orig_identify_hasher(encoded)
 
