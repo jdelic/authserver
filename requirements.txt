@@ -39,4 +39,4 @@ django-stubs==4.2.7
 django-stubs-ext==4.2.7
 types-cryptography==3.3.23.2
 types-oauthlib==3.2.0.20240124
-types-requests==2.31.0.20240106
+types-requests==2.31.0.20240406
