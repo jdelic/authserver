@@ -1,5 +1,5 @@
 12factor-vault==0.1.23
-aiosmtpd==1.4.4.post2
+aiosmtpd==1.4.6
 # cryptography is an optional dependency of pyjwt for RSA support
 cryptography==42.0.0
 Django==5.1.1
