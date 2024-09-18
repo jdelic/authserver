@@ -29,7 +29,7 @@ authres==1.2.0
 python-daemon==3.0.1
 
 # vendored dependencies from django12factor
-dj-database-url==2.1.0
+dj-database-url==2.2.0
 dj-email-url==1.0.6
 django-cache-url==3.4.5
 six==1.16.0
