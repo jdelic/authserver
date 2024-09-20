@@ -10,7 +10,7 @@ django-postgresql-setrole==1.0.12
 django-ratelimit==4.1.0
 django-select2==8.2.1
 envdir==1.0.1
-gunicorn==22.0.0
+gunicorn==23.0.0
 hvac==2.3.0
 passlib==1.7.4
 psycopg2-binary==2.9.9
