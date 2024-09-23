@@ -23,7 +23,7 @@ typing-extensions==4.12.2
 whitenoise==6.6.0
 
 # DKIM filter dependencies
-dkimpy==1.1.5
+dkimpy==1.1.8
 # undeclared dependency of dkimpy
 authres==1.2.0
 python-daemon==3.0.1
