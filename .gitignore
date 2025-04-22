@@ -15,3 +15,4 @@ build/
 *.iml
 .gopythongo/etc/appconfig
 authserver/static/
+.aider*
