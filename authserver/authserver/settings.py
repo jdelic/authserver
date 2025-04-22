@@ -190,8 +190,8 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "authserver", "static")]
 
 # APP CONFIG
-COMPANY_NAME = "maurus.networks"
-COMPANY_LOGO_URL = "/static/mn.png"
+COMPANY_NAME = os.getenv("AUTHSERVER_ENTITY_NAME", "FooBar Co.")
+COMPANY_LOGO_URL = os.getenv("AUTHSERVER_ENTITY_LOGO", "/static/replaceme.png")
 
 SELECT2_JS = '/static/vendor/select2/select2.full.min.js'
 SELECT2_CSS = '/static/vendor/select2/select2.min.css'
