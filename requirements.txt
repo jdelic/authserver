@@ -19,7 +19,7 @@ py-consul==1.5.3
 python-json-logger==2.0.7
 requests==2.32.3
 sqlparse==0.5.1
-typing-extensions==4.12.2
+typing-extensions==4.13.2
 whitenoise==6.7.0
 
 # DKIM filter dependencies
