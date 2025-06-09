@@ -8,7 +8,7 @@ django-dbconn-retry==0.1.8
 django-oauth-toolkit==3.0.1
 django-postgresql-setrole==1.0.12
 django-ratelimit==4.1.0
-django-select2==8.2.1
+django-select2==8.2.4
 envdir==1.0.1
 gunicorn==23.0.0
 hvac==2.3.0
