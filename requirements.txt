@@ -32,7 +32,7 @@ python-daemon==3.1.2
 dj-database-url==3.0.1
 dj-email-url==1.0.6
 django-cache-url==3.4.5
-six==1.16.0
+six==1.17.0
 
 # typing extensions (must be installed at runtime because of Django stubs)
 django-stubs==5.1.3
