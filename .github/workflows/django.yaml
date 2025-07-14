@@ -13,7 +13,8 @@ jobs:
             max-parallel: 4
             matrix:
                 python-version: ["3.12", "3.13"]
-
+        env:
+            SECRET_KEY: "secretsekrit"
         steps:
             - uses: actions/checkout@v4
             - name: Set up Python ${{ matrix.python-version }}
@@ -46,6 +47,6 @@ jobs:
                   echo "authserver" > /etc/appconfig/authserver/env/DATABASE_PASSWORD
                   echo "maurus.networks" > /etc/appconfig/authserver/env/AUTHSERVER_ENTITY_NAME
                   echo "/static/mn.png" > /etc/appconfig/authserver/env/AUTHSERVER_ENTITY_LOGO
-                  django-admin migrate --settings=authserver.settings
-                  django-admin collectstatic --noinput --settings=authserver.settings
-                  django-admin test --settings=authserver.settings --parallel 4 --keepdb --noinput
+                  envdir /etc/appconfig/authserver/env django-admin migrate --settings=authserver.settings
+                  envdir /etc/appconfig/authserver/env django-admin collectstatic --noinput --settings=authserver.settings
+                  envdir /etc/appconfig/authserver/env django-admin test --settings=authserver.settings --parallel 4 --keepdb --noinput
