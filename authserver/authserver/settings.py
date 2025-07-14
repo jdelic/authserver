@@ -85,6 +85,7 @@ VAULT_ADDRESS = os.getenv("VAULT_ADDR", "https://vault.local:8200/")
 VAULT_CA = os.getenv("VAULT_CA", None)
 
 VAULT = None
+
 if VaultAuth12Factor.has_envconfig() and os.getenv("VAULT_DATABASE_PATH"):
     VAULT = VaultAuth12Factor.fromenv()
     CREDS = VaultCredentialProvider(VAULT_ADDRESS, VAULT,
@@ -103,8 +104,20 @@ if VaultAuth12Factor.has_envconfig() and os.getenv("VAULT_DATABASE_PATH"):
             "SET_ROLE": os.getenv("DATABASE_PARENTROLE", "authserver"),
         }),
     }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": 'django.db.backends.postgresql',
+            "NAME": os.getenv("DATABASE_NAME", "authserver"),
+            "USER": os.getenv("DATABASE_USER", "authserver"),
+            "PASSWORD": os.getenv("DATABASE_PASSWORD", "<PASSWORD>"),
+            "HOST": "127.0.0.1",
+            "PORT": "5432",
+            "SET_ROLE": os.getenv("DATABASE_PARENTROLE", "authserver"),
+        },
+    }
 
-if DATABASES["default"]["ENGINE"] == 'django.db.backends.postgresql_psycopg2':
+if DATABASES["default"]["ENGINE"] == 'django.db.backends.postgresql':
     if "OPTIONS" not in DATABASES["default"]:
         DATABASES["default"]["OPTIONS"] = {}
 
