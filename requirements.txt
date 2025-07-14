@@ -3,7 +3,7 @@ aiosmtpd==1.4.6
 # cryptography is an optional dependency of pyjwt for RSA support
 cryptography==44.0.1
 Django==5.1.5
-django-cors-headers==4.5.0
+django-cors-headers==4.7.0
 django-dbconn-retry==0.1.8
 django-oauth-toolkit==3.0.1
 django-postgresql-setrole==1.0.12
