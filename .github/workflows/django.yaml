@@ -41,12 +41,12 @@ jobs:
                   sudo -u postgres createdb -O authserver -p 5432 authserver
             - name: Run Tests
               run: |
-                  mkdir -p /etc/appconfig/authserver/env
-                  echo "authserver" > /etc/appconfig/authserver/env/DATABASE_NAME
-                  echo "authserver" > /etc/appconfig/authserver/env/DATABASE_USER
-                  echo "authserver" > /etc/appconfig/authserver/env/DATABASE_PASSWORD
-                  echo "maurus.networks" > /etc/appconfig/authserver/env/AUTHSERVER_ENTITY_NAME
-                  echo "/static/mn.png" > /etc/appconfig/authserver/env/AUTHSERVER_ENTITY_LOGO
-                  envdir /etc/appconfig/authserver/env django-admin migrate --settings=authserver.settings
-                  envdir /etc/appconfig/authserver/env django-admin collectstatic --noinput --settings=authserver.settings
-                  envdir /etc/appconfig/authserver/env django-admin test --settings=authserver.settings --parallel 4 --keepdb --noinput
+                  mkdir -p .envdir
+                  echo "authserver" > .envdir/DATABASE_NAME
+                  echo "authserver" > .envdir/DATABASE_USER
+                  echo "authserver" > .envdir/DATABASE_PASSWORD
+                  echo "maurus.networks" > .envdir/AUTHSERVER_ENTITY_NAME
+                  echo "/static/mn.png" > .envdir/AUTHSERVER_ENTITY_LOGO
+                  envdir .envdir django-admin migrate --settings=authserver.settings
+                  envdir .envdir django-admin collectstatic --noinput --settings=authserver.settings
+                  envdir .envdir django-admin test --settings=authserver.settings --parallel 4 --keepdb --noinput
