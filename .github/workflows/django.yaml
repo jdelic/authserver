@@ -49,4 +49,4 @@ jobs:
                   echo "/static/mn.png" > .envdir/AUTHSERVER_ENTITY_LOGO
                   envdir .envdir django-admin migrate --settings=authserver.settings
                   envdir .envdir django-admin collectstatic --noinput --settings=authserver.settings
-                  envdir .envdir django-admin test --settings=authserver.settings --parallel 4 --keepdb --noinput
+                  envdir .envdir authserver/manage.py --settings=authserver.settings authserver.tests
