@@ -125,7 +125,7 @@ class RSAKeyWidget(widgets.AdminTextareaWidget):
             if self.show_dkim:
                 ret += format_html("""
 <pre>
-"v=DKIM1\; k=rsa\; p=" {split_key}</pre>
+"v=DKIM1\\; k=rsa\\; p={split_key}</pre>
                 """,
                     split_key="\n".join(
                         ['"%s"' % line for line in

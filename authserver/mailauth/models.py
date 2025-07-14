@@ -1,5 +1,6 @@
 # -* encoding: utf-8 *-
-import uuid
+import uuid as uuidmod
+from multiprocessing.managers import BaseManager
 from urllib.parse import urlparse
 
 from django.contrib.auth import models as auth_models, base_user
@@ -8,9 +9,10 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.postgres.fields.array import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
-from typing import Any, Optional, Set, Iterable, List, cast, Union
+from typing import Any, Optional, Set, Iterable, List, cast, Union, TYPE_CHECKING
 
-from django.db.models import Manager
+from django_stubs_ext.db.models.manager import RelatedManager
+from django_stubs_ext.db.models import TypedModelMeta
 from oauth2_provider import models as oauth2_models, validators as oauth2_validators
 from jwcrypto import jwk
 
@@ -48,7 +50,7 @@ class PretendHasherPasswordField(models.CharField):
             return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, value)
 
 
-class DomainManager(Manager):
+class DomainManager(models.Manager['Domain']):
     def find_parent_domain(self, fqdn: str, require_jwt_subdomains_set: bool = True,
                            require_jwt_key: bool = False) -> 'Domain':
         req_domain = None  # type: Optional[Domain]
@@ -97,6 +99,9 @@ class Domain(models.Model):
 
     objects = DomainManager()
 
+    if TYPE_CHECKING:
+        mnapplication_set: RelatedManager['MNApplication']
+
     def __str__(self) -> str:
         return str(self.name)
 
@@ -111,17 +116,17 @@ class MailingList(models.Model):
 
 
 class EmailAlias(models.Model):
-    class Meta:
+    class Meta(TypedModelMeta):
         unique_together = (('mailprefix', 'domain'),)
         verbose_name_plural = "Email aliases"
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
-                                                          related_name="aliases", null=True, blank=True)
+                             related_name="aliases", null=True, blank=True)
     domain = models.ForeignKey(Domain, verbose_name="On domain",
-                                                                  on_delete=models.CASCADE)
+                               on_delete=models.CASCADE)
     mailprefix = models.CharField("Mail prefix", max_length=255)
     forward_to = models.ForeignKey(MailingList, verbose_name="Forward to list",
-                                                                   on_delete=models.CASCADE, null=True, blank=True)
+                                   on_delete=models.CASCADE, null=True, blank=True)
 
     def clean(self) -> None:
         if hasattr(self, 'forward_to') and self.forward_to is not None \
@@ -144,7 +149,7 @@ class EmailAlias(models.Model):
 
 
 class MNApplicationPermission(models.Model):
-    class Meta:
+    class Meta(TypedModelMeta):
         verbose_name = "application permissions"
         verbose_name_plural = "Application permissions"
 
@@ -156,7 +161,7 @@ class MNApplicationPermission(models.Model):
 
 
 class MNGroup(models.Model):
-    class Meta:
+    class Meta(TypedModelMeta):
         verbose_name = "OAuth2/CAS Groups"
         verbose_name_plural = "OAuth2/CAS Groups"
 
@@ -231,7 +236,10 @@ class MNUserManager(base_user.BaseUserManager):
                 raise UnresolvableUserException() from e
 
             try:
-                user = EmailAlias.objects.get(mailprefix__istartswith=mailprefix, domain__name=domain).user
+                _user = EmailAlias.objects.get(mailprefix__istartswith=mailprefix, domain__name=domain).user
+                if _user is None:
+                    raise UnresolvableUserException("Email alias %s@%s does not belong to a user" % (mailprefix, domain))
+                user = _user
             except EmailAlias.DoesNotExist as e:
                 raise UnresolvableUserException() from e
 
@@ -277,10 +285,10 @@ class PasswordMaskMixin:
 
 
 class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.PermissionsMixin):
-    class Meta:
+    class Meta(TypedModelMeta):
         verbose_name_plural = "User accounts"
 
-    uuid = models.UUIDField("Shareable ID", default=uuid.uuid4, editable=False, primary_key=True)
+    uuid = models.UUIDField("Shareable ID", default=uuidmod.uuid4, editable=False, primary_key=True)
     identifier = models.CharField("User ID", max_length=255, unique=True, db_index=True)
     password = PretendHasherPasswordField("Password", max_length=128)
     fullname = models.CharField("Full name", max_length=255)
@@ -347,7 +355,7 @@ class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.Permissi
         return set(self.get_all_app_permission_strings()).issuperset(set(perms))
 
     @property
-    def id(self):
+    def id(self) -> uuidmod.UUID:
         return self.uuid
 
 
@@ -357,12 +365,12 @@ class MNServiceUser(PasswordMaskMixin, models.Model):
     and passwords must be shared with a service that doesn't support OAuth2/OpenID connect or requires
     the Resource Owner flow, but isn't always used from a trustworthy client.
     """
-    class Meta:
+    class Meta(TypedModelMeta):
         verbose_name = "Service User"
         verbose_name_plural = "Service Users"
 
     user = models.ForeignKey(MNUser, on_delete=models.CASCADE, null=False, blank=False)
-    username = models.CharField("Username", default=uuid.uuid4, max_length=64)
+    username = models.CharField("Username", default=uuidmod.uuid4, max_length=64)
     password = PretendHasherPasswordField("Password", max_length=128)
     description = models.CharField(max_length=255, blank=True, null=False, default='')
 
@@ -377,14 +385,23 @@ class MNServiceUser(PasswordMaskMixin, models.Model):
     def __str__(self) -> str:
         return "%s (%s)" % (self.username, self.user.identifier,)
 
+# fix django-stubs/mypy not recognizing that AbstractApplication is a Model
+# https://github.com/typeddjango/django-stubs/issues/68
+if TYPE_CHECKING:
+    from oauth2_provider.models import AbstractApplication as _AbstractApplication
+    class AbstractApplication(_AbstractApplication, models.Model):
+        pass
+else:
+    from oauth2_provider.models import AbstractApplication
 
-class MNApplication(oauth2_models.AbstractApplication):
+
+class MNApplication(AbstractApplication):
     """
     Add permissions to applications. They are permissions that applications are *allowed to request
     as scopes*.
     """
 
-    class Meta:
+    class Meta(TypedModelMeta):
         verbose_name_plural = "OAuth2 Applications"
 
     pkce_enforced = models.BooleanField(

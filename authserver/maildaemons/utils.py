@@ -51,7 +51,7 @@ class SMTPWrapper:
         msg = parser.parsebytes(original_mail, True)  # type: ignore
         msg["Subject"] = "[mailforwarder error] Re: %s" % msg["Subject"]
         # this should never be None at this point, but typewise it could be
-        msg["To"] = cast(Union[str, Header], msg["From"])
+        msg["To"] = cast(str, msg["From"])
         msg["From"] = "mailforwarder bounce <>"
 
         rcptlist = ""
@@ -67,6 +67,10 @@ class SMTPWrapper:
         Wraps smtplib.sendmail and handles all the exceptions it can throw.
         :return: a SMTP return string
         """
+        if not self.external_ip or not self.external_port:
+            _log.error("No external relay configured. Cannot send email.")
+            return "421 No external relay configured. Please try again later."
+
         with smtplib.SMTP(self.external_ip, self.external_port) as smtp:
             try:
                 smtp.sendmail(from_addr, to_addrs, msg, mail_options, rcpt_options)
