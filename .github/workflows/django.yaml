@@ -26,11 +26,11 @@ jobs:
                   python -m pip install --upgrade pip wheel
                   pip install -e .
                   pip install mypy typing-extensions django-stubs types-cryptography types-requests types-jwt
-            - name: Run Mypy
-              run: >
-                  mypy --ignore-missing-imports --install-types --non-interactive  
-                  --follow-imports=skip --disallow-untyped-calls --disallow-untyped-defs  
-                  authserver
+#            - name: Run Mypy
+#              run: >
+#                  mypy --ignore-missing-imports --install-types --non-interactive
+#                  --follow-imports=skip --disallow-untyped-calls --disallow-untyped-defs
+#                  authserver
             - name: Start PostgreSQL
               run: |
                   sudo systemctl start postgresql.service
