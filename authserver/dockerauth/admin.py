@@ -16,7 +16,7 @@ class JWTKeyWidget(widgets.AdminTextareaWidget):
         super().__init__(*args, **kwargs)
 
     def render(self, name: str, value: str, attrs: Optional[Dict[str, str]] = None,
-               renderer: BaseRenderer = None) -> SafeString:
+               renderer: Optional[BaseRenderer] = None) -> SafeString:
         ret = super().render(name, value, attrs)
         if value and value.startswith("-----BEGIN RSA PRIVATE KEY"):
             public_key = import_rsa_key(value).public_key

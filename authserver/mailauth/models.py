@@ -89,13 +89,13 @@ class DomainManager(models.Manager['Domain']):
 class Domain(models.Model):
     name = models.CharField(max_length=255, unique=True)
     dkimselector = models.CharField(verbose_name="DKIM DNS selector", max_length=255, null=False,
-                                                      blank=True, default="default")
+                                    blank=True, default="default")
     dkimkey = models.TextField(verbose_name="DKIM private key (PEM)", blank=True)
     jwtkey = models.TextField(verbose_name="JWT signing key (PEM)", blank=True)
     jwt_subdomains = models.BooleanField(verbose_name="Use JWT key to sign for subdomains",
-                                                              default=False)
+                                         default=False)
     redirect_to = models.CharField(verbose_name="Redirect all mail to domain", max_length=255,
-                                                     null=False, blank=True, default="")
+                                   null=False, blank=True, default="")
 
     objects = DomainManager()
 

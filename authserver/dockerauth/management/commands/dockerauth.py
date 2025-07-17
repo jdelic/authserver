@@ -107,7 +107,7 @@ class Command(BaseCommand):
         else:
             self.stdout.write("No Docker registries have been setup for Docker Token Auth. (0 found)")
 
-    def _show_registry(self, name: str = None, client_id: str = None, allow_partial: bool = False,
+    def _show_registry(self, name: Optional[str] = None, client_id: Optional[str] = None, allow_partial: bool = False,
                        case_insensitive: bool = False, allow_multiple: bool = False,
                        output_private_key: bool = False) -> None:
         name_query = "name__"
@@ -194,7 +194,7 @@ class Command(BaseCommand):
 
         self.stderr.write(self.style.SUCCESS("Created Docker registry %s (client id=%s)" % (name, client_id)))
 
-    def _ask_confirmation(self, question: str, default: bool=None) -> bool:
+    def _ask_confirmation(self, question: str, default: Optional[bool]=None) -> bool:
         result = input("%s " % question)
         if not result and default is not None:
             return default

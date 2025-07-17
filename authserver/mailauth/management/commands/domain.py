@@ -20,8 +20,8 @@ KEY_CHOICES = ["jwt", "dkim"]
 class Command(BaseCommand):
     requires_migrations_checks = True
 
-    def _create(self, domain: str, create_keys: List[str] = None, dkim_selector: str = "", redirect_to: str = "",
-                jwt_allow_subdomain_signing: str = "false", **kwargs: Any) -> None:
+    def _create(self, domain: str, create_keys: Optional[List[str]] = None, dkim_selector: str = "",
+                redirect_to: str = "", jwt_allow_subdomain_signing: bool = False, **kwargs: Any) -> None:
         try:
             domobj = Domain.objects.get(name__iexact=domain)
         except Domain.DoesNotExist:
@@ -43,7 +43,7 @@ class Command(BaseCommand):
 
         sys.stderr.write("Domain %s created\n" % domain)
 
-    def _edit(self, domain: str, create_keys: List[str] = None, remove_keys: List[str] = None,
+    def _edit(self, domain: str, create_keys: Optional[List[str]] = None, remove_keys: Optional[List[str]] = None,
               dkim_selector: str = "", redirect_to: str = "", overwrite: bool = False,
               jwt_allow_subdomain_signing: bool = False, **kwargs: Any) -> None:
         try:
@@ -83,9 +83,9 @@ class Command(BaseCommand):
                 sys.stderr.write("DKIM key for domain %s already exists and --overwrite not specified\n" % domain)
 
         if "jwt" in remove_keys:
-            domobj.jwtkey = None
+            domobj.jwtkey = ""
         if "dkim" in remove_keys:
-            domobj.dkimkey = None
+            domobj.dkimkey = ""
 
         if dkim_selector:
             domobj.dkimselector = dkim_selector

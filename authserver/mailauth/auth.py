@@ -6,6 +6,7 @@ from django.contrib.auth import hashers
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest
 from django.utils.translation import gettext_lazy as _
+from django_stubs_ext import StrOrPromise
 
 from mailauth.models import Domain, EmailAlias, MNUser, MNServiceUser
 # noinspection PyUnresolvedReferences
@@ -83,7 +84,9 @@ class UnixCryptCompatibleSHA256Hasher(hashers.BasePasswordHasher):
         """
         return sha256_crypt.encrypt(password, salt=salt, rounds=UnixCryptCompatibleSHA256Hasher.rounds)
 
-    def safe_summary(self, encoded: str) -> Dict[str, str]:
+    # the ignore[override] should be removed once https://github.com/typeddjango/django-stubs/pull/2742
+    # is merged and released, as the signature of this method is correct
+    def safe_summary(self, encoded: str) -> Dict[StrOrPromise, str]:  # type: ignore[override]
         """
         Returns a summary of safe values
 
@@ -119,7 +122,8 @@ class UnixCryptCompatibleSHA256Hasher(hashers.BasePasswordHasher):
 
 
 class MNUserAuthenticationBackend(object):
-    def authenticate(self, request: HttpRequest, username: str=None, password: str=None) -> Optional[MNUser]:
+    def authenticate(self, request: HttpRequest, username: Optional[str]=None,
+                     password: Optional[str]=None) -> Optional[MNUser]:
         # the argument names must be 'username' and 'password' because the authenticator interface is tightly coupled
         # to the parameter names between login forms and authenticators
 
@@ -162,7 +166,11 @@ class MNUserAuthenticationBackend(object):
                 return None
 
             try:
-                user = EmailAlias.objects.get(mailprefix__istartswith=mailprefix, domain__name=domain).user
+                # Below is for strict type checking as `user` cannot be None
+                _user = EmailAlias.objects.get(mailprefix__istartswith=mailprefix, domain__name=domain).user
+                if _user is None:
+                    return None
+                user = _user
             except EmailAlias.DoesNotExist:
                 return None
             else:

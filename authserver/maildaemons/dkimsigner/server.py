@@ -7,8 +7,8 @@ import sys
 import os
 
 from types import FrameType
-from typing import Tuple, Sequence, Any, Union, Optional
-from concurrent.futures import ThreadPoolExecutor as Pool
+from typing import Tuple, Sequence, Any, Union, Optional, cast
+from concurrent.futures import Future, ThreadPoolExecutor as Pool
 
 import dkim
 import daemon
@@ -17,22 +17,22 @@ import authserver
 from aiosmtpd.controller import Controller
 from aiosmtpd.smtp import SMTP, Session, Envelope
 from django.db.utils import OperationalError
-from maildaemons.utils import SMTPWrapper, SaneSMTPServer, AddressTuple
+from maildaemons.utils import SMTPWrapper, SaneSMTPServer, AddressTuple, IPAddressTuple
 
 _log = logging.getLogger(__name__)
 pool = Pool()
 
 
 class DKIMSignerServer(SaneSMTPServer):
-    def __init__(self, localaddr: AddressTuple, remoteaddr: AddressTuple,
+    def __init__(self, localaddr: IPAddressTuple, remoteaddr: IPAddressTuple,
                  *args: Any, **kwargs: Any) -> None:
         super().__init__(localaddr, *args, **kwargs)
         self.smtp = SMTPWrapper(relay=remoteaddr)
 
     # ** must be thread-safe, don't modify shared state,
     # _log should be thread-safe as stated by the docs. Django ORM should be as well.
-    def _process_message(self, peer: AddressTuple, helo_name: str, mailfrom: str,
-                         rcpttos: Sequence[str], data: bytes) -> Optional[str]:
+    def _process_message(self, peer: IPAddressTuple, helo_name: str, mailfrom: str,
+                         rcpttos: Sequence[str], data: bytes) -> str:
         # we can't import the Domain model before Django has been initialized
         from mailauth.models import Domain
 
@@ -75,10 +75,17 @@ class DKIMSignerServer(SaneSMTPServer):
         return ret
 
     async def handle_DATA(self, server: SMTP, session: Session, envelope: Envelope, *args: Any,
-                          **kwargs: Any) -> Optional[bytes]:
-        future = pool.submit(DKIMSignerServer._process_message, self, session.peer, session.host_name,
-                             envelope.mail_from, envelope.rcpt_tos, envelope.original_content)
-        return future.result().encode("utf-8")
+                          **kwargs: Any) -> str:
+        future: Future[str] = pool.submit(DKIMSignerServer._process_message,
+                                         self,
+                                          # this cast is necessary until
+                                          # https://github.com/typeddjango/django-stubs/pull/2742 lands
+                                          cast(IPAddressTuple, session.peer),
+                                          session.host_name if session.host_name is not None else "<nohostname>",
+                                          envelope.mail_from if envelope.mail_from is not None else "<nomailfrom>",
+                                          envelope.rcpt_tos,
+                                          envelope.original_content if envelope.original_content is not None else b"")
+        return future.result()
 
 
 def run(_args: argparse.Namespace) -> None:

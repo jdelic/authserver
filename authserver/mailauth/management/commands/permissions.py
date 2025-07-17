@@ -157,7 +157,7 @@ class Command(BaseCommand):
 
         self.stderr.write(self.style.SUCCESS("Deleted permission %s\n") % permission)
 
-    def _list(self, filter_permission: str = None, filter_name: str = None, format: str = "table",
+    def _list(self, filter_permission: Optional[str] = None, filter_name: Optional[str] = None, format: str = "table",
               **kwargs: Any) -> None:
         filter_args = {}
         if filter_permission:
@@ -379,7 +379,8 @@ class Command(BaseCommand):
         self.stderr.write(self.style.SUCCESS("Granted user %s (%s) membership in: %s" %
                                              (user.get_username(), str(user.uuid), ", ".join(list(added)))))
 
-    def _revoke_from_user(self, userid: str, revoke_all: bool = False, perms: List[str] = None, **kwargs: Any) -> None:
+    def _revoke_from_user(self, userid: str, revoke_all: bool = False, perms: Optional[List[str]] = None,
+                          **kwargs: Any) -> None:
         user = cast(models.MNUser, self._get_user(userid))
         revoked = set()  # type: Set[str]
         permissions_missing = False
@@ -436,7 +437,7 @@ class Command(BaseCommand):
         self.stderr.write(self.style.SUCCESS("Granted group %s (%s) permissions: %s" %
                                              (group.name, str(group.id), ", ".join(list(added)))))
 
-    def _revoke_from_group(self, groupid: str, revoke_all: bool = False, perms: List[str] = None,
+    def _revoke_from_group(self, groupid: str, revoke_all: bool = False, perms: Optional[List[str]] = None,
                            **kwargs: Any) -> None:
         group = cast(models.MNGroup, self._get_group(groupid))
         revoked = set()  # type: Set[str]
@@ -471,7 +472,7 @@ class Command(BaseCommand):
         self.stderr.write(self.style.SUCCESS("Revoked permissions from group %s (%s): %s" %
                                              (group.name, str(group.pk), ", ".join(list(revoked)))))
 
-    def _revoke_membership(self, userid: str, revoke_all: bool = False, groups: List[str] = None,
+    def _revoke_membership(self, userid: str, revoke_all: bool = False, groups: Optional[List[str]] = None,
                            **kwargs: Any) -> None:
         user = cast(models.MNUser, self._get_user(userid))
         revoked = set()  # type: Set[str]

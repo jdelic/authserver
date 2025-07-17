@@ -15,4 +15,4 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-    ]  # type: List[Operation]
+    ]

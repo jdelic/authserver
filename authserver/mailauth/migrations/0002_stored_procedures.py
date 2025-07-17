@@ -18,4 +18,4 @@ class Migration(migrations.Migration):
     # It has been replaced by the 'spapi' management.py command.
 
     operations = [
-    ]  # type: List[Operation]
+    ]

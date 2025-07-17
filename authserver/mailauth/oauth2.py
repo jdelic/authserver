@@ -45,7 +45,7 @@ class ClientPermissionValidator(OAuth2Validator):
         else:
             return False
 
-    def get_additional_claims(self, request) -> Dict[str, Union[str, List]]:
+    def get_additional_claims(self, request) -> Dict[str, Union[int, bool, str, List[str]]]:
         user = request.user
         _log.debug("Adding id_token claims (%s groups)", user.app_groups.count())
         return {

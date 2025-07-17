@@ -14,8 +14,7 @@ from typing import Any
 from mailauth.management.commands._common import _handle_client_registration, _add_publishing_args
 from mailauth.models import Domain
 
-_AT = TypeVar("_AT", bound=oauth2_models.Application)
-appmodel = oauth2_models.get_application_model()  # type: Type[_AT]
+appmodel = oauth2_models.get_application_model()  # type: Type[oauth2_models.Application]
 
 
 class Command(BaseCommand):
@@ -128,7 +127,7 @@ class Command(BaseCommand):
 
         elif kwargs["search_client_name"]:
             try:
-                clients = list(appmodel.objects.file(name__ilike=kwargs["search_client_name"]))
+                clients = list(appmodel.objects.filter(name__ilike=kwargs["search_client_name"]))
             except appmodel.DoesNotExist:
                 self.stderr.write(self.style.ERROR("Client name not found %s" % kwargs["search_client_name"]))
 
