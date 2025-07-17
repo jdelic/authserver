@@ -45,7 +45,7 @@ class ForwarderServer(SaneSMTPServer):
         remaining_rcpttos = list(rcpttos)  # ensure that new_rcpttos is a mutable list
         combined_rcptto = {}  # type: Dict[str, List[str]]  # { new_mailfrom: [recipients] }
 
-        def add_rcptto(mfrom: str, rcpt: Union[str, List]) -> None:
+        def add_rcptto(mfrom: str, rcpt: Union[str, List[str]]) -> None:
             if mfrom in combined_rcptto:
                 if isinstance(rcpt, list):
                     combined_rcptto[mfrom] += rcpt
@@ -85,7 +85,7 @@ class ForwarderServer(SaneSMTPServer):
             # follow the same path like the stored procedure authserver_resolve_alias(...)
             if "-" in rcptuser:
                 # convert the first - to a +
-                user_mailprefix = "%s+%s" % tuple(rcptuser.split("-", 1))  # type: ignore
+                user_mailprefix = "%s+%s" % tuple(rcptuser.split("-", 1))
             else:
                 user_mailprefix = rcptuser
 

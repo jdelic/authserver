@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 from django.http import HttpRequest
 from oauth2_provider.scopes import BaseScopes
@@ -22,7 +22,7 @@ USER_SCOPES = [
 
 class MNAuthScopes(BaseScopes):
     def get_available_scopes(self, application: Optional[MNApplication] = None,
-                             request: Optional[HttpRequest] = None, *args, **kwargs) -> List[str]:
+                             request: Optional[HttpRequest] = None, *args: Any, **kwargs: Any) -> List[str]:
         return USER_SCOPES
 
     def get_all_scopes(self) -> Dict[str, str]:
@@ -31,5 +31,5 @@ class MNAuthScopes(BaseScopes):
         }
 
     def get_default_scopes(self, application: Optional[MNApplication] = None,
-                           request: Optional[HttpRequest] = None, *args, **kwargs) -> List[str]:
+                           request: Optional[HttpRequest] = None, *args: Any, **kwargs: Any) -> List[str]:
         return USER_SCOPES

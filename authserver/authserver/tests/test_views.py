@@ -7,6 +7,6 @@ class IndexPageTestCase(TestCase):
     responds with HTTP 200 OK.
     """
 
-    def test_index_page_returns_200(self):
+    def test_index_page_returns_200(self) -> None:
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)

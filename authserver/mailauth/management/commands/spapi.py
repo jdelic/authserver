@@ -253,7 +253,7 @@ class Command(BaseCommand):
             dest='scmd',
             title="subcommands",
             parser_class=SubCommandParser
-        )  # type: argparse._SubParsersAction
+        )
 
         inst_sp = subparsers.add_parser("install", help="Create stored procedure API in the database")
         grant_sp = subparsers.add_parser("grant", help="Grant access to the stored procedure API to a database user")

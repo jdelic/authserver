@@ -1,6 +1,6 @@
 import sys
 from argparse import _SubParsersAction
-from typing import Type, Any, Optional
+from typing import Type, Any, Optional, TypeVar
 
 from django.core.management.base import BaseCommand, CommandParser
 from django.db.models.query_utils import Q
@@ -11,18 +11,21 @@ from mailauth.models import MNGroup, Domain
 from mailauth.models import MNUser
 
 
+_CPT = TypeVar("_CPT", bound=CommandParser)
+
+
 class Command(BaseCommand):
-    def _add_permission_subparsers(self, subparser: _SubParsersAction, parser_class: Type[CommandParser]) -> None:
+    def _add_permission_subparsers(self, subparser: _SubParsersAction[_CPT], parser_class: Type[_CPT]) -> None:
         group_parser = subparser.add_parser("group", help="Manage group permissions (unimplemented)")
         group_sp = group_parser.add_subparsers(title="Manage group permissions (unimplemented)",
                                                parser_class=parser_class,
-                                               dest="accesssubcmd")  # type: _SubParsersAction
+                                               dest="accesssubcmd")
         user_parser = subparser.add_parser("user", help="Manage user permissions (unimplemented)")
         user_sp = user_parser.add_subparsers(title="Manage user permissions (unimplemented)",
                                              parser_class=parser_class,
-                                             dest="accesssubcmd")  # type: _SubParsersAction
+                                             dest="accesssubcmd")
 
-        def create_allow_deny_cmds(localsubparser: _SubParsersAction, entity_name: str) -> None:
+        def create_allow_deny_cmds(localsubparser: _SubParsersAction[_CPT], entity_name: str) -> None:
             allow_p = localsubparser.add_parser("allow", help="Give a %s access" % entity_name)
             allow_p.add_argument("--name", dest="name", default=None,
                                  help="Find %s by name." % entity_name)
@@ -43,13 +46,13 @@ class Command(BaseCommand):
             dest='type',
             title="subcommands",
             parser_class=SubCommandParser
-        )  # type: _SubParsersAction
+        )
 
         registry_parser = subparsers.add_parser("registry", help="Manage Docker registries")
         repo_parser = subparsers.add_parser("repo", help="Manage Docker repositories in a registry (unimplemented)")
 
         reg_subparser = registry_parser.add_subparsers(title="Registry management", parser_class=SubCommandParser,
-                                                       dest="subcommand")  # type: _SubParsersAction
+                                                       dest="subcommand")
         reg_add_parser = reg_subparser.add_parser("create", help="Add a Docker Registry")
 
         reg_add_parser.add_argument("--client-id", dest="client_id", required=True,

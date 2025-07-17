@@ -35,7 +35,7 @@ class DisplayHiddenInput(forms.HiddenInput):
         return False
 
 
-class MNServiceUserCreationForm(forms.ModelForm):
+class MNServiceUserCreationForm(forms.ModelForm['MNServiceUser']):
     username = forms.CharField(widget=DisplayHiddenInput, initial=uuid.uuid4)
     password = forms.CharField(
         label="Password",

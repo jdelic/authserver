@@ -1,6 +1,5 @@
 # -* encoding: utf-8 *-
 import uuid as uuidmod
-from multiprocessing.managers import BaseManager
 from urllib.parse import urlparse
 
 from django.contrib.auth import models as auth_models, base_user
@@ -9,7 +8,9 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.postgres.fields.array import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
-from typing import Any, Optional, Set, Iterable, List, cast, Union, TYPE_CHECKING
+from django.utils.translation import gettext_noop as _
+
+from typing import Any, Optional, Set, Iterable, List, cast, Union, TYPE_CHECKING, Sequence
 
 from django_stubs_ext.db.models.manager import RelatedManager
 from django_stubs_ext.db.models import TypedModelMeta
@@ -26,7 +27,7 @@ from jwcrypto import jwk
 #
 
 
-class PretendHasherPasswordField(models.CharField):
+class PretendHasherPasswordField(models.CharField[str, str]):
     """
     This just makes sure that no mention of sha256_passlib makes it into the database, even when
     Django sidesteps the Model instance which has a property below and instantiates the Field class
@@ -86,7 +87,7 @@ class DomainManager(models.Manager['Domain']):
         return req_domain
 
 
-class Domain(models.Model):
+class Domain(models.Model):  # type: ignore[django-manager-missing]
     name = models.CharField(max_length=255, unique=True)
     dkimselector = models.CharField(verbose_name="DKIM DNS selector", max_length=255, null=False,
                                     blank=True, default="default")
@@ -98,9 +99,6 @@ class Domain(models.Model):
                                    null=False, blank=True, default="")
 
     objects = DomainManager()
-
-    if TYPE_CHECKING:
-        mnapplication_set: RelatedManager['MNApplication']
 
     def __str__(self) -> str:
         return str(self.name)
@@ -184,7 +182,7 @@ class UnresolvableUserException(Exception):
     pass
 
 
-class MNUserManager(base_user.BaseUserManager):
+class MNUserManager(base_user.BaseUserManager['MNUser']):
     # serializes Manager into migrations. I set this here because it's set on the default UserManager
     use_in_migrations = True
 
@@ -256,7 +254,8 @@ class PasswordMaskMixin:
                 return attr
             else:
                 return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, attr)
-        return attr
+        else:
+            raise ValueError("PasswordMaskMixin._get_sha256_password called on non-string password value: %s" % attr)
 
     def _set_sha256_password(self, value: Any) -> None:
         # pretend to be a standard CharField
@@ -284,7 +283,7 @@ class PasswordMaskMixin:
             return super().__getattribute__(item)
 
 
-class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.PermissionsMixin):
+class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.PermissionsMixin):  # type: ignore[django-manager-missing]
     class Meta(TypedModelMeta):
         verbose_name_plural = "User accounts"
 
@@ -349,7 +348,7 @@ class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.Permissi
         return cast(List[str], [p.permission_name for p in self.get_all_app_permissions()])
 
     def has_app_permission(self, perm: str) -> bool:
-        return perm in self.get_all_app_permissions()
+        return perm in self.get_all_app_permission_strings()
 
     def has_app_permissions(self, perms: Iterable[str]) -> bool:
         return set(self.get_all_app_permission_strings()).issuperset(set(perms))
@@ -385,17 +384,8 @@ class MNServiceUser(PasswordMaskMixin, models.Model):
     def __str__(self) -> str:
         return "%s (%s)" % (self.username, self.user.identifier,)
 
-# fix django-stubs/mypy not recognizing that AbstractApplication is a Model
-# https://github.com/typeddjango/django-stubs/issues/68
-if TYPE_CHECKING:
-    from oauth2_provider.models import AbstractApplication as _AbstractApplication
-    class AbstractApplication(_AbstractApplication, models.Model):
-        pass
-else:
-    from oauth2_provider.models import AbstractApplication
 
-
-class MNApplication(AbstractApplication):
+class MNApplication(oauth2_models.AbstractApplication):  # type: ignore[misc]
     """
     Add permissions to applications. They are permissions that applications are *allowed to request
     as scopes*.
@@ -404,12 +394,12 @@ class MNApplication(AbstractApplication):
     class Meta(TypedModelMeta):
         verbose_name_plural = "OAuth2 Applications"
 
-    pkce_enforced = models.BooleanField(
+    pkce_enforced: models.BooleanField[bool, bool] = models.BooleanField(
         "PKCE Required",
         default=True,
     )
 
-    required_permissions = models.ManyToManyField(
+    required_permissions: models.ManyToManyField[MNApplicationPermission, MNApplicationPermission] = models.ManyToManyField(
         MNApplicationPermission,
         verbose_name="required permissions",
         blank=True,
@@ -418,11 +408,18 @@ class MNApplication(AbstractApplication):
         related_query_name='application',
     )
 
-    domain = models.ForeignKey(Domain, on_delete=models.DO_NOTHING, null=True,
-                               help_text="To enable OpenID Connect, the application must "
-                                         "be connected to (and served under) a domain instance "
-                                         "with a JWT signing key or a parent domain with a "
-                                         "JWT signing key and subdomain signing turned on.")
+    domain: models.ForeignKey[Domain, Domain] = models.ForeignKey(
+        Domain,
+        on_delete=models.DO_NOTHING,
+        null=True,
+        help_text="To enable OpenID Connect, the application must "
+                  "be connected to (and served under) a domain instance "
+                  "with a JWT signing key or a parent domain with a "
+                  "JWT signing key and subdomain signing turned on."
+    )
+
+    if TYPE_CHECKING:
+        user: RelatedManager['MNUser']
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -439,10 +436,10 @@ class MNApplication(AbstractApplication):
         return None
 
     @property
-    def algorithm(self):
+    def algorithm(self) -> str:
         return "RS256"
 
-    def clean(self):
+    def clean(self) -> None:
         from django.core.exceptions import ValidationError
 
         grant_types = (

@@ -94,7 +94,7 @@ class Command(BaseCommand):
             domobj.redirect_to = redirect_to
 
         if jwt_allow_subdomain_signing:
-            domobj.jwt_subdomains = jwt_allow_subdomain_signing == "true"
+            domobj.jwt_subdomains = jwt_allow_subdomain_signing
 
         domobj.save()
         sys.stderr.write("Domain %s edited\n" % domain)
@@ -157,7 +157,7 @@ class Command(BaseCommand):
                     contains, require_jwt_subdomains_set=require_jwt_subdomains)  # type: Optional[Domain]
             except Domain.DoesNotExist:
                 dom = None
-            qs = [dom] if dom is not None else []  # type: Union[QuerySet, List[Domain]]
+            qs = [dom] if dom is not None else []  # type: Union[QuerySet[Domain], List[Domain]]
         elif contains and not include_parent_domain:
             qs = Domain.objects.filter(name__icontains=contains, jwt_subdomains=require_jwt_subdomains)
         else:
@@ -197,7 +197,7 @@ class Command(BaseCommand):
             dest='scmd',
             title="subcommands",
             parser_class=SubCommandParser
-        )  # type: argparse._SubParsersAction
+        )
 
         domain_create = subparsers.add_parser("create", help="Create domain entries")
         domain_create.add_argument("--jwt-allow-subdomain-signing", dest="jwt_allow_subdomain_signing",

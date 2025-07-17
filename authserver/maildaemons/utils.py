@@ -55,7 +55,7 @@ class SMTPWrapper:
 
     def _format_denied_recipients(self, original_mail: bytes, recipients: Sequence[str]) -> bytes:
         parser = BytesParser()
-        msg = parser.parsebytes(original_mail, True)  # type: ignore
+        msg = parser.parsebytes(original_mail, True)
         msg["Subject"] = "[mailforwarder error] Re: %s" % msg["Subject"]
         # this should never be None at this point, but typewise it could be
         msg["To"] = cast(str, msg["From"])
