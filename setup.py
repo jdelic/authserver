@@ -47,10 +47,6 @@ def read_version() -> str:
 
 
 version = read_version()
-if version.endswith(".dev"):
-    _version = "%s%s" % (version, int(time.time()))
-else:
-    _version = version
 
 try:
     long_description = open(os.path.join(_HERE, 'README.rst')).read()
@@ -73,7 +69,7 @@ _root_directory = "authserver"
 
 setup(
     name="net.maurus.authserver",
-    version=_version,
+    version=version,
     packages=_packages,
     package_dir={
         '': _root_directory,
