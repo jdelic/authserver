@@ -159,6 +159,9 @@ OAUTH2_PROVIDER = {
     'OIDC_ENABLED': True,
     'OAUTH2_VALIDATOR_CLASS': 'mailauth.oauth2.ClientPermissionValidator',
     'PKCE_REQUIRED': 'mailauth.oauth2.check_pkce_required',
+    # This is here because django-oauth-toolkit checks for it in oauth2_provider.models, but we provide the keys
+    # from the Domain object associated with the JWT
+    'OIDC_RSA_PRIVATE_KEY': '<unused>',
 }
 
 # we use our own modular crypt format sha256 hasher for maximum compatibility

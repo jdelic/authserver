@@ -423,44 +423,5 @@ class MNApplication(oauth2_models.AbstractApplication):
 
     @property
     def algorithm(self):
-        return "RS256"
-
-    def clean(self):
-        from django.core.exceptions import ValidationError
-
-        grant_types = (
-            oauth2_models.AbstractApplication.GRANT_AUTHORIZATION_CODE,
-            oauth2_models.AbstractApplication.GRANT_IMPLICIT,
-            oauth2_models.AbstractApplication.GRANT_OPENID_HYBRID,
-        )
-        hs_forbidden_grant_types = (
-            oauth2_models.AbstractApplication.GRANT_IMPLICIT,
-            oauth2_models.AbstractApplication.GRANT_OPENID_HYBRID,
-        )
-
-        redirect_uris = self.redirect_uris.strip().split()
-        allowed_schemes = set(s.lower() for s in self.get_allowed_schemes())
-
-        if redirect_uris:
-            validator = oauth2_validators.RedirectURIValidator(oauth2_validators.WildcardSet())
-            for uri in redirect_uris:
-                validator(uri)
-                scheme = urlparse(uri).scheme
-                if scheme not in allowed_schemes:
-                    raise ValidationError(_("Unauthorized redirect scheme: {scheme}").format(scheme=scheme))
-
-        elif self.authorization_grant_type in grant_types:
-            raise ValidationError(
-                _("redirect_uris cannot be empty with grant_type {grant_type}").format(
-                    grant_type=self.authorization_grant_type
-                )
-            )
-
-        if self.algorithm == oauth2_models.AbstractApplication.HS256_ALGORITHM:
-            if any(
-                    (
-                            self.authorization_grant_type in hs_forbidden_grant_types,
-                            self.client_type == oauth2_models.Application.CLIENT_PUBLIC,
-                    )
-            ):
-                raise ValidationError(_("You cannot use HS256 with public grants or clients"))
+        # force RSA, we don't want to use HMACs
+        return self.RS256_ALGORITHM
