@@ -9,6 +9,9 @@ on:
 jobs:
     test:
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            statuses: write
         strategy:
             max-parallel: 4
             matrix:
