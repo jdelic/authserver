@@ -148,7 +148,7 @@ class Command(BaseCommand):
         self.stderr.write(self.style.SUCCESS("Created permission %s (Human readable name: %s)\n") %
                           (scobj.permission_name, scobj.name))
 
-    def _remove(self, permission: str) -> None:
+    def _remove(self, permission: str, **kargs: Any) -> None:
         try:
             models.MNApplicationPermission.objects.filter(permission_name=permission).delete()
         except DatabaseError as e:
