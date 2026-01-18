@@ -15,18 +15,17 @@ class Migration(migrations.Migration):
             model_name='mnapplication',
             name='algorithm',
         ),
-        migrations.RemoveField(
-            model_name='mnapplicationpermission',
-            name='scope_name',
-        ),
         migrations.AddField(
             model_name='mnapplication',
             name='domain',
             field=models.ForeignKey(help_text='To enable OpenID Connect, the application must be connected to (and served under) a domain instance with a JWT signing key or a parent domain with a JWT signing key and subdomain signing turned on.', null=True, on_delete=django.db.models.deletion.DO_NOTHING, to='mailauth.domain'),
         ),
-        migrations.AddField(
+        migrations.RenameField(
+            model_name='mnapplicationpermission', old_name='scope_name', new_name='permission_name'
+        ),
+        migrations.AlterField(
             model_name='mnapplicationpermission',
             name='permission_name',
-            field=models.CharField(max_length=255, null=True, unique=True, verbose_name='Permission identifier'),
+            field=models.CharField(max_length=255, null=False, unique=True, verbose_name='Permission identifier'),
         ),
     ]

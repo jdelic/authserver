@@ -149,7 +149,7 @@ class MNApplicationPermission(models.Model):
         verbose_name_plural = "Application permissions"
 
     name = models.CharField("Human readable name", max_length=255, blank=True, null=False)
-    permission_name = models.CharField("Permission identifier", max_length=255, blank=False, null=True, unique=True)
+    permission_name = models.CharField("Permission identifier", max_length=255, blank=False, null=False, unique=True)
 
     def __str__(self) -> str:
         return "%s (%s)" % (self.name, self.permission_name)
