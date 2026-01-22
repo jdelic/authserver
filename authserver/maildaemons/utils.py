@@ -29,7 +29,8 @@ Sorry, there is nothing I can do about that.
 """
 
 
-AddressTuple = Tuple[Optional[str], Optional[int]]
+AddressTuple = Optional[Union[Tuple[str, int], Tuple[str, int, int, int], str]]
+IPAddressTuple = Union[Tuple[str, int], Tuple[str, int, int, int]]
 
 
 class SMTPWrapper:
@@ -40,18 +41,24 @@ class SMTPWrapper:
     """
     def __init__(self, *,
                  relay: AddressTuple,
-                 error_relay: AddressTuple = (None, None)) -> None:
-        self.external_ip = relay[0]
-        self.external_port = relay[1]
-        self.error_relay_ip = error_relay[0]
-        self.error_relay_port = error_relay[1]
+                 error_relay: AddressTuple = None) -> None:
+        if isinstance(relay, tuple) and len(relay) >= 2:
+            self.external_ip: str = relay[0]
+            self.external_port: int = relay[1]
+
+        if error_relay is not None and isinstance(error_relay, tuple) and len(error_relay) >= 2:
+            self.error_relay_ip: str = error_relay[0]
+            self.error_relay_port: int = error_relay[1]
+
+        if isinstance(relay, str) or isinstance(error_relay, str):
+            raise ValueError("Unix sockets are not supported by this SMTPWrapper.")
 
     def _format_denied_recipients(self, original_mail: bytes, recipients: Sequence[str]) -> bytes:
         parser = BytesParser()
-        msg = parser.parsebytes(original_mail, True)  # type: ignore
+        msg = parser.parsebytes(original_mail, True)
         msg["Subject"] = "[mailforwarder error] Re: %s" % msg["Subject"]
         # this should never be None at this point, but typewise it could be
-        msg["To"] = cast(Union[str, Header], msg["From"])
+        msg["To"] = cast(str, msg["From"])
         msg["From"] = "mailforwarder bounce <>"
 
         rcptlist = ""
@@ -67,6 +74,10 @@ class SMTPWrapper:
         Wraps smtplib.sendmail and handles all the exceptions it can throw.
         :return: a SMTP return string
         """
+        if not self.external_ip or not self.external_port:
+            _log.error("No external relay configured. Cannot send email.")
+            return "421 No external relay configured. Please try again later."
+
         with smtplib.SMTP(self.external_ip, self.external_port) as smtp:
             try:
                 smtp.sendmail(from_addr, to_addrs, msg, mail_options, rcpt_options)
@@ -166,13 +177,13 @@ class SaneSMTPServer:
     server_name: str
     daemon_name: str
 
-    def __init__(self, localaddr: AddressTuple,
+    def __init__(self, localaddr: IPAddressTuple,
                  daemon_name: str, server_name: Optional[str] = None) -> None:
         self._localaddr = localaddr
         self.server_name = socket.gethostname() if server_name is None else server_name
         self.daemon_name = daemon_name
 
-    def add_received_header(self, peer: Tuple[str, int], helo_name: str, msg: bytes) -> bytes:
+    def add_received_header(self, peer: IPAddressTuple, helo_name: str, msg: bytes) -> bytes:
         parser = BytesParser(_class=SaneMessage, policy=_compat32_smtp_policy)
         new_msg = cast(SaneMessage, parser.parsebytes(msg))
         new_msg.prepend_header("Received",

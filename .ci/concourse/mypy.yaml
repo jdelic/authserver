@@ -30,7 +30,7 @@ run:
             virtualenv .env
             .env/bin/python -m pip install -U pip virtualenv setuptools wheel
             .env/bin/pip install -U mypy typing-extensions django-stubs types-cryptography \
-                types-requests types-jwt authserver/;
+                types-requests types-jwt types-hvac types-jwcrypto types-passlib types-psycopg2 authserver/;
             cd authserver;
             ../.env/bin/mypy --ignore-missing-imports --install-types --non-interactive \
                 --follow-imports=skip --disallow-untyped-calls --disallow-untyped-defs \

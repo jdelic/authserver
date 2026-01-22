@@ -35,7 +35,7 @@ class DisplayHiddenInput(forms.HiddenInput):
         return False
 
 
-class MNServiceUserCreationForm(forms.ModelForm):
+class MNServiceUserCreationForm(forms.ModelForm['MNServiceUser']):
     username = forms.CharField(widget=DisplayHiddenInput, initial=uuid.uuid4)
     password = forms.CharField(
         label="Password",
@@ -125,7 +125,7 @@ class RSAKeyWidget(widgets.AdminTextareaWidget):
             if self.show_dkim:
                 ret += format_html("""
 <pre>
-"v=DKIM1\; k=rsa\; p=" {split_key}</pre>
+"v=DKIM1\\; k=rsa\\; p={split_key}</pre>
                 """,
                     split_key="\n".join(
                         ['"%s"' % line for line in
@@ -153,7 +153,7 @@ class ArrayFieldWidget(Select2TagWidget):
         values = super().value_from_datadict(data, files, name)
         return ",".join(values)
 
-    def optgroups(self, name: str, value: Sequence[str], attrs: Dict[str, str] = None) -> \
+    def optgroups(self, name: str, value: Sequence[str], attrs: Optional[Dict[str, str]] = None) -> \
             List[Tuple[Optional[str], List[Dict[str, str]], int]]:
         if value is not None and value:
             values = value[0].split(',') if value[0] else []

@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger import json as jsonlogger
 from typing import Dict, Any
 
 

@@ -156,7 +156,7 @@ class UserLoginAPIView(JWTViewHelperMixin, View):
 
         return _AuthRequest(
             username=username,
-            password=password,
+            password=password if password is not None else "",
             scopes=list(set(scopes)),
         )
 

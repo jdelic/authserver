@@ -1,5 +1,5 @@
 # -* encoding: utf-8 *-
-import uuid
+import uuid as uuidmod
 from urllib.parse import urlparse
 
 from django.contrib.auth import models as auth_models, base_user
@@ -8,9 +8,12 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.postgres.fields.array import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
-from typing import Any, Optional, Set, Iterable, List, cast, Union
+from django.utils.translation import gettext_noop as _
 
-from django.db.models import Manager
+from typing import Any, Optional, Set, Iterable, List, cast, Union, TYPE_CHECKING, Sequence
+
+from django_stubs_ext.db.models.manager import RelatedManager
+from django_stubs_ext.db.models import TypedModelMeta
 from oauth2_provider import models as oauth2_models, validators as oauth2_validators
 from jwcrypto import jwk
 
@@ -24,7 +27,7 @@ from jwcrypto import jwk
 #
 
 
-class PretendHasherPasswordField(models.CharField):
+class PretendHasherPasswordField(models.CharField[str, str]):
     """
     This just makes sure that no mention of sha256_passlib makes it into the database, even when
     Django sidesteps the Model instance which has a property below and instantiates the Field class
@@ -48,7 +51,7 @@ class PretendHasherPasswordField(models.CharField):
             return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, value)
 
 
-class DomainManager(Manager):
+class DomainManager(models.Manager['Domain']):
     def find_parent_domain(self, fqdn: str, require_jwt_subdomains_set: bool = True,
                            require_jwt_key: bool = False) -> 'Domain':
         req_domain = None  # type: Optional[Domain]
@@ -84,16 +87,16 @@ class DomainManager(Manager):
         return req_domain
 
 
-class Domain(models.Model):
+class Domain(models.Model):  # type: ignore[django-manager-missing]
     name = models.CharField(max_length=255, unique=True)
     dkimselector = models.CharField(verbose_name="DKIM DNS selector", max_length=255, null=False,
-                                                      blank=True, default="default")
+                                    blank=True, default="default")
     dkimkey = models.TextField(verbose_name="DKIM private key (PEM)", blank=True)
     jwtkey = models.TextField(verbose_name="JWT signing key (PEM)", blank=True)
     jwt_subdomains = models.BooleanField(verbose_name="Use JWT key to sign for subdomains",
-                                                              default=False)
+                                         default=False)
     redirect_to = models.CharField(verbose_name="Redirect all mail to domain", max_length=255,
-                                                     null=False, blank=True, default="")
+                                   null=False, blank=True, default="")
 
     objects = DomainManager()
 
@@ -111,17 +114,17 @@ class MailingList(models.Model):
 
 
 class EmailAlias(models.Model):
-    class Meta:
+    class Meta(TypedModelMeta):
         unique_together = (('mailprefix', 'domain'),)
         verbose_name_plural = "Email aliases"
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
-                                                          related_name="aliases", null=True, blank=True)
+                             related_name="aliases", null=True, blank=True)
     domain = models.ForeignKey(Domain, verbose_name="On domain",
-                                                                  on_delete=models.CASCADE)
+                               on_delete=models.CASCADE)
     mailprefix = models.CharField("Mail prefix", max_length=255)
     forward_to = models.ForeignKey(MailingList, verbose_name="Forward to list",
-                                                                   on_delete=models.CASCADE, null=True, blank=True)
+                                   on_delete=models.CASCADE, null=True, blank=True)
 
     def clean(self) -> None:
         if hasattr(self, 'forward_to') and self.forward_to is not None \
@@ -144,7 +147,7 @@ class EmailAlias(models.Model):
 
 
 class MNApplicationPermission(models.Model):
-    class Meta:
+    class Meta(TypedModelMeta):
         verbose_name = "application permissions"
         verbose_name_plural = "Application permissions"
 
@@ -156,7 +159,7 @@ class MNApplicationPermission(models.Model):
 
 
 class MNGroup(models.Model):
-    class Meta:
+    class Meta(TypedModelMeta):
         verbose_name = "OAuth2/CAS Groups"
         verbose_name_plural = "OAuth2/CAS Groups"
 
@@ -179,7 +182,7 @@ class UnresolvableUserException(Exception):
     pass
 
 
-class MNUserManager(base_user.BaseUserManager):
+class MNUserManager(base_user.BaseUserManager['MNUser']):
     # serializes Manager into migrations. I set this here because it's set on the default UserManager
     use_in_migrations = True
 
@@ -231,7 +234,10 @@ class MNUserManager(base_user.BaseUserManager):
                 raise UnresolvableUserException() from e
 
             try:
-                user = EmailAlias.objects.get(mailprefix__istartswith=mailprefix, domain__name=domain).user
+                _user = EmailAlias.objects.get(mailprefix__istartswith=mailprefix, domain__name=domain).user
+                if _user is None:
+                    raise UnresolvableUserException("Email alias %s@%s does not belong to a user" % (mailprefix, domain))
+                user = _user
             except EmailAlias.DoesNotExist as e:
                 raise UnresolvableUserException() from e
 
@@ -248,7 +254,8 @@ class PasswordMaskMixin:
                 return attr
             else:
                 return "%s%s" % (UnixCryptCompatibleSHA256Hasher.algorithm, attr)
-        return attr
+        else:
+            raise ValueError("PasswordMaskMixin._get_sha256_password called on non-string password value: %s" % attr)
 
     def _set_sha256_password(self, value: Any) -> None:
         # pretend to be a standard CharField
@@ -276,11 +283,11 @@ class PasswordMaskMixin:
             return super().__getattribute__(item)
 
 
-class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.PermissionsMixin):
-    class Meta:
+class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.PermissionsMixin):  # type: ignore[django-manager-missing]
+    class Meta(TypedModelMeta):
         verbose_name_plural = "User accounts"
 
-    uuid = models.UUIDField("Shareable ID", default=uuid.uuid4, editable=False, primary_key=True)
+    uuid = models.UUIDField("Shareable ID", default=uuidmod.uuid4, editable=False, primary_key=True)
     identifier = models.CharField("User ID", max_length=255, unique=True, db_index=True)
     password = PretendHasherPasswordField("Password", max_length=128)
     fullname = models.CharField("Full name", max_length=255)
@@ -341,13 +348,13 @@ class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.Permissi
         return cast(List[str], [p.permission_name for p in self.get_all_app_permissions()])
 
     def has_app_permission(self, perm: str) -> bool:
-        return perm in self.get_all_app_permissions()
+        return perm in self.get_all_app_permission_strings()
 
     def has_app_permissions(self, perms: Iterable[str]) -> bool:
         return set(self.get_all_app_permission_strings()).issuperset(set(perms))
 
     @property
-    def id(self):
+    def id(self) -> uuidmod.UUID:
         return self.uuid
 
 
@@ -357,12 +364,12 @@ class MNServiceUser(PasswordMaskMixin, models.Model):
     and passwords must be shared with a service that doesn't support OAuth2/OpenID connect or requires
     the Resource Owner flow, but isn't always used from a trustworthy client.
     """
-    class Meta:
+    class Meta(TypedModelMeta):
         verbose_name = "Service User"
         verbose_name_plural = "Service Users"
 
     user = models.ForeignKey(MNUser, on_delete=models.CASCADE, null=False, blank=False)
-    username = models.CharField("Username", default=uuid.uuid4, max_length=64)
+    username = models.CharField("Username", default=uuidmod.uuid4, max_length=64)
     password = PretendHasherPasswordField("Password", max_length=128)
     description = models.CharField(max_length=255, blank=True, null=False, default='')
 
@@ -378,21 +385,21 @@ class MNServiceUser(PasswordMaskMixin, models.Model):
         return "%s (%s)" % (self.username, self.user.identifier,)
 
 
-class MNApplication(oauth2_models.AbstractApplication):
+class MNApplication(oauth2_models.AbstractApplication):  # type: ignore[misc]
     """
     Add permissions to applications. They are permissions that applications are *allowed to request
     as scopes*.
     """
 
-    class Meta:
+    class Meta(TypedModelMeta):
         verbose_name_plural = "OAuth2 Applications"
 
-    pkce_enforced = models.BooleanField(
+    pkce_enforced: models.BooleanField[bool, bool] = models.BooleanField(
         "PKCE Required",
         default=True,
     )
 
-    required_permissions = models.ManyToManyField(
+    required_permissions: models.ManyToManyField[MNApplicationPermission, MNApplicationPermission] = models.ManyToManyField(
         MNApplicationPermission,
         verbose_name="required permissions",
         blank=True,
@@ -401,11 +408,18 @@ class MNApplication(oauth2_models.AbstractApplication):
         related_query_name='application',
     )
 
-    domain = models.ForeignKey(Domain, on_delete=models.DO_NOTHING, null=True,
-                               help_text="To enable OpenID Connect, the application must "
-                                         "be connected to (and served under) a domain instance "
-                                         "with a JWT signing key or a parent domain with a "
-                                         "JWT signing key and subdomain signing turned on.")
+    domain: models.ForeignKey[Domain, Domain] = models.ForeignKey(
+        Domain,
+        on_delete=models.DO_NOTHING,
+        null=True,
+        help_text="To enable OpenID Connect, the application must "
+                  "be connected to (and served under) a domain instance "
+                  "with a JWT signing key or a parent domain with a "
+                  "JWT signing key and subdomain signing turned on."
+    )
+
+    if TYPE_CHECKING:
+        user: RelatedManager['MNUser']
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -422,6 +436,6 @@ class MNApplication(oauth2_models.AbstractApplication):
         return None
 
     @property
-    def algorithm(self):
+    def algorithm(self) -> str:
         # force RSA, we don't want to use HMACs
         return self.RS256_ALGORITHM

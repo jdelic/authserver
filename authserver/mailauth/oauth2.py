@@ -3,6 +3,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from oauth2_provider.oauth2_validators import OAuth2Validator
+from oauthlib.common import Request
 from typing import Any, Dict, List, Union
 
 from mailauth.models import MNApplication, MNUser
@@ -39,13 +40,14 @@ class ClientPermissionValidator(OAuth2Validator):
         res = super().validate_refresh_token(refresh_token, client, request, *args, **kwargs)
         if res:
             # our base validated the refresh token, let's check if the client or user permissions
-            # changed
+            # changed. `super().validate_refresh_token` sets request.user to the user model instance
+            # that is associated with the refresh token.
             missing_permissions = find_missing_permissions(client, request.user)
             return len(missing_permissions) == 0
         else:
             return False
 
-    def get_additional_claims(self, request) -> Dict[str, Union[str, List]]:
+    def get_additional_claims(self, request: AuthenticatedHttpRequest) -> Dict[str, Union[int, bool, str, List[str]]]:
         user = request.user
         _log.debug("Adding id_token claims (%s groups)", user.app_groups.count())
         return {
@@ -61,7 +63,7 @@ class ClientPermissionValidator(OAuth2Validator):
             "aud": "net.maurus.authclient",
         }
 
-    def get_userinfo_claims(self, request):
+    def get_userinfo_claims(self, request: Request):
         cl = super().get_userinfo_claims(request)
         cl.update({
             "user_id": "%s@%s" % (request.user.delivery_mailbox.mailprefix, request.user.delivery_mailbox.domain.name),

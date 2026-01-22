@@ -8,14 +8,14 @@ import os
 import time
 
 from types import FrameType
-from typing import Tuple, Sequence, Any, Union, Optional, List, Dict
-from concurrent.futures import ThreadPoolExecutor as Pool
+from typing import Tuple, Sequence, Any, Union, Optional, List, Dict, cast
+from concurrent.futures import Future, ThreadPoolExecutor as Pool
 
 import daemon
 from django.db.utils import OperationalError
 
 import authserver
-from maildaemons.utils import SMTPWrapper, SaneSMTPServer, AddressTuple
+from maildaemons.utils import SMTPWrapper, SaneSMTPServer, AddressTuple, IPAddressTuple
 from aiosmtpd.smtp import SMTP, Envelope, Session
 from aiosmtpd.controller import Controller
 
@@ -24,7 +24,7 @@ pool = Pool()
 
 
 class ForwarderServer(SaneSMTPServer):
-    def __init__(self, localaddr: AddressTuple, daemon_name: str,
+    def __init__(self, localaddr: IPAddressTuple, daemon_name: str,
                  remote_relay: AddressTuple, local_delivery: AddressTuple,
                  server_name: Optional[str] = None) -> None:
         super().__init__(localaddr, daemon_name, server_name)
@@ -35,8 +35,8 @@ class ForwarderServer(SaneSMTPServer):
 
     # ** must be thread-safe, don't modify shared state,
     # _log should be thread-safe as stated by the docs. Django ORM should be as well.
-    def _process_message(self, peer: AddressTuple, helo_name: str, mailfrom: str,
-                         rcpttos: Sequence[str], data: bytes) -> Optional[str]:
+    def _process_message(self, peer: IPAddressTuple, helo_name: str, mailfrom: str,
+                         rcpttos: Sequence[str], data: bytes) -> str:
         # we can't import the Domain model before Django has been initialized
         from mailauth.models import EmailAlias, Domain
 
@@ -45,7 +45,7 @@ class ForwarderServer(SaneSMTPServer):
         remaining_rcpttos = list(rcpttos)  # ensure that new_rcpttos is a mutable list
         combined_rcptto = {}  # type: Dict[str, List[str]]  # { new_mailfrom: [recipients] }
 
-        def add_rcptto(mfrom: str, rcpt: Union[str, List]) -> None:
+        def add_rcptto(mfrom: str, rcpt: Union[str, List[str]]) -> None:
             if mfrom in combined_rcptto:
                 if isinstance(rcpt, list):
                     combined_rcptto[mfrom] += rcpt
@@ -85,7 +85,7 @@ class ForwarderServer(SaneSMTPServer):
             # follow the same path like the stored procedure authserver_resolve_alias(...)
             if "-" in rcptuser:
                 # convert the first - to a +
-                user_mailprefix = "%s+%s" % tuple(rcptuser.split("-", 1))  # type: ignore
+                user_mailprefix = "%s+%s" % tuple(rcptuser.split("-", 1))
             else:
                 user_mailprefix = rcptuser
 
@@ -141,10 +141,16 @@ class ForwarderServer(SaneSMTPServer):
         return "250 Processing complete."
 
     async def handle_DATA(self, server: SMTP, session: Session, envelope: Envelope, *args: Any,
-                          **kwargs: Any) -> Optional[str]:
-        future = pool.submit(ForwarderServer._process_message, self, session.peer, session.host_name,
-                             envelope.mail_from, envelope.rcpt_tos, envelope.original_content)
-        return future.result().encode("utf-8")
+                          **kwargs: Any) -> str:
+        future: Future[str] = pool.submit(ForwarderServer._process_message, self,
+                                          # this cast is necessary until
+                                          # https://github.com/typeddjango/django-stubs/pull/2742 lands
+                                          cast(IPAddressTuple, session.peer),
+                                          session.host_name if session.host_name is not None else "<nohostname>",
+                                          envelope.mail_from if envelope.mail_from is not None else "<nomailfrom>",
+                                          envelope.rcpt_tos,
+                                          envelope.original_content if envelope.original_content is not None else b"")
+        return future.result()
 
 
 def run(_args: argparse.Namespace) -> None:

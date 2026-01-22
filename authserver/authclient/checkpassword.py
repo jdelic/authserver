@@ -114,8 +114,8 @@ def validate(url: str, username: str, password: Optional[str], jwtkeyfile: str, 
     return False
 
 
-def loadkey(url: str, domain: str=None, jwtkeyfile: str=None, response_format: str="pubkey", check: bool=False,
-            validate_ssl: Union[bool, str]=True) -> None:
+def loadkey(url: str, domain: Optional[str]=None, jwtkeyfile: Optional[str]=None, response_format: str="pubkey",
+            check: bool=False, validate_ssl: Union[bool, str]=True) -> None:
     if jwtkeyfile and jwtkeyfile != "-":
         if os.path.exists(jwtkeyfile):
             sys.stderr.write("Path %s already exists. Doing nothing.\n" % jwtkeyfile)

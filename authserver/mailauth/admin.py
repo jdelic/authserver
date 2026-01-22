@@ -1,5 +1,5 @@
 import urllib.parse
-from typing import Any, Union, Tuple, Dict, Optional
+from typing import Any, Optional, cast
 
 import django.contrib.auth.admin as auth_admin
 import django.contrib.auth.forms as auth_forms
@@ -39,7 +39,7 @@ class MNServiceUserAdmin(admin.ModelAdmin[MNServiceUser]):
 
     fields = ['username', 'password', 'description', 'user']
 
-    def get_form(self, request: Any, obj: MNServiceUser = None, change: bool = False, **kwargs: Any) -> Any:
+    def get_form(self, request: Any, obj: Optional[MNServiceUser] = None, change: bool = False, **kwargs: Any) -> Any:
         """
         Use special form during user creation
         """
@@ -49,7 +49,7 @@ class MNServiceUserAdmin(admin.ModelAdmin[MNServiceUser]):
         defaults.update(kwargs)
         return super().get_form(request, obj, change, **defaults)
 
-    def formfield_for_foreignkey(self, db_field: models.ForeignKey, request: Optional[HttpRequest],
+    def formfield_for_foreignkey(self, db_field: models.ForeignKey, request: HttpRequest,
                                  **kwargs: Any) -> Optional[forms.ModelChoiceField]:
         if db_field.name == "user":
             kwargs['queryset'] = MNUser.objects.exclude(delivery_mailbox__isnull=True)
@@ -66,13 +66,13 @@ class MNUserAdmin(auth_admin.UserAdmin):
                                     'groups', 'user_permissions')}),
         ("Application permissions", {'fields': ('app_permissions', 'app_groups',)}),
         ("Important dates", {'fields': ('last_login',)}),
-    )  # type: Tuple
+    )
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
             'fields': ('identifier', 'password1', 'password2'),
         }),
-    )  # type: Tuple
+    )
     form = MNUserChangeForm
     add_form = MNUserCreationForm
     change_password_form = auth_forms.AdminPasswordChangeForm
@@ -88,7 +88,7 @@ class DomainAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     form = DomainForm
 
-    def response_add(self, request: HttpRequest, obj: Domain, post_url_continue: str = None) -> \
+    def response_add(self, request: HttpRequest, obj: Domain, post_url_continue: Optional[str] = None) -> \
             HttpResponse:
         opts = self.opts
         preserved_filters = self.get_preserved_filters(request)
@@ -109,7 +109,7 @@ class DomainAdmin(admin.ModelAdmin):
                     setattr(obj, key[len("_genkey-"):], generate_rsa_key(2048).private_key)
                     obj.save()
                     msg = format_html(
-                        _('The {name} "{obj}" was changed successfully. You may edit it again below.'),
+                        cast(str, _('The {name} "{obj}" was changed successfully. You may edit it again below.')),
                         **msg_dict
                     )
                     self.message_user(request, msg, messages.SUCCESS)
@@ -136,7 +136,7 @@ class DomainAdmin(admin.ModelAdmin):
                     setattr(obj, key[len("_genkey-"):], generate_rsa_key(2048).private_key)
                     obj.save()
                     msg = format_html(
-                        _('The {name} "{obj}" was changed successfully. You may edit it again below.'),
+                        cast(str, _('The {name} "{obj}" was changed successfully. You may edit it again below.')),
                         **msg_dict
                     )
                     self.message_user(request, msg, messages.SUCCESS)
