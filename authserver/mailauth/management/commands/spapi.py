@@ -56,8 +56,13 @@ class Command(BaseCommand):
                         RETURN QUERY SELECT 'virtmail'::varchar;
                         RETURN;
                     ELSE
-                        RETURN QUERY SELECT ('@' || the_domain.name)::varchar;
-                        RETURN;
+                        IF position('@' in the_domain.redirect_to) > 0 THEN
+                            RETURN QUERY SELECT the_domain.redirect_to::varchar;
+                            RETURN;
+                        ELSE
+                            RETURN QUERY SELECT ('@' || the_domain.name)::varchar;
+                            RETURN;
+                        END IF;
                     END IF;
                 END IF;
 
