@@ -22,18 +22,43 @@ class Command(BaseCommand):
         cur = connection.cursor()  # type: CursorWrapper
         cur.execute("""
             DROP FUNCTION IF EXISTS authserver_resolve_alias(varchar, boolean);
+            DROP FUNCTION IF EXISTS authserver_get_alias(varchar, varchar);
+            CREATE OR REPLACE FUNCTION authserver_get_alias(mailprefix varchar, domain_name varchar)
+                              RETURNS TABLE (id integer, user_id uuid, domain_id integer,
+                                             forward_to_id integer, mailprefix varchar, blacklisted boolean) AS $$
+            BEGIN
+                RETURN QUERY SELECT "alias".id, "alias".user_id, "alias".domain_id,
+                                     "alias".forward_to_id, "alias".mailprefix, "alias".blacklisted
+                    FROM
+                        mailauth_emailalias AS "alias",
+                        mailauth_domain AS "domain"
+                    WHERE
+                        "alias".domain_id="domain".id AND
+                        "alias".mailprefix=mailprefix AND
+                        "domain".name=domain_name;
+            END;
+            $$ LANGUAGE plpgsql SECURITY DEFINER;
             CREATE OR REPLACE FUNCTION authserver_resolve_alias(email varchar,
                                                                 resolve_to_virtmail boolean DEFAULT FALSE)
                               RETURNS TABLE (alias varchar) AS $$
             DECLARE
                 user_mailprefix varchar;
                 user_domain varchar;
+                original_mailprefix varchar;
                 primary_email varchar;
                 the_alias record;
                 the_domain record;
             BEGIN
                 SELECT split_part(email, '@', 1) INTO user_mailprefix;
                 SELECT split_part(email, '@', 2) INTO user_domain;
+                original_mailprefix := user_mailprefix;
+
+                SELECT * INTO the_alias FROM
+                        authserver_get_alias(original_mailprefix, user_domain);
+
+                IF the_alias.blacklisted IS TRUE THEN
+                    RETURN;
+                END IF;
 
                 -- handle dashext by resolving it to plusext
                 IF position('-' in user_mailprefix) > 0 THEN
@@ -44,6 +69,14 @@ class Command(BaseCommand):
                 -- handle plusext by cutting it and querying aliases
                 IF position('+' in user_mailprefix) > 0 THEN
                     user_mailprefix := split_part(user_mailprefix, '+', 1);
+                END IF;
+
+                -- block if the normalized alias is explicitly blacklisted
+                SELECT * INTO the_alias FROM
+                        authserver_get_alias(user_mailprefix, user_domain);
+
+                IF the_alias.blacklisted IS TRUE THEN
+                    RETURN;
                 END IF;
 
                 SELECT domain.* INTO the_domain FROM
@@ -61,13 +94,8 @@ class Command(BaseCommand):
                     END IF;
                 END IF;
 
-                SELECT alias.* INTO the_alias FROM
-                        mailauth_emailalias AS "alias",
-                        mailauth_domain AS "domain"
-                    WHERE
-                        "alias".domain_id="domain".id AND
-                        "alias".mailprefix=user_mailprefix AND
-                        "domain".name=user_domain;
+                SELECT * INTO the_alias FROM
+                        authserver_get_alias(user_mailprefix, user_domain);
 
                 -- check for mailing lists (foreign keys to mailauth_mailinglist)
                 IF the_alias.forward_to_id IS NOT NULL THEN

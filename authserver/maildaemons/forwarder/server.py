@@ -62,6 +62,20 @@ class ForwarderServer(SaneSMTPServer):
             rcptto = rcpttos[ix].lower()
             rcptuser, rcptdomain = rcptto.split("@", 1)
 
+            # Drop explicitly blacklisted full aliases (including dash/plus extensions).
+            try:
+                if EmailAlias.objects.filter(
+                        mailprefix__iexact=rcptuser,
+                        domain__name__iexact=rcptdomain,
+                        blacklisted=True,
+                ).exists():
+                    _log.info("Dropping blacklisted alias <%s> (from: %s)", rcptto, mailfrom)
+                    del remaining_rcpttos[ix]
+                    continue
+            except OperationalError:
+                _log.exception("Database unavailable.")
+                return "421 Processing problem. Please try again later."
+
             # implement domain catch-all redirect
             domain = None  # type: Optional[Domain]
             try:
@@ -92,6 +106,20 @@ class ForwarderServer(SaneSMTPServer):
             if "+" in user_mailprefix:
                 # if we had a dashext, or a plusext, we're left with just the prefix after this
                 user_mailprefix = user_mailprefix.split("+", 1)[0]
+
+            # Drop if the normalized alias is blacklisted.
+            try:
+                if EmailAlias.objects.filter(
+                        mailprefix__iexact=user_mailprefix,
+                        domain__name__iexact=rcptdomain,
+                        blacklisted=True,
+                ).exists():
+                    _log.info("Dropping blacklisted alias <%s> (from: %s)", rcptto, mailfrom)
+                    del remaining_rcpttos[ix]
+                    continue
+            except OperationalError:
+                _log.exception("Database unavailable.")
+                return "421 Processing problem. Please try again later."
 
             try:
                 alias = EmailAlias.objects.get(mailprefix__iexact=user_mailprefix,
