@@ -23,7 +23,7 @@ class Command(BaseCommand):
         cur.execute("""
             DROP FUNCTION IF EXISTS authserver_resolve_alias(varchar, boolean);
             DROP FUNCTION IF EXISTS authserver_get_alias(varchar, varchar);
-            CREATE OR REPLACE FUNCTION authserver_get_alias(mailprefix varchar, domain_name varchar)
+            CREATE OR REPLACE FUNCTION authserver_get_alias(in_mailprefix varchar, in_domain_name varchar)
                               RETURNS TABLE (id integer, user_id uuid, domain_id integer,
                                              forward_to_id integer, mailprefix varchar, blacklisted boolean) AS $$
             BEGIN
@@ -34,8 +34,8 @@ class Command(BaseCommand):
                         mailauth_domain AS "domain"
                     WHERE
                         "alias".domain_id="domain".id AND
-                        "alias".mailprefix=mailprefix AND
-                        "domain".name=domain_name;
+                        "alias".mailprefix=in_mailprefix AND
+                        "domain".name=in_domain_name;
             END;
             $$ LANGUAGE plpgsql SECURITY DEFINER;
             CREATE OR REPLACE FUNCTION authserver_resolve_alias(email varchar,
@@ -71,14 +71,6 @@ class Command(BaseCommand):
                     user_mailprefix := split_part(user_mailprefix, '+', 1);
                 END IF;
 
-                -- block if the normalized alias is explicitly blacklisted
-                SELECT * INTO the_alias FROM
-                        authserver_get_alias(user_mailprefix, user_domain);
-
-                IF the_alias.blacklisted IS TRUE THEN
-                    RETURN;
-                END IF;
-
                 SELECT domain.* INTO the_domain FROM
                         mailauth_domain AS "domain"
                     WHERE
@@ -94,8 +86,17 @@ class Command(BaseCommand):
                     END IF;
                 END IF;
 
+                -- block if the normalized alias is explicitly blacklisted
                 SELECT * INTO the_alias FROM
                         authserver_get_alias(user_mailprefix, user_domain);
+
+                IF the_alias.blacklisted IS TRUE THEN
+                    RETURN;
+                END IF;
+
+                IF NOT FOUND THEN
+                    RETURN;
+                END IF;
 
                 -- check for mailing lists (foreign keys to mailauth_mailinglist)
                 IF the_alias.forward_to_id IS NOT NULL THEN
@@ -110,8 +111,6 @@ class Command(BaseCommand):
                 END IF;
 
                 SELECT primary_alias.mailprefix || '@' || primary_domain.name INTO primary_email FROM
-                        mailauth_emailalias AS "alias",
-                        mailauth_domain AS "domain",
                         mailauth_emailalias AS "primary_alias",
                         mailauth_domain AS "primary_domain",
                         mailauth_mnuser AS "user"
@@ -119,10 +118,7 @@ class Command(BaseCommand):
                         "primary_alias".user_id="user".uuid AND
                         "primary_domain".id="primary_alias".domain_id AND
                         "user".delivery_mailbox_id="primary_alias".id AND
-                        "user".uuid="alias".user_id AND
-                        "alias".domain_id="domain".id AND
-                        "alias".mailprefix=user_mailprefix AND
-                        "domain".name=user_domain AND
+                        "user".uuid=the_alias.user_id AND
                         "user".is_active=TRUE;
 
                 IF primary_email = email AND resolve_to_virtmail IS TRUE THEN
