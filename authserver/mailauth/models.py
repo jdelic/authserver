@@ -125,7 +125,7 @@ class EmailAlias(models.Model):
     domain = models.ForeignKey(Domain, verbose_name="On domain",
                                                                   on_delete=models.CASCADE)
     mailprefix = models.CharField("Mail prefix", max_length=255)
-    blacklisted = models.BooleanField(name="Block email", default=False, help_text="Email to this alias will be rejected.")
+    blacklisted = models.BooleanField(verbose_name="Block email", default=False, help_text="Email to this alias will be rejected.")
     forward_to = models.ForeignKey(MailingList, verbose_name="Forward to list",
                                                                    on_delete=models.CASCADE, null=True, blank=True)
 
