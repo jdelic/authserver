@@ -92,8 +92,13 @@ class Domain(models.Model):
     jwtkey = models.TextField(verbose_name="JWT signing key (PEM)", blank=True)
     jwt_subdomains = models.BooleanField(verbose_name="Use JWT key to sign for subdomains",
                                                               default=False)
-    redirect_to = models.CharField(verbose_name="Redirect all mail to domain or email", max_length=255,
-                                                     null=False, blank=True, default="")
+    redirect_to = models.CharField(
+        verbose_name="Redirect all mail to domain or email",
+        max_length=255,
+        help_text="Put a domain name here to redirect all email addresses to that domain (xyz@domain.com becomes "
+                  "xyz@redirectdomain.com) or put an email address here to redirect all email to that one address "
+                  "(catch-all). Leave empty for no redirection.",
+        null=False, blank=True, default="")
 
     objects = DomainManager()
 
