@@ -1,8 +1,8 @@
 12factor-vault==0.1.23
 aiosmtpd==1.4.6
 # cryptography is an optional dependency of pyjwt for RSA support
-cryptography==46.0.3
-Django==6.0.1
+cryptography==46.0.4
+Django==6.0.2
 django-cors-headers==4.9.0
 django-dbconn-retry==0.1.9
 django-oauth-toolkit==3.2.0
@@ -10,11 +10,11 @@ django-postgresql-setrole==1.0.12
 django-ratelimit==4.1.0
 django-select2==8.4.8
 envdir==1.0.1
-gunicorn==23.0.0
+gunicorn==25.0.1
 hvac==2.4.0
 passlib==1.7.4
 psycopg2-binary==2.9.11
-pyjwt==2.10.1
+pyjwt==2.11.0
 py-consul==1.7.1
 python-json-logger==4.0.0
 requests==2.32.5
@@ -31,12 +31,12 @@ python-daemon==3.1.2
 # vendored dependencies from django12factor
 dj-database-url==3.1.0
 dj-email-url==1.0.6
-django-cache-url==3.4.5
+django-cache-url==3.4.6
 six==1.17.0
 
 # typing extensions (must be installed at runtime because of Django stubs)
-django-stubs==5.2.8
-django-stubs-ext==5.2.8
+django-stubs==5.2.9
+django-stubs-ext==5.2.9
 types-cryptography==3.3.23.2
 types-oauthlib==3.3.0.20250822
 types-requests==2.32.4.20260107

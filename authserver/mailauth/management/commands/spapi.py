@@ -22,18 +22,43 @@ class Command(BaseCommand):
         cur = connection.cursor()  # type: CursorWrapper
         cur.execute("""
             DROP FUNCTION IF EXISTS authserver_resolve_alias(varchar, boolean);
+            DROP FUNCTION IF EXISTS authserver_get_alias(varchar, varchar);
+            CREATE OR REPLACE FUNCTION authserver_get_alias(in_mailprefix varchar, in_domain_name varchar)
+                              RETURNS TABLE (id integer, user_id uuid, domain_id integer,
+                                             forward_to_id integer, mailprefix varchar, blacklisted boolean) AS $$
+            BEGIN
+                RETURN QUERY SELECT "alias".id, "alias".user_id, "alias".domain_id,
+                                     "alias".forward_to_id, "alias".mailprefix, "alias".blacklisted
+                    FROM
+                        mailauth_emailalias AS "alias",
+                        mailauth_domain AS "domain"
+                    WHERE
+                        "alias".domain_id="domain".id AND
+                        "alias".mailprefix=in_mailprefix AND
+                        "domain".name=in_domain_name;
+            END;
+            $$ LANGUAGE plpgsql SECURITY DEFINER;
             CREATE OR REPLACE FUNCTION authserver_resolve_alias(email varchar,
                                                                 resolve_to_virtmail boolean DEFAULT FALSE)
                               RETURNS TABLE (alias varchar) AS $$
             DECLARE
                 user_mailprefix varchar;
                 user_domain varchar;
+                original_mailprefix varchar;
                 primary_email varchar;
                 the_alias record;
                 the_domain record;
             BEGIN
                 SELECT split_part(email, '@', 1) INTO user_mailprefix;
                 SELECT split_part(email, '@', 2) INTO user_domain;
+                original_mailprefix := user_mailprefix;
+
+                SELECT * INTO the_alias FROM
+                        authserver_get_alias(original_mailprefix, user_domain);
+
+                IF the_alias.blacklisted IS TRUE THEN
+                    RETURN;
+                END IF;
 
                 -- handle dashext by resolving it to plusext
                 IF position('-' in user_mailprefix) > 0 THEN
@@ -66,13 +91,17 @@ class Command(BaseCommand):
                     END IF;
                 END IF;
 
-                SELECT alias.* INTO the_alias FROM
-                        mailauth_emailalias AS "alias",
-                        mailauth_domain AS "domain"
-                    WHERE
-                        "alias".domain_id="domain".id AND
-                        "alias".mailprefix=user_mailprefix AND
-                        "domain".name=user_domain;
+                -- block if the normalized alias is explicitly blacklisted
+                SELECT * INTO the_alias FROM
+                        authserver_get_alias(user_mailprefix, user_domain);
+
+                IF the_alias.blacklisted IS TRUE THEN
+                    RETURN;
+                END IF;
+
+                IF NOT FOUND THEN
+                    RETURN;
+                END IF;
 
                 -- check for mailing lists (foreign keys to mailauth_mailinglist)
                 IF the_alias.forward_to_id IS NOT NULL THEN
@@ -87,8 +116,6 @@ class Command(BaseCommand):
                 END IF;
 
                 SELECT primary_alias.mailprefix || '@' || primary_domain.name INTO primary_email FROM
-                        mailauth_emailalias AS "alias",
-                        mailauth_domain AS "domain",
                         mailauth_emailalias AS "primary_alias",
                         mailauth_domain AS "primary_domain",
                         mailauth_mnuser AS "user"
@@ -96,10 +123,7 @@ class Command(BaseCommand):
                         "primary_alias".user_id="user".uuid AND
                         "primary_domain".id="primary_alias".domain_id AND
                         "user".delivery_mailbox_id="primary_alias".id AND
-                        "user".uuid="alias".user_id AND
-                        "alias".domain_id="domain".id AND
-                        "alias".mailprefix=user_mailprefix AND
-                        "domain".name=user_domain AND
+                        "user".uuid=the_alias.user_id AND
                         "user".is_active=TRUE;
 
                 IF primary_email = email AND resolve_to_virtmail IS TRUE THEN

@@ -39,7 +39,7 @@ class JWTViewHelperMixin:
             },
             key=key_pemstr,
             algorithm="RS256",
-        ).decode('utf-8')
+        )
 
         _log.debug("JWT response: %s", jwtstr)
         return jwtstr

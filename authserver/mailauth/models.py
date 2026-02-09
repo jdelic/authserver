@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from typing import Any, Optional, Set, Iterable, List, cast, Union
 
-from django.db.models import Manager
+from django.db.models import Manager, Q
 from oauth2_provider import models as oauth2_models, validators as oauth2_validators
 from jwcrypto import jwk
 
@@ -120,6 +120,7 @@ class EmailAlias(models.Model):
     domain = models.ForeignKey(Domain, verbose_name="On domain",
                                                                   on_delete=models.CASCADE)
     mailprefix = models.CharField("Mail prefix", max_length=255)
+    blacklisted = models.BooleanField(name="Block email", default=False, help_text="Email to this alias will be rejected.")
     forward_to = models.ForeignKey(MailingList, verbose_name="Forward to list",
                                                                    on_delete=models.CASCADE, null=True, blank=True)
 
@@ -205,18 +206,20 @@ class MNUserManager(base_user.BaseUserManager):
         extrafields.setdefault("is_staff", False)
         return self._create_user(identifier, fullname, password, **extrafields)
 
-    def resolve_user(self, username: str) -> 'MNUser':
+    def resolve_user(self, username: str, require_active: bool = True) -> 'MNUser':
         """
         :param username: the username to find
         :raises UnresolvableUserException: When no user can be found
         :return: The user
         """
         if "@" not in username or username.count("@") > 1:
+            query = (Q(user__is_active=True) if require_active else Q()) & Q(username=username)
             try:
-                service_user = MNServiceUser.objects.get(username=username)
+                service_user = MNServiceUser.objects.get(query)
             except (MNServiceUser.DoesNotExist, ValidationError):
+                query = (Q(user__is_active=True) if require_active else Q()) & Q(identifier=username)
                 try:
-                    user = MNUser.objects.get(identifier=username)
+                    user = MNUser.objects.get(query)
                 except MNUser.DoesNotExist as e:
                     raise UnresolvableUserException() from e
             else:
@@ -231,7 +234,7 @@ class MNUserManager(base_user.BaseUserManager):
                 raise UnresolvableUserException() from e
 
             try:
-                user = EmailAlias.objects.get(mailprefix__istartswith=mailprefix, domain__name=domain).user
+                user = EmailAlias.objects.get(mailprefix__iexact=mailprefix, domain__name=domain).user
             except EmailAlias.DoesNotExist as e:
                 raise UnresolvableUserException() from e
 
