@@ -158,6 +158,7 @@ class MailingListAdmin(admin.ModelAdmin):
 @admin.register(EmailAlias)
 class EmailAliasAdmin(admin.ModelAdmin):
     search_fields = ('mailprefix', 'domain__name',)
+    list_filter = ('blacklisted', 'domain',)
 
     def get_user(self, obj: EmailAlias) -> str:
         ret = "[Error: Unassigned]"
@@ -181,7 +182,7 @@ class EmailAliasAdmin(admin.ModelAdmin):
         return "%s@%s" % (obj.mailprefix, obj.domain.name)
     get_mailalias.short_description = "Mail alias"  # type: ignore  # (mypy#708)
 
-    list_display = ('get_mailalias', 'get_user',)
+    list_display = ('get_mailalias', 'get_user', 'blacklisted',)
 
 
 @admin.register(MNApplicationPermission)
