@@ -148,11 +148,18 @@ class MNUserAuthenticationBackend(object):
                 else:
                     _log.debug("Must provide an email address. %s is not an email address", username)
                     return None
+
+                if not user.is_active:
+                    _log.debug("User %s is deactivated", username)
+                    return None
             else:
                 # It's a valid MNServiceUser
                 _log.debug("Logging in service user %s as %s", service_user.username, service_user.user.identifier)
                 tocheck_password = service_user.password
                 user = service_user.user
+
+                if not user.is_active:
+                    _log.debug("User %s for service user %s is deactivated", username, service_user.username)
         else:
             _log.debug("logging in email alias %s", username)
             mailprefix, domain = username.split("@")
@@ -162,7 +169,7 @@ class MNUserAuthenticationBackend(object):
                 return None
 
             try:
-                user = EmailAlias.objects.get(mailprefix__istartswith=mailprefix, domain__name=domain).user
+                user = EmailAlias.objects.get(mailprefix__iexact=mailprefix, domain__name=domain).user
             except EmailAlias.DoesNotExist:
                 return None
             else:
