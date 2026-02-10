@@ -169,7 +169,8 @@ Phase 5: Validation and Transactions
 Phase 6: Test Coverage
 ++++++++++++++++++++++
 
-1. Add command tests for each namespace.
+1. Add command tests for each namespace, including the ones existing before
+   this change.
 2. Cover:
 
    * case-insensitive domain/user resolution,
@@ -181,6 +182,8 @@ Phase 6: Test Coverage
    * relationship and uniqueness constraints.
 
 3. Run project tests relevant to modified command modules.
+4. Extend the GitHub action which starts with an empty authserver database
+   to run through all CRUD management commands (including the existing ones).
 
 Compatibility and Rollout Notes
 -------------------------------
