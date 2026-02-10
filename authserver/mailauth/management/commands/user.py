@@ -207,7 +207,7 @@ class Command(BaseCommand):
 
         self.stderr.write(self.style.SUCCESS("Edited %s user(s)." % len(users)))
 
-    def _set_active(self, active: bool, **options: Any) -> None:
+    def _set_active(self, set_active: bool, **options: Any) -> None:
         users = self._select_users(require_selector=True, **options)
         if not users:
             self.stderr.write("No matching users found.")
@@ -215,11 +215,11 @@ class Command(BaseCommand):
 
         if len(users) > 1 and not options["approved"]:
             self._render(users, "table")
-            if not ask_for_confirmation("Set is_active=%s on %s users? [y/N]" % (str(active), len(users)), default=False):
+            if not ask_for_confirmation("Set is_active=%s on %s users? [y/N]" % (str(set_active), len(users)), default=False):
                 sys.exit(1)
 
         try:
-            models.MNUser.objects.filter(pk__in=[user.pk for user in users]).update(is_active=active)
+            models.MNUser.objects.filter(pk__in=[user.pk for user in users]).update(is_active=set_active)
         except DatabaseError as exc:
             self.stderr.write("Could not update users: %s" % str(exc))
             sys.exit(1)
