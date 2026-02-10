@@ -45,35 +45,36 @@ jobs:
             - name: Run Tests
               run: |
                   mkdir -p .envdir
+                  echo "authserver.settings" > .envdir/DJANGO_SETTINGS_MODULE
                   echo "authserver" > .envdir/DATABASE_NAME
                   echo "authserver" > .envdir/DATABASE_USER
                   echo "authserver" > .envdir/DATABASE_PASSWORD
                   echo "maurus.networks" > .envdir/AUTHSERVER_ENTITY_NAME
                   echo "/static/mn.png" > .envdir/AUTHSERVER_ENTITY_LOGO
-                  envdir .envdir django-admin migrate --settings=authserver.settings
-                  envdir .envdir django-admin domain create smoke.example.com --settings=authserver.settings
-                  envdir .envdir django-admin domain list --format json --settings=authserver.settings
-                  envdir .envdir django-admin group create smokegroup --settings=authserver.settings
-                  envdir .envdir django-admin group list --format json --settings=authserver.settings
-                  envdir .envdir django-admin permissions create --name "Smoke Permission" smoke.permission --settings=authserver.settings
-                  envdir .envdir django-admin permissions list --format json --settings=authserver.settings
-                  envdir .envdir django-admin mailinglist create smokelist first@example.com --settings=authserver.settings
-                  envdir .envdir django-admin mailinglist add-address -m smokelist second@example.com --settings=authserver.settings
-                  envdir .envdir django-admin user create smoke-user "Smoke User" --password smoke123 --settings=authserver.settings
-                  envdir .envdir django-admin emailalias create smoke-user@smoke.example.com -u smoke-user --settings=authserver.settings
-                  envdir .envdir django-admin emailalias create smoke-user-temp@smoke.example.com -u smoke-user --settings=authserver.settings
-                  envdir .envdir django-admin user set-delivery-mailbox smoke-user smoke-user@smoke.example.com --settings=authserver.settings
-                  envdir .envdir django-admin serviceuser create -u smoke-user --username smoke-svc --password smoke123 --settings=authserver.settings
-                  envdir .envdir django-admin emailalias blacklist smoke-user-temp@smoke.example.com --settings=authserver.settings
-                  envdir .envdir django-admin emailalias unblacklist smoke-user-temp@smoke.example.com --settings=authserver.settings
-                  envdir .envdir django-admin dockerauth registry create --client-id smoke-reg --name smoke-reg --domain smoke.example.com --settings=authserver.settings
-                  envdir .envdir django-admin dockerauth registry show --name smoke-reg --settings=authserver.settings
-                  envdir .envdir django-admin dockerauth registry remove --name smoke-reg -y --settings=authserver.settings
-                  envdir .envdir django-admin serviceuser remove smoke-svc -y --settings=authserver.settings
-                  envdir .envdir django-admin emailalias remove smoke-user-temp@smoke.example.com -y --settings=authserver.settings
-                  envdir .envdir django-admin user deactivate smoke-user -y --settings=authserver.settings
-                  envdir .envdir django-admin mailinglist remove smokelist -y --settings=authserver.settings
-                  envdir .envdir django-admin permissions remove smoke.permission --settings=authserver.settings
-                  envdir .envdir django-admin group remove smokegroup --settings=authserver.settings
-                  envdir .envdir django-admin collectstatic --noinput --settings=authserver.settings
-                  envdir .envdir django-admin test --settings=authserver.settings authserver.tests mailauth.tests
+                  envdir .envdir django-admin migrate
+                  envdir .envdir django-admin domain create smoke.example.com
+                  envdir .envdir django-admin domain list --format json
+                  envdir .envdir django-admin group create smokegroup
+                  envdir .envdir django-admin group list --format json
+                  envdir .envdir django-admin permissions create --name "Smoke Permission" smoke.permission
+                  envdir .envdir django-admin permissions list --format json
+                  envdir .envdir django-admin mailinglist create smokelist first@example.com
+                  envdir .envdir django-admin mailinglist add-address -m smokelist second@example.com
+                  envdir .envdir django-admin user create smoke-user "Smoke User" --password smoke123
+                  envdir .envdir django-admin emailalias create smoke-user@smoke.example.com -u smoke-user
+                  envdir .envdir django-admin emailalias create smoke-user-temp@smoke.example.com -u smoke-user
+                  envdir .envdir django-admin user set-delivery-mailbox smoke-user smoke-user@smoke.example.com
+                  envdir .envdir django-admin serviceuser create -u smoke-user --username smoke-svc --password smoke123
+                  envdir .envdir django-admin emailalias blacklist smoke-user-temp@smoke.example.com
+                  envdir .envdir django-admin emailalias unblacklist smoke-user-temp@smoke.example.com
+                  envdir .envdir django-admin dockerauth registry create --client-id smoke-reg --name smoke-reg --domain smoke.example.com
+                  envdir .envdir django-admin dockerauth registry show --name smoke-reg
+                  envdir .envdir django-admin dockerauth registry remove --name smoke-reg -y
+                  envdir .envdir django-admin serviceuser remove smoke-svc -y
+                  envdir .envdir django-admin emailalias remove smoke-user-temp@smoke.example.com -y
+                  envdir .envdir django-admin user deactivate smoke-user -y
+                  envdir .envdir django-admin mailinglist remove smokelist -y
+                  envdir .envdir django-admin permissions remove smoke.permission
+                  envdir .envdir django-admin group remove smokegroup
+                  envdir .envdir django-admin collectstatic --noinput
+                  envdir .envdir django-admin test authserver.tests mailauth.tests
