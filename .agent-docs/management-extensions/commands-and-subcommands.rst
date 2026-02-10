@@ -18,7 +18,6 @@ When these options exist in a command, provide both long and short forms:
 * ``--domain`` / ``-d``
 * ``--mailing-list`` / ``-m``
 * ``--format`` / ``-f``
-* ``--force`` / ``-F``
 * ``--yes`` / ``-y``
 * ``--contains`` / ``-c``
 * ``--output`` / ``-o``
@@ -28,7 +27,7 @@ Core Principles
 
 * Domain matching is case-insensitive.
 * Mutating operations support match review and confirmation.
-* ``--force`` bypasses confirmation where applicable.
+* ``--yes`` bypasses confirmation where applicable.
 * Output-capable commands support ``--format table|json``.
 * Shared selectors keep the same semantics across namespaces.
 
@@ -62,14 +61,14 @@ edit
 * selector filters and target reassignment
 * blacklist toggles
 * optional mailprefix/domain move
-* multi-match safety with confirmation or ``--force/-F``
+* multi-match safety with confirmation or ``--yes/-y``
 
 remove
 ++++++
 
 * selector filters
 * shows all matches and confirms by default
-* bypass with ``--force/-F`` or ``--yes/-y``
+* bypass with ``--yes/-y``
 
 blacklist
 +++++++++
@@ -83,7 +82,7 @@ unblacklist
 +++++++++++
 
 * convenience operation for setting ``blacklisted=False``
-* selector filters + confirmation/force behavior
+* selector filters + confirmation/yes behavior
 
 ``mailinglist`` Subcommands
 ---------------------------
@@ -111,7 +110,7 @@ edit
 remove
 ++++++
 
-* remove one/more lists with confirmation defaults and ``--force/-F``
+* remove one/more lists with confirmation defaults and ``--yes/-y``
 
 add-address
 +++++++++++
@@ -205,11 +204,12 @@ Batch and Selector Rules
 * Prefer explicit selectors for single-object edits.
 * Allow filter selectors for review and bulk operations.
 * Any multi-match destructive/mutating action must display affected objects
-  and require confirmation unless forced.
+  and require confirmation unless ``--yes`` is provided.
 
 Safety Rules
 ------------
 
-* Destructive operations with possible multiple matches prompt unless forced.
+* Destructive operations with possible multiple matches prompt unless
+  ``--yes`` is provided.
 * Mutations on multiple rows print affected rows first.
 * Ambiguous/empty target resolution exits non-zero with actionable stderr.
