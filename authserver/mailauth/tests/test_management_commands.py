@@ -1,5 +1,6 @@
 import json
 from io import StringIO
+from contextlib import redirect_stdout
 
 from django.core.management import call_command
 from django.test import TestCase
@@ -19,7 +20,8 @@ class EmailAliasCommandTests(TestCase):
     def test_create_and_list_json(self) -> None:
         call_command("emailalias", "create", "alice@example.com", "-u", "alice")
         out = StringIO()
-        call_command("emailalias", "list", "-f", "json", stdout=out)
+        with redirect_stdout(out):
+            call_command("emailalias", "list", "-f", "json")
         payload = json.loads(out.getvalue())
         self.assertEqual(1, len(payload))
         self.assertEqual("alice@example.com", payload[0]["alias"])
@@ -69,7 +71,8 @@ class ServiceUserCommandTests(TestCase):
         self.assertTrue(stdout.getvalue().strip())
 
         out = StringIO()
-        call_command("serviceuser", "list", "-f", "json", stdout=out)
+        with redirect_stdout(out):
+            call_command("serviceuser", "list", "-f", "json")
         payload = json.loads(out.getvalue())
         self.assertEqual(1, len(payload))
         self.assertEqual("svc-charlie", payload[0]["username"])
