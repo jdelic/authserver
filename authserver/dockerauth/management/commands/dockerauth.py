@@ -75,7 +75,7 @@ class Command(BaseCommand):
                                        help="Delete the registry with this name.")
         reg_remove_parser.add_argument("--client-id", dest="client_id", default=None,
                                        help="Delete the registry with this client_id.")
-        reg_remove_parser.add_argument("--force", dest="force", action="store_true", default=False,
+        reg_remove_parser.add_argument("-y", "--yes", dest="approved", action="store_true", default=False,
                                        help="Do not ask for confirmation.")
 
         reg_list_parser = reg_subparser.add_parser("list", help="List Docker registries")
@@ -202,7 +202,7 @@ class Command(BaseCommand):
             result = input("Please answer yes or no: ")
         return result[0].lower() == "y"
 
-    def _remove_registry(self, name: Optional[str]=None, client_id: Optional[str]=None, force: bool=False) -> None:
+    def _remove_registry(self, name: Optional[str]=None, client_id: Optional[str]=None, approved: bool=False) -> None:
         query = Q()
         if name:
             query |= Q(name__exact=name)
@@ -219,7 +219,7 @@ class Command(BaseCommand):
         else:
             self.stdout.write("\nRegistry-----------\nName:      %s\nClient id: %s\n\n" %
                               (registry[0].name, registry[0].client_id))
-            if force or self._ask_confirmation("Really delete the above registry? [yN]", default=False):
+            if approved or self._ask_confirmation("Really delete the above registry? [yN]", default=False):
                 regname = registry[0].name
                 registry.delete()
                 self.stderr.write(self.style.SUCCESS("Removed docker registry \"%s\"." % regname))
@@ -247,10 +247,10 @@ class Command(BaseCommand):
                                       unauthenticated_pull=options["unauthenticated_pull"],
                                       unauthenticated_push=options["unauthenticated_push"])
             elif options["subcommand"] == "remove":
-                if "name" not in options and "client_id" not in options:
+                if not options["name"] and not options["client_id"]:
                     self.stderr.write("You have to provide at least ONE of --name or --client-id or both.")
                     sys.exit(1)
-                self._remove_registry(options["name"], options["client_id"], options["force"])
+                self._remove_registry(options["name"], options["client_id"], options["approved"])
             if "accesssubcmd" in options:
                 if options["accesssubcmd"] == "user":
                     pass
