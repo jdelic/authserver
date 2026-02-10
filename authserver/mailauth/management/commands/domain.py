@@ -216,7 +216,7 @@ class Command(BaseCommand):
         domain_remove = subparsers.add_parser("remove", help="Remove domain entries")
         domain_remove.add_argument("--remove-multiple", dest="delete_multiple", action="store_true", default=False,
                                    help="If multiple domains are matched, remove all of them")
-        domain_remove.add_argument("--yes", dest="approved", action="store_true", default=False,
+        domain_remove.add_argument("-y", "--yes", dest="approved", action="store_true", default=False,
                                    help="Do not ask for confirmation on removal")
         domain_remove.add_argument("contains",
                                    help="A string matching the domain(s) to remove")

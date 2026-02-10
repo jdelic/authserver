@@ -71,7 +71,12 @@ class Command(BaseCommand):
 
     def _remove(self, groupname: str, **kwargs: Any) -> None:
         try:
-            group = MNGroup.objects.get(Q(pk=groupname) | Q(name=groupname))
+            try:
+                group_id = int(groupname)
+            except ValueError:
+                group = MNGroup.objects.get(name=groupname)
+            else:
+                group = MNGroup.objects.get(Q(pk=group_id) | Q(name=groupname))
             group.delete()
         except MNGroup.DoesNotExist:
             sys.stderr.write("Group with name or id %s not found" % groupname)
