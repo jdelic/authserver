@@ -1,10 +1,27 @@
-EmailAlias Command Surface
-==========================
+Management Extension Command Surface
+===================================
 
-Namespace
----------
+Namespaces
+----------
 
 * ``django-admin emailalias <subcommand> [options]``
+* ``django-admin mailinglist <subcommand> [options]``
+* ``django-admin user <subcommand> [options]``
+* ``django-admin serviceuser <subcommand> [options]``
+
+Cross-Command Option Convention
+-------------------------------
+
+When these options exist in a command, provide both long and short forms:
+
+* ``--user`` / ``-u``
+* ``--domain`` / ``-d``
+* ``--mailing-list`` / ``-m``
+* ``--format`` / ``-f``
+* ``--force`` / ``-F``
+* ``--yes`` / ``-y``
+* ``--contains`` / ``-c``
+* ``--output`` / ``-o``
 
 Core Principles
 ---------------
@@ -13,183 +30,186 @@ Core Principles
 * Mutating operations support match review and confirmation.
 * ``--force`` bypasses confirmation where applicable.
 * Output-capable commands support ``--format table|json``.
+* Shared selectors keep the same semantics across namespaces.
 
-Subcommands to Implement
-------------------------
+``emailalias`` Subcommands
+--------------------------
 
 list
 ++++
 
-Purpose:
-
-* List aliases with optional filtering.
-
-Primary options:
-
-* ``--format {table,json}``
-* ``--domain <fqdn>`` (case-insensitive exact)
-* ``--contains <substring>`` (address/mailprefix search)
-* ``--user <identifier|email>``
-* ``--mailing-list <id|name>``
-* ``--blacklisted``
-* ``--not-blacklisted``
-
-Behavior:
-
-* Returns all matching aliases.
-* Table output includes alias, target type, target id/name, blacklisted, pk.
+* filters: ``--domain/-d``, ``--contains/-c``, ``--user/-u``,
+  ``--mailing-list/-m``, blacklist filters
+* output: ``--format/-f``
 
 show
 ++++
 
-Purpose:
-
-* Show one or more aliases matching explicit selectors.
-
-Primary options:
-
-* ``--format {table,json}``
-* selector arguments (address and/or filter-based)
-
-Behavior:
-
-* Similar to ``list`` but optimized for explicit lookup and detailed fields.
+* explicit selector lookup with detailed fields
+* output: ``--format/-f``
 
 create
 ++++++
 
-Purpose:
-
-* Create alias entries.
-
-Primary arguments/options:
-
-* positional alias address (``local@domain``) or explicit
-  ``--mailprefix`` + ``--domain``.
-* exactly one target:
-
-  * ``--user <identifier|primary delivery email>``, or
-  * ``--mailing-list <id|name>``
-
-* optional ``--blacklisted``.
-
-Behavior:
-
-* Validates uniqueness and target exclusivity.
-* Emits created object summary.
+* alias selector: positional ``local@domain`` or
+  ``--mailprefix`` + ``--domain/-d``
+* target (exactly one): ``--user/-u`` or ``--mailing-list/-m``
+* optional: blacklist on create
 
 edit
 ++++
 
-Purpose:
-
-* Modify alias fields/target.
-
-Primary options:
-
-* selector arguments to find candidate aliases.
-* mutations:
-
-  * ``--user <...>``
-  * ``--mailing-list <...>``
-  * ``--set-blacklisted``
-  * ``--unset-blacklisted``
-  * optional rename/move via ``--mailprefix`` and/or ``--domain``.
-
-* ``--force`` for applying to multiple matches without prompt.
-
-Behavior:
-
-* Shows matched rows and prompts before multi-object edits unless ``--force``.
-* Enforces model constraints and uniqueness.
+* selector filters and target reassignment
+* blacklist toggles
+* optional mailprefix/domain move
+* multi-match safety with confirmation or ``--force/-F``
 
 remove
 ++++++
 
-Purpose:
-
-* Delete aliases.
-
-Primary options:
-
-* selector arguments.
-* ``--force``.
-
-Behavior:
-
-* Shows all matches.
-* Prompts for confirmation by default.
-* Deletes all confirmed matches (or exits if aborted).
+* selector filters
+* shows all matches and confirms by default
+* bypass with ``--force/-F`` or ``--yes/-y``
 
 blacklist
 +++++++++
 
-Purpose:
-
-* Convenience workflow to create/update aliases for blocked delivery.
-
-Primary options:
-
-* ``--user <identifier|primary delivery email>`` (as requested workflow)
-* alias address selector (for existing alias or create-if-missing mode)
-* ``--create-if-missing`` (or equivalent explicit behavior flag)
-* ``--force`` for multi-match actions.
-
-Behavior:
-
-* Sets ``blacklisted=True``.
-* Preserves/validates alias target relation.
-* If creating, requires enough data to satisfy model constraint.
+* convenience operation for setting ``blacklisted=True``
+* supports requested workflow:
+  ``django-admin emailalias blacklist --user/-u <identifier|primary delivery email> <alias>``
+* optional create-if-missing semantics
 
 unblacklist
 +++++++++++
 
-Purpose:
+* convenience operation for setting ``blacklisted=False``
+* selector filters + confirmation/force behavior
 
-* Clear blacklist flag for matching aliases.
+``mailinglist`` Subcommands
+---------------------------
 
-Primary options:
+create
+++++++
 
-* selector arguments.
-* ``--force``.
+* create mailing list with name and optional initial addresses
 
-Behavior:
+list
+++++
 
-* Sets ``blacklisted=False`` after optional confirmation.
+* list mailing lists with filters and ``--format/-f``
 
-Batch-Friendly Extensions (v1 where applicable)
-------------------------------------------------
+show
+++++
 
-For commands where repeated values are operationally useful:
+* show mailing list details including addresses
 
-* accept repeated flags (for example multiple selectors), and/or
-* accept stdin list input for selectors via ``-`` sentinel.
+edit
+++++
 
-Candidates:
+* rename list and/or update metadata
 
-* ``remove`` multi-selector deletes,
-* ``blacklist``/``unblacklist`` repeated alias addresses,
-* future ``mailinglist`` command family for adding many destination addresses.
+remove
+++++++
 
-Suggested Selector Conventions
-------------------------------
+* remove one/more lists with confirmation defaults and ``--force/-F``
 
-Preferred explicit selector forms:
+add-address
++++++++++++
 
-* positional ``alias`` as ``local@domain``.
-* ``--mailprefix`` + ``--domain``.
-* filter selectors for bulk:
+* add one or more addresses to a list
+* batch input support:
 
-  * ``--contains``
-  * ``--domain``
-  * ``--user``
-  * ``--mailing-list``
+  * repeated arguments
+  * stdin list mode via ``-``
+
+remove-address
+++++++++++++++
+
+* remove one or more addresses from a list
+* supports batch input
+
+set-addresses
++++++++++++++
+
+* replace list addresses atomically from args/stdin
+
+``user`` Subcommands
+--------------------
+
+create
+++++++
+
+* create ``MNUser`` with required fields and optional password input mode
+
+list
+++++
+
+* list users with filters and ``--format/-f``
+
+show
+++++
+
+* show user details and key relationships (delivery mailbox, status)
+
+edit
+++++
+
+* update fullname/identifier and other mutable fields
+
+activate / deactivate
++++++++++++++++++++++
+
+* toggle ``is_active``
+
+set-delivery-mailbox
+++++++++++++++++++++
+
+* set/replace delivery mailbox alias with integrity checks
+
+remove
+++++++
+
+* remove/decommission user with confirmation defaults
+
+``serviceuser`` Subcommands
+---------------------------
+
+create
+++++++
+
+* create ``MNServiceUser`` linked to ``--user/-u`` target
+
+list
+++++
+
+* list service users with filters and ``--format/-f``
+
+show
+++++
+
+* show service user details and linked user
+
+edit
+++++
+
+* update mutable service user properties (for example username/password flow)
+
+remove
+++++++
+
+* remove service user with confirmation defaults
+
+Batch and Selector Rules
+------------------------
+
+* Prefer explicit selectors for single-object edits.
+* Allow filter selectors for review and bulk operations.
+* Any multi-match destructive/mutating action must display affected objects
+  and require confirmation unless forced.
 
 Safety Rules
 ------------
 
-* Any destructive operation with potentially multiple matches prompts unless
-  ``--force``.
-* Any mutation targeting multiple aliases should print affected aliases before
-  applying changes.
-* Ambiguous/empty target resolution exits non-zero with actionable error text.
+* Destructive operations with possible multiple matches prompt unless forced.
+* Mutations on multiple rows print affected rows first.
+* Ambiguous/empty target resolution exits non-zero with actionable stderr.

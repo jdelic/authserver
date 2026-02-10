@@ -1,30 +1,36 @@
-Management Extensions: EmailAlias Implementation Plan
-======================================================
+Management Extensions Implementation Plan
+========================================
 
 Context
 -------
 
 This repository already provides multiple Django management command namespaces
 (``oauth2``, ``permissions``, ``group``, ``domain``, ``spapi``, ``dockerauth``)
-with subcommand-based CLIs. ``mailauth.models.EmailAlias`` is a key model for
-mail routing and authentication behavior, but it does not currently have an
-administrative command namespace.
+with subcommand-based CLIs. Core mailauth administration still has gaps:
+
+* ``EmailAlias`` management is missing.
+* ``MailingList`` management is missing.
+* ``MNUser``/``MNServiceUser`` operational management is limited.
 
 Goal
 ----
 
-Add a new top-level command namespace:
+Add/extend top-level management command namespaces for core identity and mail
+routing administration:
 
 * ``django-admin emailalias ...``
+* ``django-admin mailinglist ...``
+* ``django-admin user ...``
+* ``django-admin serviceuser ...``
 
-The command family must support practical administration workflows for
-``EmailAlias`` records, with behavior aligned to existing command style while
-respecting model constraints.
+The command families must support practical administration workflows while
+respecting existing model constraints and command style.
 
 Model Constraints to Preserve
 -----------------------------
 
-From ``mailauth.models.EmailAlias``:
+``EmailAlias``
+++++++++++++++
 
 * ``(mailprefix, domain)`` is unique.
 * An alias must point to exactly one target type:
@@ -34,137 +40,158 @@ From ``mailauth.models.EmailAlias``:
 
 * Setting both ``user`` and ``forward_to`` is invalid.
 * Setting neither is invalid.
-* ``blacklisted`` toggles SMTP resolution behavior in ``spapi`` logic.
+* ``blacklisted`` affects SMTP resolution behavior in ``spapi`` functions.
 
-Design Decisions (Confirmed)
-----------------------------
+``MNUser`` / ``MNServiceUser``
+++++++++++++++++++++++++++++++
 
-* New command namespace (not nested under another command): ``emailalias``.
-* Case-insensitive domain resolution everywhere.
-* Matching-friendly operations should support multiple matches, with safer
-  defaults that ask for confirmation for destructive changes.
-* ``--force`` style bypass for confirmations on destructive/bulk operations.
-* ``list``/``show`` style output should support both table and JSON formats.
-* Blacklisting should be available in v1 workflows.
-* Batch operations are appropriate where input naturally supports it.
+* ``MNUser.identifier`` is unique.
+* ``MNUser.delivery_mailbox`` is a critical relationship used by auth/spapi.
+* ``MNServiceUser`` must resolve unambiguously to a backing ``MNUser``.
+
+``MailingList``
++++++++++++++++
+
+* Address membership should support operator-friendly batch input workflows.
+* Relationship consistency with ``EmailAlias.forward_to`` must be preserved.
+
+CLI Design Decisions (Confirmed)
+--------------------------------
+
+* New command namespaces are preferred where functionality does not exist.
+* Domain resolution should be case-insensitive everywhere.
+* Matching-friendly operations can return multiple results.
+* Destructive or broad updates should confirm by default.
+* ``--force`` bypasses confirmation.
+* ``list``/``show`` style output supports ``table`` and ``json``.
+* Blacklisting workflows are first-class in ``emailalias``.
+* Commonly reused options should expose consistent short forms.
+
+Option Normalization Standard
+-----------------------------
+
+For selector/parameter options shared across command families, use consistent
+long and short forms whenever the option exists in a command:
+
+* ``--user`` / ``-u``
+* ``--domain`` / ``-d``
+* ``--mailing-list`` / ``-m``
+* ``--format`` / ``-f``
+* ``--force`` / ``-F``
+* ``--yes`` / ``-y`` (if a command uses yes/no confirmation semantics)
+* ``--contains`` / ``-c``
+* ``--output`` / ``-o`` (where output path/file is supported)
+
+If an option name exists in multiple namespaces, it should retain the same
+meaning and short flag mapping.
 
 Implementation Phases
 ---------------------
 
-Phase 1: Command Skeleton and Shared Resolvers
-++++++++++++++++++++++++++++++++++++++++++++++
+Phase 1: Command Skeletons and Shared Resolvers
++++++++++++++++++++++++++++++++++++++++++++++++
 
-1. Create ``authserver/mailauth/management/commands/emailalias.py``.
-2. Add subparser wiring and consistent help text patterns.
-3. Add resolver helpers for:
+1. Add command modules:
 
-   * domain (case-insensitive by name),
+   * ``authserver/mailauth/management/commands/emailalias.py``
+   * ``authserver/mailauth/management/commands/mailinglist.py``
+   * ``authserver/mailauth/management/commands/user.py``
+   * ``authserver/mailauth/management/commands/serviceuser.py``
+
+2. Add shared resolver helpers (in-module or shared utility) for:
+
+   * domain (case-insensitive),
    * user (identifier or resolvable mailbox),
+   * service user,
    * mailing list (id or name),
-   * alias selector parsing.
+   * alias parser (``local@domain`` and explicit parts).
 
-4. Add table formatting utility use via existing
-   ``mailauth.management.commands._common.table_left_format_str``.
+3. Apply consistent parser construction and help text style from existing
+   commands.
 
 Phase 2: Read Operations
 ++++++++++++++++++++++++
 
-1. Implement ``list`` with filters and output modes:
+1. Implement ``list`` and ``show`` across namespaces with:
 
-   * table (default),
-   * json.
+   * ``--format``/``-f`` ``table|json``,
+   * filter selectors with normalized short flags,
+   * deterministic output columns and JSON payload fields.
 
-2. Implement matching behavior that can return multiple aliases.
-3. Include fields needed for operations review:
-
-   * alias address,
-   * target type/value,
-   * blacklisted state,
-   * primary key.
+2. Include ids and key relation fields in outputs so operators can safely chain
+   mutations.
 
 Phase 3: Create and Update Operations
 +++++++++++++++++++++++++++++++++++++
 
-1. Implement ``create`` with explicit target arguments and validation:
+1. ``emailalias``:
 
-   * ``--user`` or ``--mailing-list`` (mutually exclusive),
-   * ``--blacklisted`` optional,
-   * domain/name parsing from full email alias input.
+   * create/edit/remove,
+   * blacklist/unblacklist convenience,
+   * target exclusivity enforcement.
 
-2. Implement ``edit`` for selected aliases:
+2. ``mailinglist``:
 
-   * switch target (user vs mailing list) with exclusivity,
-   * set/unset blacklist,
-   * optional mailprefix/domain move when non-conflicting.
+   * create/list/show/edit/remove,
+   * address membership add/remove/set operations,
+   * batch address input via repeated args and stdin list mode.
 
-3. Enforce uniqueness conflicts and model validation errors with clear stderr
-   messages and non-zero exits.
+3. ``user``:
 
-Phase 4: Destructive and Policy Workflows
-+++++++++++++++++++++++++++++++++++++++++
+   * create/list/show/edit/remove,
+   * activation toggles,
+   * delivery mailbox management with validation.
 
-1. Implement ``remove`` with match query support.
-2. Default behavior:
+4. ``serviceuser``:
 
-   * display matching aliases,
-   * request confirmation before delete when one or more matches are found.
+   * create/list/show/remove,
+   * password/update helpers as needed for operations.
 
-3. ``--force`` bypasses prompt.
-4. Add explicit ``blacklist`` and ``unblacklist`` convenience subcommands for
-   common operational workflows.
+Phase 4: Destructive/Bulk Safety and UX
++++++++++++++++++++++++++++++++++++++++
 
-Phase 5: Batch-Friendly Inputs
-++++++++++++++++++++++++++++++
+1. Mutating commands that affect multiple rows:
 
-1. For workflows where batching is useful, support:
+   * print matched records,
+   * prompt for confirmation by default,
+   * allow bypass with ``--force``/``-F`` or ``--yes``/``-y`` as applicable.
 
-   * repeated command arguments, and/or
-   * reading newline-delimited values from stdin (``-`` convention) where
-     practical and explicit.
+2. Ensure empty/ambiguous selectors return non-zero and actionable stderr.
 
-2. Keep object creation semantics explicit so operators must provide enough
-   information for each alias target relation.
+Phase 5: Validation and Transactions
+++++++++++++++++++++++++++++++++++++
 
-Phase 6: Validation and Test Coverage
-+++++++++++++++++++++++++++++++++++++
+1. Enforce model ``clean()`` and uniqueness behavior before commit.
+2. Use transactions for multi-step updates to avoid partial state.
+3. Keep stderr/stdout conventions aligned with existing command modules.
 
-1. Add command tests under an appropriate tests module (likely in
-   ``authserver/mailauth/tests`` if present, otherwise create one).
+Phase 6: Test Coverage
+++++++++++++++++++++++
+
+1. Add command tests for each namespace.
 2. Cover:
 
-   * case-insensitive domain resolution,
-   * user/list target exclusivity,
-   * uniqueness collision handling,
-   * confirmation and ``--force`` behavior,
-   * json/table outputs,
-   * blacklist toggling.
+   * case-insensitive domain/user resolution,
+   * short/long option parity,
+   * multi-match confirmation flow,
+   * ``--force`` bypass behavior,
+   * JSON/table outputs,
+   * batch input handling,
+   * relationship and uniqueness constraints.
 
-3. Run available test suite for changed scope.
-
-Error Handling and Exit Semantics
----------------------------------
-
-Follow existing command conventions:
-
-* write actionable operator messages to stderr,
-* return non-zero exit on validation/DB errors,
-* avoid partial writes by using transactions for multi-step mutations.
+3. Run project tests relevant to modified command modules.
 
 Compatibility and Rollout Notes
 -------------------------------
 
-* No schema changes are required for command introduction.
-* Command behavior should remain scriptable for configuration management users.
-* Default-safe deletion/update confirmation protects against over-broad matching.
+* No schema changes are required for introducing command families.
+* Commands should remain scriptable for configuration management workflows.
+* Consistent flags and output reduce operator mistakes and training overhead.
 
-Open Implementation Questions (to resolve during coding)
---------------------------------------------------------
+Open Implementation Questions (for coding phase)
+------------------------------------------------
 
-* Final selector grammar for targeting aliases:
-
-  * explicit ``mailprefix + domain`` flags,
-  * full address argument (``local@domain``),
-  * optional fuzzy filter mode for bulk operations.
-
-* How broad ``edit`` should be in v1 for multi-match queries vs requiring
-  explicit single-match selectors for certain field changes.
+* Final boundary between ``user`` and ``serviceuser`` command responsibilities
+  for password-related operations.
+* Whether some multi-object ``edit`` operations should require explicit
+  ``--force`` even when only one row is currently matched by selector.
