@@ -1,8 +1,12 @@
 import logging
 from datetime import datetime
+from datetime import timedelta
 from zoneinfo import ZoneInfo
 
+from django.utils import timezone
+from oauth2_provider.models import RefreshToken
 from oauth2_provider.oauth2_validators import OAuth2Validator
+from oauth2_provider.settings import oauth2_settings
 from typing import Any, Dict, List, Union
 
 from mailauth.models import MNApplication, MNUser
@@ -41,8 +45,38 @@ class ClientPermissionValidator(OAuth2Validator):
             # our base validated the refresh token, let's check if the client or user permissions
             # changed
             missing_permissions = find_missing_permissions(client, request.user)
-            return len(missing_permissions) == 0
+            if missing_permissions:
+                _log.warning(
+                    "Rejecting refresh token for client %s (%s): missing permissions for user %s: %s",
+                    client.name, client.client_id, request.user.identifier,
+                    ",".join(sorted([p.permission_name for p in missing_permissions if p.permission_name])),
+                )
+                return False
+            return True
         else:
+            rt = RefreshToken.objects.filter(token=refresh_token).first()
+            if not rt:
+                _log.warning(
+                    "Rejecting refresh token for client %s (%s): token not found (prefix=%s)",
+                    client.name, client.client_id, refresh_token[:8],
+                )
+            elif rt.application_id != client.id:
+                _log.warning(
+                    "Rejecting refresh token for client %s (%s): token belongs to client_id=%s (prefix=%s)",
+                    client.name, client.client_id, rt.application.client_id, refresh_token[:8],
+                )
+            elif rt.revoked is not None and rt.revoked <= timezone.now() - timedelta(
+                seconds=oauth2_settings.REFRESH_TOKEN_GRACE_PERIOD_SECONDS
+            ):
+                _log.warning(
+                    "Rejecting refresh token for client %s (%s): token revoked at %s (prefix=%s)",
+                    client.name, client.client_id, rt.revoked.isoformat(), refresh_token[:8],
+                )
+            else:
+                _log.warning(
+                    "Rejecting refresh token for client %s (%s): failed base validator checks (prefix=%s)",
+                    client.name, client.client_id, refresh_token[:8],
+                )
             return False
 
     def get_additional_claims(self, request) -> Dict[str, Union[str, List]]:
