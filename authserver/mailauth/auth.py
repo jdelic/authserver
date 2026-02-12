@@ -144,7 +144,7 @@ class MNUserAuthenticationBackend(object):
                         _log.debug("User %s logged in with correct password", username)
                         return user
                     else:
-                        _log.debug("Incorrect password for user %s (%s)", username, user.password)
+                        _log.debug("Incorrect password for user %s", username)
                 else:
                     _log.debug("Must provide an email address. %s is not an email address", username)
                     return None
