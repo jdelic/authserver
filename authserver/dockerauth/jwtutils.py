@@ -6,6 +6,7 @@ import jwt
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKeyWithSerialization
+from jwcrypto import jwk
 
 from mailauth.models import MNUser
 from mailauth.utils import import_rsa_key
@@ -24,11 +25,7 @@ class JWTViewHelperMixin:
         hash = hashes.Hash(algorithm=hashes.SHA256(), backend=default_backend())
         hash.update(pk_der)
 
-        fp = base64.b32encode(
-            hash.finalize()[0:30]  # shorten to 240 bit presumably so no padding is necessary
-        ).decode('utf-8')
-
-        kid = ":".join([fp[i:i + 4] for i in range(0, len(fp), 4)])
+        kid = jwk.JWK.from_pem(import_rsa_key(key_pemstr).public_key.encode('utf-8')).thumbprint()
 
         jwtstr = jwt.encode(
             claim,
