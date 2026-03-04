@@ -11,27 +11,18 @@ from types import FrameType
 from typing import Tuple, Sequence, Any, Union, Optional, List, Dict, Protocol, runtime_checkable
 from concurrent.futures import ThreadPoolExecutor as Pool
 
-import daemon
-from django.db.utils import OperationalError
-
 import authserver
+import daemon
+import srslib
+
+from django.db.utils import OperationalError
 from maildaemons.utils import SMTPWrapper, SaneSMTPServer, AddressTuple
 from aiosmtpd.smtp import SMTP, Envelope, Session
 from aiosmtpd.controller import Controller
 
-try:
-    import srslib
-except ImportError:
-    srslib = None  # type: ignore
 
 _log = logging.getLogger(__name__)
 pool = Pool()
-
-
-@runtime_checkable
-class SRSProtocol(Protocol):
-    def forward(self, address: str, alias_host: str, sign: Optional[str] = None) -> str:
-        pass
 
 
 class ForwarderServer(SaneSMTPServer):
@@ -44,35 +35,7 @@ class ForwarderServer(SaneSMTPServer):
             relay=remote_relay,
             error_relay=local_delivery,
         )
-        self.srs = None  # type: Optional[SRSProtocol]
-
-        if srs_secret != "":
-            if srslib is None:
-                _log.warning("SRS secret configured but srslib is not installed; falling back to static sender rewriting.")
-            else:
-                self.srs = srslib.SRS(srs_secret)
-
-    def _rewrite_mailfrom(self, mailfrom: str, configured_mailfrom: str) -> str:
-        if configured_mailfrom == "":
-            return mailfrom
-
-        if self.srs is None:
-            return configured_mailfrom
-
-        if mailfrom == "" or "@" not in mailfrom:
-            return configured_mailfrom
-
-        if "@" not in configured_mailfrom:
-            return configured_mailfrom
-
-        _, alias_host = configured_mailfrom.rsplit("@", 1)
-        if alias_host == "":
-            return configured_mailfrom
-        try:
-            return self.srs.forward(mailfrom, alias_host)
-        except Exception:
-            _log.exception("SRS rewrite failed. Falling back to configured sender <%s>.", configured_mailfrom)
-            return configured_mailfrom
+        self.srs = srslib.SRS(srs_secret)
 
     # ** must be thread-safe, don't modify shared state,
     # _log should be thread-safe as stated by the docs. Django ORM should be as well.
@@ -134,7 +97,7 @@ class ForwarderServer(SaneSMTPServer):
                     new_rcptto = "%s@%s" % (rcptuser, domain.redirect_to)
                     _log.info("Forwarding email from <%s> to <%s> to domain @%s",
                               mailfrom, rcptto, domain.redirect_to)
-                    add_rcptto(mailfrom, new_rcptto)
+                    add_rcptto(self.srs.forward(mailfrom, domain.name), new_rcptto)
                     continue
 
             # follow the same path like the stored procedure authserver_resolve_alias(...)
@@ -177,9 +140,9 @@ class ForwarderServer(SaneSMTPServer):
             if alias.forward_to is not None:
                 # it's a mailing list, forward the email to all connected addresses
                 del remaining_rcpttos[ix]  # remove this recipient from the list
-                _newmf = mailfrom
+                _newmf = self.srs.forward(mailfrom, alias.domain.name)
                 if alias.forward_to.new_mailfrom != "":
-                    _newmf = self._rewrite_mailfrom(mailfrom, alias.forward_to.new_mailfrom)
+                    _newmf = alias.forward_to.new_mailfrom
                 _log.info("Forwarding email from <%s> with new sender <%s> to <%s>",
                           mailfrom, _newmf, alias.forward_to.addresses)
                 add_rcptto(_newmf, alias.forward_to.addresses)
@@ -288,6 +251,10 @@ def _main() -> None:
                                  "authserver.settings)")
 
     _args = parser.parse_args()
+
+    if _args.srs_secret == "":
+        _log.fatal("No SRS secret provided (set MAILFORWARDER_SRS_SECRET or use --srs-secret), exiting.")
+        sys.exit(1)
 
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", _args.django_settings)
     # noinspection PyUnresolvedReferences
