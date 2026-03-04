@@ -8,16 +8,18 @@ import os
 import time
 
 from types import FrameType
-from typing import Tuple, Sequence, Any, Union, Optional, List, Dict
+from typing import Tuple, Sequence, Any, Union, Optional, List, Dict, Protocol, runtime_checkable
 from concurrent.futures import ThreadPoolExecutor as Pool
 
-import daemon
-from django.db.utils import OperationalError
-
 import authserver
+import daemon
+import srslib
+
+from django.db.utils import OperationalError
 from maildaemons.utils import SMTPWrapper, SaneSMTPServer, AddressTuple
 from aiosmtpd.smtp import SMTP, Envelope, Session
 from aiosmtpd.controller import Controller
+
 
 _log = logging.getLogger(__name__)
 pool = Pool()
@@ -26,12 +28,14 @@ pool = Pool()
 class ForwarderServer(SaneSMTPServer):
     def __init__(self, localaddr: AddressTuple, daemon_name: str,
                  remote_relay: AddressTuple, local_delivery: AddressTuple,
-                 server_name: Optional[str] = None) -> None:
+                 server_name: Optional[str] = None,
+                 srs_secret: str = "") -> None:
         super().__init__(localaddr, daemon_name, server_name)
         self.smtp = SMTPWrapper(
             relay=remote_relay,
             error_relay=local_delivery,
         )
+        self.srs = srslib.SRS(srs_secret)
 
     # ** must be thread-safe, don't modify shared state,
     # _log should be thread-safe as stated by the docs. Django ORM should be as well.
@@ -93,7 +97,7 @@ class ForwarderServer(SaneSMTPServer):
                     new_rcptto = "%s@%s" % (rcptuser, domain.redirect_to)
                     _log.info("Forwarding email from <%s> to <%s> to domain @%s",
                               mailfrom, rcptto, domain.redirect_to)
-                    add_rcptto(mailfrom, new_rcptto)
+                    add_rcptto(self.srs.forward(mailfrom, domain.name), new_rcptto)
                     continue
 
             # follow the same path like the stored procedure authserver_resolve_alias(...)
@@ -136,7 +140,7 @@ class ForwarderServer(SaneSMTPServer):
             if alias.forward_to is not None:
                 # it's a mailing list, forward the email to all connected addresses
                 del remaining_rcpttos[ix]  # remove this recipient from the list
-                _newmf = mailfrom
+                _newmf = self.srs.forward(mailfrom, alias.domain.name)
                 if alias.forward_to.new_mailfrom != "":
                     _newmf = alias.forward_to.new_mailfrom
                 _log.info("Forwarding email from <%s> with new sender <%s> to <%s>",
@@ -181,6 +185,7 @@ def run(_args: argparse.Namespace) -> None:
         local_delivery=(_args.local_delivery_ip, _args.local_delivery_port),
         localaddr=(_args.input_ip, _args.input_port),
         daemon_name="mailforwarder",
+        srs_secret=_args.srs_secret,
     )
     ctrl = Controller(
         server,
@@ -235,6 +240,10 @@ def _main() -> None:
                              help="The OpenSMTPD instance IP that accepts mail for relay to external domains.")
     grp_network.add_argument("--remote-relay-port", dest="remote_relay_port", default=10045,
                              help="The port where OpenSMTPD listens for mail to relay.")
+    grp_network.add_argument("--srs-secret", dest="srs_secret",
+                             default=os.getenv("MAILFORWARDER_SRS_SECRET", ""),
+                             help="SRS secret used to rewrite forwarding envelope sender addresses "
+                                  "(default: MAILFORWARDER_SRS_SECRET env var).")
 
     grp_django = parser.add_argument_group("Django options")
     grp_django.add_argument("--settings", dest="django_settings", default="authserver.settings",
@@ -242,6 +251,10 @@ def _main() -> None:
                                  "authserver.settings)")
 
     _args = parser.parse_args()
+
+    if _args.srs_secret == "":
+        _log.fatal("No SRS secret provided (set MAILFORWARDER_SRS_SECRET or use --srs-secret), exiting.")
+        sys.exit(1)
 
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", _args.django_settings)
     # noinspection PyUnresolvedReferences
