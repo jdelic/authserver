@@ -8,13 +8,7 @@ Group=authserver
 SyslogIdentifier=mailforwarder
 # $$ to quote envvars so systemd doesn't expand them first
 ExecStart=/usr/local/authserver/bin/envdir /etc/appconfig/mailforwarder/env \
-    /bin/bash -c '/usr/local/authserver/bin/mailforwarder -p /run/authserver/mailforwarder.pid \
-        --input-ip $${BINDIP} \
-        --input-port $${BINDPORT} \
-        --local-delivery-ip $${DELIVERYIP} \
-        --local-delivery-port $${DELIVERYPORT} \
-        --remote-relay-ip $${RELAYIP} \
-        --remote-relay-port $${RELAYPORT}'
+    /usr/local/authserver/bin/mailforwarder -p /run/authserver/mailforwarder.pid
 Restart=on-failure
 RestartSec=5s
 WorkingDirectory=/usr/local/authserver

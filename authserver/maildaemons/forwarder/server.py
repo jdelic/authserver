@@ -27,7 +27,9 @@ pool = Pool()
 
 class ForwarderServer(SaneSMTPServer):
     def __init__(self, localaddr: AddressTuple, daemon_name: str,
-                 remote_relay: AddressTuple, local_delivery: AddressTuple,
+                 remote_relay: AddressTuple,
+                 transactional_relay: Optional[AddressTuple],
+                 local_delivery: AddressTuple,
                  server_name: Optional[str] = None,
                  srs_secret: str = "") -> None:
         super().__init__(localaddr, daemon_name, server_name)
@@ -35,6 +37,10 @@ class ForwarderServer(SaneSMTPServer):
             relay=remote_relay,
             error_relay=local_delivery,
         )
+        self.transactional_smtp = SMTPWrapper(
+            relay=transactional_relay,
+            error_relay=local_delivery,
+        ) if transactional_relay else None
         self.srs = srslib.SRS(srs_secret)
 
     # ** must be thread-safe, don't modify shared state,
@@ -94,8 +100,11 @@ class ForwarderServer(SaneSMTPServer):
                 if domain.redirect_to:
                     _log.debug("ix: %s - rcptto: %s - remaining rcpttos: %s", ix, rcptto, remaining_rcpttos)
                     del remaining_rcpttos[ix]
-                    new_rcptto = "%s@%s" % (rcptuser, domain.redirect_to)
-                    _log.info("Forwarding email from <%s> to <%s> to domain @%s",
+                    if "@" in domain.redirect_to:
+                        new_rcptto = domain.redirect_to
+                    else:
+                        new_rcptto = "%s@%s" % (rcptuser, domain.redirect_to)
+                    _log.info("Forwarding email from <%s> to <%s> to %s",
                               mailfrom, rcptto, domain.redirect_to)
                     add_rcptto(self.srs.forward(mailfrom, domain.name), new_rcptto)
                     continue
@@ -158,8 +167,22 @@ class ForwarderServer(SaneSMTPServer):
 
         results = {k: "unsent" for k in combined_rcptto.keys()}  # type: Dict[str, str]
         for new_mailfrom in combined_rcptto.keys():
-            _log.debug("Injecting email from <%s> to <%s>", new_mailfrom, combined_rcptto[new_mailfrom])
-            ret = self.smtp.sendmail(new_mailfrom, combined_rcptto[new_mailfrom], data)
+            _, mfdomain = new_mailfrom.split("@", 1)
+
+            try:
+                domain = Domain.objects.get(name=mfdomain)
+            except Domain.DoesNotExist:
+                pass
+
+            if (new_mailfrom == mailfrom and self.transactional_smtp is not None and
+                    domain is not None and domain.can_use_transactional_email):
+                _log.debug("Injecting email from <%s> to <%s> through transactional relay", new_mailfrom,
+                           combined_rcptto[new_mailfrom])
+                ret = self.transactional_smtp.sendmail(new_mailfrom, combined_rcptto[new_mailfrom], data)
+            else:
+                _log.debug("Injecting email from <%s> to <%s> through standard relay", new_mailfrom,
+                           combined_rcptto[new_mailfrom])
+                ret = self.smtp.sendmail(new_mailfrom, combined_rcptto[new_mailfrom], data)
             if ret is not None:
                 results[new_mailfrom] = "failure"
                 if len(combined_rcptto.keys()) > 1:
@@ -180,8 +203,13 @@ class ForwarderServer(SaneSMTPServer):
 
 
 def run(_args: argparse.Namespace) -> None:
+    _log.info("Starting ForwarderServer on %s:%s with", _args.input_ip, _args.input_port)
+    _log.info("    remote relay %s:%s", _args.remote_relay_ip, _args.remote_relay_port)
+    _log.info("    transactional relay %s:%s", _args.transactional_relay_ip, _args.transactional_relay_port,)
+    _log.info("    local delivery %s:%s", _args.local_delivery_ip, _args.local_delivery_port)
     server = ForwarderServer(
         remote_relay=(_args.remote_relay_ip, _args.remote_relay_port),
+        transactional_relay=(_args.transactional_relay_ip, _args.transactional_relay_port) if _args.transactional_relay_ip else None,
         local_delivery=(_args.local_delivery_ip, _args.local_delivery_port),
         localaddr=(_args.input_ip, _args.input_port),
         daemon_name="mailforwarder",
@@ -216,39 +244,71 @@ def _main() -> None:
     )
 
     grp_daemon = parser.add_argument_group("Daemon options")
-    grp_daemon.add_argument("-p", "--pidfile", dest="pidfile", default="./mailforwarder-server.pid",
+    grp_daemon.add_argument("-p", "--pidfile", dest="pidfile",
+                            default=os.getenv("MAILFORWARDER_PIDFILE", "./mailforwarder-server.pid"),
                             help="Path to a pidfile")
-    grp_daemon.add_argument("-u", "--user", dest="user", default=None, help="Drop privileges and switch to this user")
-    grp_daemon.add_argument("-g", "--group", dest="group", default=None,
+    grp_daemon.add_argument("-u", "--user", dest="user",
+                            default=os.getenv("MAILFORWARDER_USER", None),
+                            help="Drop privileges and switch to this user")
+    grp_daemon.add_argument("-g", "--group", dest="group",
+                            default=os.getenv("MAILFORWARDER_GROUP", None),
                             help="Drop privileges and switch to this group")
-    grp_daemon.add_argument("-d", "--daemonize", dest="daemonize", default=False, action="store_true",
+    grp_daemon.add_argument("-d", "--daemonize", dest="daemonize",
+                            default=os.getenv("MAILFORWARDER_DAEMONIZE", False),
+                            action="store_true",
                             help="If set, fork into background")
-    grp_daemon.add_argument("-v", "--verbose", dest="verbose", default=False, action="store_true",
+    grp_daemon.add_argument("-v", "--verbose", dest="verbose",
+                            default=os.getenv("MAILFORWARDER_LOG_VERBOSE", False),
+                            action="store_true",
                             help="Output extra logging (not implemented right now)")
-    grp_daemon.add_argument("-C", "--chdir", dest="chdir", default=".",
+    grp_daemon.add_argument("-C", "--chdir", dest="chdir",
+                            default=os.getenv("MAILFORWARDER_WORKDIR", "."),
                             help="Change working directory to the provided value")
 
     grp_network = parser.add_argument_group("Network options")
-    grp_network.add_argument("--input-ip", dest="input_ip", default="127.0.0.1", help="The network address to bind to")
-    grp_network.add_argument("--input-port", dest="input_port", metavar="PORT", type=int, default=10046,
-                             help="The port to bind to")
-    grp_network.add_argument("--local-delivery-ip", dest="local_delivery_ip", default="127.0.0.1",
-                             help="The OpenSMTPD instance IP for local email to be delivered.")
+    grp_network.add_argument("--input-ip", dest="input_ip",
+                             default=os.getenv("MAILFORWARDER_INPUT_IP", "127.0.0.1"),
+                             help="The network address to bind to (env: MAILFORWARDER_INPUT_IP, default: 127.0.0.1)")
+    grp_network.add_argument("--input-port", dest="input_port", metavar="PORT", type=int,
+                             default=int(os.getenv("MAILFORWARDER_INPUT_PORT", 10046)),
+                             help="The port to bind to (env: MAILFORWARDER_INPUT_PORT, default: 10046)")
+    grp_network.add_argument("--local-delivery-ip", dest="local_delivery_ip",
+                             default=os.getenv("MAILFORWARDER_LOCALDELIVERY_IP", "127.0.0.1"),
+                             help="The OpenSMTPD instance IP for local email to be delivered. "
+                                  "(env: MAILFORWARDER_LOCALDELIVERY_IP, default: 127.0.0.1)")
     grp_network.add_argument("--local-delivery-port", dest="local_delivery_port", metavar="PORT", type=int,
-                             default=10045, help="The port where OpenSMTPD listens for local email to be delivered")
-    grp_network.add_argument("--remote-relay-ip", dest="remote_relay_ip", default="127.0.0.1",
-                             help="The OpenSMTPD instance IP that accepts mail for relay to external domains.")
-    grp_network.add_argument("--remote-relay-port", dest="remote_relay_port", default=10045,
-                             help="The port where OpenSMTPD listens for mail to relay.")
+                             default=int(os.getenv("MAILFORWARDER_LOCALDELIVERY_PORT", 10045)),
+                             help="The port where OpenSMTPD listens for local email to be delivered. "
+                                  "(env: MAILFORWARDER_LOCALDELIVERY_PORT, default: 10045)")
+    grp_network.add_argument("--remote-relay-ip", dest="remote_relay_ip",
+                             default=os.getenv("MAILFORWARDER_REMOTERELAY_IP", "127.0.0.1"),
+                             help="The OpenSMTPD instance IP that accepts mail for relay to external domains. "
+                                  "(env: MAILFORWARDER_REMOTERELAY_IP, default: 127.0.0.1)")
+    grp_network.add_argument("--remote-relay-port", dest="remote_relay_port",
+                             default=int(os.getenv("MAILFORWARDER_REMOTERELAY_PORT", 10045)),
+                             help="The port where OpenSMTPD listens for mail to relay. "
+                                  "(env: MAILFORWARDER_REMOTERELAY_PORT, default: 10045)")
+    grp_network.add_argument("--transactional-relay-ip", dest="transactional_relay_ip",
+                             default=os.getenv("MAILFORWARDER_TRANSACTIONALRELAY_IP", None),
+                             help="The OpenSMTPD instance IP that accepts mail for transactional email (non-forwarded "
+                                  "email from domains that have the 'can_use_transactional_email' flag set), i.e. are "
+                                  "registered with, for example, Amazon SES or Scaleway. This is optional. If not set, "
+                                  "transactional email will be sent through the same relay as regular email. "
+                                  "(env: MAILFORWARDER_TRANSACTIONALRELAY_IP)")
+    grp_network.add_argument("--transactional-relay-port", dest="transactional_relay_port",
+                             default=int(os.getenv("MAILFORWARDER_TRANSACTIONALRELAY_PORT", 10047)),
+                             help="The port where OpenSMTPD listens for transcational mail. "
+                                  "(env: MAILFORWARDER_TRANSACTIONALRELAY_PORT)")
     grp_network.add_argument("--srs-secret", dest="srs_secret",
                              default=os.getenv("MAILFORWARDER_SRS_SECRET", ""),
                              help="SRS secret used to rewrite forwarding envelope sender addresses "
-                                  "(default: MAILFORWARDER_SRS_SECRET env var).")
+                                  "(env: MAILFORWARDER_SRS_SECRET).")
 
     grp_django = parser.add_argument_group("Django options")
-    grp_django.add_argument("--settings", dest="django_settings", default="authserver.settings",
+    grp_django.add_argument("--settings", dest="django_settings",
+                            default=os.getenv("DJANGO_SETTINGS_MODULE", "authserver.settings"),
                             help="The Django settings module to use for authserver database access (default: "
-                                 "authserver.settings)")
+                                 "authserver.settings) (env: DJANGO_SETTINGS_MODULE)")
 
     _args = parser.parse_args()
 
