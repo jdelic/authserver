@@ -175,7 +175,7 @@ class ForwarderServer(SaneSMTPServer):
                 pass
 
             if (new_mailfrom == mailfrom and self.transactional_smtp is not None and
-                    domain is not None and domain.can_use_transactional_relay):
+                    domain is not None and domain.can_use_transactional_email):
                 _log.debug("Injecting email from <%s> to <%s> through transactional relay", new_mailfrom,
                            combined_rcptto[new_mailfrom])
                 ret = self.transactional_smtp.sendmail(new_mailfrom, combined_rcptto[new_mailfrom], data)
@@ -291,7 +291,7 @@ def _main() -> None:
     grp_network.add_argument("--transactional-relay-ip", dest="transactional_relay_ip",
                              default=os.getenv("MAILFORWARDER_TRANSACTIONALRELAY_IP", None),
                              help="The OpenSMTPD instance IP that accepts mail for transactional email (non-forwarded "
-                                  "email from domains that have the 'can_use_transactional_relay' flag set), i.e. are "
+                                  "email from domains that have the 'can_use_transactional_email' flag set), i.e. are "
                                   "registered with, for example, Amazon SES or Scaleway. This is optional. If not set, "
                                   "transactional email will be sent through the same relay as regular email. "
                                   "(env: MAILFORWARDER_TRANSACTIONALRELAY_IP)")
