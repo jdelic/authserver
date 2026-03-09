@@ -51,6 +51,7 @@ class ForwarderSRSTests(SimpleTestCase):
             localaddr=("127.0.0.1", 10046),
             daemon_name="mailforwarder",
             remote_relay=("127.0.0.1", 10045),
+            transactional_relay=("127.0.0.1", 10045),
             local_delivery=("127.0.0.1", 10045),
             srs_secret=srs_secret,
         )
