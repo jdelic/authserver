@@ -84,36 +84,36 @@ class DKIMSignerServer(SaneSMTPServer):
 def run(_args: argparse.Namespace) -> None:
     network_mapping = []  # type: List[Dict[str, Union[str, int]]]
 
+    for nm in _args.network_mapping:
+        try:
+            input_ip, input_port, output_ip, output_port = nm.split(":")
+            network_mapping.append({
+                "input_ip": input_ip,
+                "input_port": int(input_port),
+                "output_ip": output_ip,
+                "output_port": int(output_port)
+            })
+        except ValueError:
+            _log.error("Invalid network mapping: %s", nm)
+            sys.exit(1)
+
     # backwards compatibility
     if _args.input_ip:
         network_mapping.append({
             "input_ip": _args.input_ip,
-            "input_port": _args.input_port,
+            "input_port": _args.input_port if _args.input_port else 10036,
             "output_ip": _args.output_ip if _args.output_ip else "127.0.0.1",
-            "output_port": _args.output_port
+            "output_port": _args.output_port if _args.output_port else 10035
         })
 
     # also backwards compatibility
     if len(_args.network_mapping) == 0:
         network_mapping.append({
             "input_ip": "127.0.0.1",
-            "input_port": _args.input_port,
+            "input_port": 10036,
             "output_ip": "127.0.0.1",
-            "output_port": _args.output_port
+            "output_port": 10035
         })
-    else:
-        for nm in _args.network_mapping:
-            try:
-                input_ip, input_port, output_ip, output_port = nm.split(":")
-                network_mapping.append({
-                    "input_ip": input_ip,
-                    "input_port": int(input_port),
-                    "output_ip": output_ip,
-                    "output_port": int(output_port)
-                })
-            except ValueError:
-                _log.error("Invalid network mapping: %s", nm)
-                sys.exit(1)
 
     controllers = []  # type: List[Controller]
     for nm in network_mapping:
@@ -184,24 +184,19 @@ def _main() -> None:
         help="Add a network mapping in the format <input_ip>:<input_port>:<output_ip>:<output_port>. Input is where "
              "dkimsigner listens for email to sign, output is where dkimsigner relays the signed email to. This option "
              "can be specified multiple times to add multiple mappings. (env: DKIMSIGNER_NETWORK_MAPPING, "
-             "comma-separated for multiple mappings)"
+             "comma-separated for multiple mappings). If no mappings are specified, a default mapping of "
+             "127.0.0.1:10036:127.0.0.1:10035 is installed."
     )
 
     grp_network = parser.add_argument_group("Network options (legacy, deprecated)")
     grp_network.add_argument("--input-ip", dest="input_ip",
-                             default=os.getenv("DKIMSIGNER_INPUT_IP", "127.0.0.1"),
-                             help="The network address to bind to (env: DKIMSIGNER_INPUT_IP, default: 127.0.0.1)"),
+                             help="The network address to bind to"),
     grp_network.add_argument("--input-port", dest="input_port", metavar="PORT", type=int,
-                             default=int(os.getenv("DKIMSIGNER_INPUT_PORT", 10036)),
-                             help="The port to bind to (env: DKIMSIGNER_INPUT_PORT, default: 10036)"),
+                             help="The port to bind to"),
     grp_network.add_argument("--output-ip", dest="output_ip",
-                             default=os.getenv("DKIMSIGNER_OUTPUT_IP", "127.0.0.1"),
-                             help="The OpenSMTPD instance IP to return processed email to "
-                                  "(env: DKIMSIGNER_OUTPUT_IP, default: 127.0.0.1)")
+                             help="The OpenSMTPD instance IP to return processed email to")
     grp_network.add_argument("--output-port", dest="output_port", metavar="PORT", type=int,
-                             default=os.getenv("DKIMSIGNER_OUTPUT_PORT", 10035),
-                             help="The port where OpenSMTPD listens for processed email (env: DKIMSIGNER_OUTPUT_PORT, "
-                                  "default: 10035)")
+                             help="The port where OpenSMTPD listens for processed email")
 
     grp_django = parser.add_argument_group("Django options")
     grp_django.add_argument("--settings", dest="django_settings",
