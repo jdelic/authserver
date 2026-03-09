@@ -116,31 +116,58 @@ def _main() -> None:
     )
 
     grp_daemon = parser.add_argument_group("Daemon options")
-    grp_daemon.add_argument("-p", "--pidfile", dest="pidfile", default="./dkimsigner-server.pid",
-                            help="Path to a pidfile")
-    grp_daemon.add_argument("-u", "--user", dest="user", default=None, help="Drop privileges and switch to this user")
-    grp_daemon.add_argument("-g", "--group", dest="group", default=None,
-                            help="Drop privileges and switch to this group")
-    grp_daemon.add_argument("-d", "--daemonize", dest="daemonize", default=False, action="store_true",
-                            help="If set, fork into background")
-    grp_daemon.add_argument("-v", "--verbose", dest="verbose", default=False, action="store_true",
-                            help="Output extra logging (not implemented right now)")
-    grp_daemon.add_argument("-C", "--chdir", dest="chdir", default=".",
-                            help="Change working directory to the provided value")
+    grp_daemon.add_argument("-p", "--pidfile", dest="pidfile",
+                            default=os.getenv("DKIMSIGNER_PIDFILE", "./dkimsigner-server.pid"),
+                            help="Path to a pidfile (env: DKIMSIGNER_PIDFILE)")
+    grp_daemon.add_argument("-u", "--user", dest="user",
+                            default=os.getenv("DKIMSIGNER_USER", None),
+                            help="Drop privileges and switch to this user (env: DKIMSIGNER_USER)")
+    grp_daemon.add_argument("-g", "--group", dest="group",
+                            default=os.getenv("DKIMSIGNER_GROUP", None),
+                            help="Drop privileges and switch to this group (env: DKIMSIGNER_GROUP)")
+    grp_daemon.add_argument("-d", "--daemonize", dest="daemonize",
+                            default=os.getenv("DKIMSIGNER_DAEMONIZE", False),
+                            action="store_true",
+                            help="If set, fork into background and run as a daemon (env: DKIMSIGNER_DAEMONIZE)")
+    grp_daemon.add_argument("-v", "--verbose", dest="verbose",
+                            default=os.getenv("DKIMSIGNER_LOG_VERBOSE", False),
+                            action="store_true",
+                            help="Output extra logging (not implemented right now) (env: DKIMSIGNER_LOG_VERBOSE)")
+    grp_daemon.add_argument("-C", "--chdir", dest="chdir",
+                            default=os.getenv("DKIMSIGNER_WORKDIR", "."),
+                            help="Change working directory to the provided value (env: DKIMSIGNER_WORKDIR)")
 
-    grp_network = parser.add_argument_group("Network options")
-    grp_network.add_argument("--input-ip", dest="input_ip", default="127.0.0.1", help="The network address to bind to")
-    grp_network.add_argument("--input-port", dest="input_port", metavar="PORT", type=int, default=10036,
-                             help="The port to bind to")
-    grp_network.add_argument("--output-ip", dest="output_ip", default="127.0.0.1",
-                             help="The OpenSMTPD instance IP to return processed email to")
-    grp_network.add_argument("--output-port", dest="output_port", metavar="PORT", type=int, default=10035,
-                             help="The port where OpenSMTPD listens for processed email")
+    grp_networkmapping = parser.add_argument_group("Network mappings")
+    grp_networkmapping.add_argument(
+        "--network-mapping", dest="network_mapping", action="append",
+        default=os.getenv("DKIMSIGNER_NETWORK_MAPPING", "").split(",") if os.getenv("DKIMSIGNER_NETWORK_MAPPING") else [],
+        help="Add a network mapping in the format <input_ip>:<input_port>:<output_ip>:<output_port>. Input is where "
+             "dkimsigner listens for email to sign, output is where dkimsigner relays the signed email to. This option "
+             "can be specified multiple times to add multiple mappings. (env: DKIMSIGNER_NETWORK_MAPPING, "
+             "comma-separated for multiple mappings)"
+    )
+
+    grp_network = parser.add_argument_group("Network options (legacy, deprecated)")
+    grp_network.add_argument("--input-ip", dest="input_ip",
+                             default=os.getenv("DKIMSIGNER_INPUT_IP", "127.0.0.1"),
+                             help="The network address to bind to (env: DKIMSIGNER_INPUT_IP, default: 127.0.0.1)"),
+    grp_network.add_argument("--input-port", dest="input_port", metavar="PORT", type=int,
+                             default=int(os.getenv("DKIMSIGNER_INPUT_PORT", 10036)),
+                             help="The port to bind to (env: DKIMSIGNER_INPUT_PORT, default: 10036)"),
+    grp_network.add_argument("--output-ip", dest="output_ip",
+                             default=os.getenv("DKIMSIGNER_OUTPUT_IP", "127.0.0.1"),
+                             help="The OpenSMTPD instance IP to return processed email to "
+                                  "(env: DKIMSIGNER_OUTPUT_IP, default: 127.0.0.1)")
+    grp_network.add_argument("--output-port", dest="output_port", metavar="PORT", type=int,
+                             default=os.getenv("DKIMSIGNER_OUTPUT_PORT", 10035),
+                             help="The port where OpenSMTPD listens for processed email (env: DKIMSIGNER_OUTPUT_PORT, "
+                                  "default: 10035)")
 
     grp_django = parser.add_argument_group("Django options")
-    grp_django.add_argument("--settings", dest="django_settings", default="authserver.settings",
+    grp_django.add_argument("--settings", dest="django_settings",
+                            default=os.getenv("DJANGO_SETTINGS_MODULE", "authserver.settings"),
                             help="The Django settings module to use for authserver database access (default: "
-                                 "authserver.settings)")
+                                 "authserver.settings) (env: DJANGO_SETTINGS_MODULE)")
 
     _args = parser.parse_args()
 
