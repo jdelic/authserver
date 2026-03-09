@@ -28,7 +28,7 @@ pool = Pool()
 class ForwarderServer(SaneSMTPServer):
     def __init__(self, localaddr: AddressTuple, daemon_name: str,
                  remote_relay: AddressTuple,
-                 forward_relay: Optional[AddressTuple],
+                 transactional_relay: Optional[AddressTuple],
                  local_delivery: AddressTuple,
                  server_name: Optional[str] = None,
                  srs_secret: str = "") -> None:
@@ -37,10 +37,10 @@ class ForwarderServer(SaneSMTPServer):
             relay=remote_relay,
             error_relay=local_delivery,
         )
-        self.forward_smtp = SMTPWrapper(
-            relay=forward_relay,
+        self.transactional_smtp = SMTPWrapper(
+            relay=transactional_relay,
             error_relay=local_delivery,
-        ) if forward_relay else None
+        ) if transactional_relay else None
         self.srs = srslib.SRS(srs_secret)
 
     # ** must be thread-safe, don't modify shared state,
@@ -100,8 +100,11 @@ class ForwarderServer(SaneSMTPServer):
                 if domain.redirect_to:
                     _log.debug("ix: %s - rcptto: %s - remaining rcpttos: %s", ix, rcptto, remaining_rcpttos)
                     del remaining_rcpttos[ix]
-                    new_rcptto = "%s@%s" % (rcptuser, domain.redirect_to)
-                    _log.info("Forwarding email from <%s> to <%s> to domain @%s",
+                    if "@" in domain.redirect_to:
+                        new_rcptto = domain.redirect_to
+                    else:
+                        new_rcptto = "%s@%s" % (rcptuser, domain.redirect_to)
+                    _log.info("Forwarding email from <%s> to <%s> to %s",
                               mailfrom, rcptto, domain.redirect_to)
                     add_rcptto(self.srs.forward(mailfrom, domain.name), new_rcptto)
                     continue
@@ -164,14 +167,22 @@ class ForwarderServer(SaneSMTPServer):
 
         results = {k: "unsent" for k in combined_rcptto.keys()}  # type: Dict[str, str]
         for new_mailfrom in combined_rcptto.keys():
-            if new_mailfrom == mailfrom or self.forward_smtp is None:
-                _log.debug("Injecting email from <%s> to <%s> through regular relay", new_mailfrom,
+            _, mfdomain = new_mailfrom.split("@", 1)
+
+            try:
+                domain = Domain.objects.get(name=mfdomain)
+            except Domain.DoesNotExist:
+                pass
+
+            if (new_mailfrom == mailfrom and self.transactional_smtp is not None and
+                    domain is not None and domain.can_use_transactional_relay):
+                _log.debug("Injecting email from <%s> to <%s> through transactional relay", new_mailfrom,
+                           combined_rcptto[new_mailfrom])
+                ret = self.transactional_smtp.sendmail(new_mailfrom, combined_rcptto[new_mailfrom], data)
+            else:
+                _log.debug("Injecting email from <%s> to <%s> through standard relay", new_mailfrom,
                            combined_rcptto[new_mailfrom])
                 ret = self.smtp.sendmail(new_mailfrom, combined_rcptto[new_mailfrom], data)
-            else:
-                _log.debug("Injecting email from <%s> to <%s> through forward relay", new_mailfrom,
-                           combined_rcptto[new_mailfrom])
-                ret = self.forward_smtp.sendmail(new_mailfrom, combined_rcptto[new_mailfrom], data)
             if ret is not None:
                 results[new_mailfrom] = "failure"
                 if len(combined_rcptto.keys()) > 1:
@@ -192,9 +203,16 @@ class ForwarderServer(SaneSMTPServer):
 
 
 def run(_args: argparse.Namespace) -> None:
+    _log.info("Starting ForwarderServer on %s:%s with \n"
+              "    remote relay %s:%s\n"
+              "    transactional relay %s:%s\n"
+              "    local delivery %s:%s",
+              _args.remote_relay_ip, _args.remote_relay_port, _args.transactional_relay_ip,
+              _args.transactional_relay_port, _args.local_delivery_ip, _args.local_delivery_port,
+              _args.input_ip, _args.input_port)
     server = ForwarderServer(
         remote_relay=(_args.remote_relay_ip, _args.remote_relay_port),
-        forward_relay=(_args.forward_relay_ip, _args.forward_relay_port) if _args.forward_relay_ip else None,
+        transactional_relay=(_args.transactional_relay_ip, _args.transactional_relay_port) if _args.transactional_relay_ip else None,
         local_delivery=(_args.local_delivery_ip, _args.local_delivery_port),
         localaddr=(_args.input_ip, _args.input_port),
         daemon_name="mailforwarder",

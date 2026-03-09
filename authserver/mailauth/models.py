@@ -100,6 +100,13 @@ class Domain(models.Model):
                   "(catch-all). Leave empty for no redirection.",
         null=False, blank=True, default="")
 
+    can_use_transactional_email = models.BooleanField(
+        verbose_name="Can use transactional email relay", default=False,
+        help_text="If enabled, this domain can use a transactional email relay configured in mailforwarder for "
+                  "outbound, non-forwarded (non-SRS) email. This allows using SES or similar services for sending "
+                  "email with higher deliverability. Please note that this flag alone is not enough, mailforwarder "
+                  "and your local mail server must have the necessary configuration as well.")
+
     objects = DomainManager()
 
     def __str__(self) -> str:
