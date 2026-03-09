@@ -82,20 +82,60 @@ class DKIMSignerServer(SaneSMTPServer):
 
 
 def run(_args: argparse.Namespace) -> None:
-    server = DKIMSignerServer(
-        localaddr=(_args.input_ip, _args.input_port),
-        remoteaddr=(_args.output_ip, _args.output_port),
-        daemon_name="dkimsigner"
-    )
-    ctrl = Controller(
-        server,
-        hostname=_args.input_ip,
-        port=_args.input_port,
-        decode_data=False,
-        auth_exclude_mechanism=["LOGIN", "PLAIN"],
-        ident="dkimsigner v%s" % authserver.version
-    )
-    ctrl.start()
+    network_mapping = []  # type: List[Dict[str, Union[str, int]]]
+
+    # backwards compatibility
+    if _args.input_ip:
+        network_mapping.append({
+            "input_ip": _args.input_ip,
+            "input_port": _args.input_port,
+            "output_ip": _args.output_ip if _args.output_ip else "127.0.0.1",
+            "output_port": _args.output_port
+        })
+
+    # also backwards compatibility
+    if len(_args.network_mapping) == 0:
+        network_mapping.append({
+            "input_ip": "127.0.0.1",
+            "input_port": _args.input_port,
+            "output_ip": "127.0.0.1",
+            "output_port": _args.output_port
+        })
+    else:
+        for nm in _args.network_mapping:
+            try:
+                input_ip, input_port, output_ip, output_port = nm.split(":")
+                network_mapping.append({
+                    "input_ip": input_ip,
+                    "input_port": int(input_port),
+                    "output_ip": output_ip,
+                    "output_port": int(output_port)
+                })
+            except ValueError:
+                _log.error("Invalid network mapping: %s", nm)
+                sys.exit(1)
+
+    controllers = []  # type: List[Controller]
+    for nm in network_mapping:
+        _log.info("Listening on %s:%d and relaying to %s:%d",
+                  nm["input_ip"], nm["input_port"], nm["output_ip"], nm["output_port"])
+        server = DKIMSignerServer(
+            localaddr=(nm["input_ip"], nm["input_port"]),
+            remoteaddr=(nm["output_ip"], nm["output_port"]),
+            daemon_name="dkimsigner"
+        )
+
+        ctrl = Controller(
+            server,
+            hostname=nm["input_ip"],
+            port=nm["input_port"],
+            decode_data=False,
+            auth_exclude_mechanism=["LOGIN", "PLAIN"],
+            ident="dkimsigner v%s" % authserver.version
+        )
+        ctrl.start()
+        controllers.append(ctrl)
+
     while True:
         time.sleep(1)
 
