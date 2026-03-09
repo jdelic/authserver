@@ -62,35 +62,16 @@ class ForwarderSRSTests(SimpleTestCase):
         ) or None
         return server, sent
 
-    def test_rewrite_mailfrom_uses_static_sender_without_srs(self) -> None:
-        server, _sent = self._build_server(srs_secret="")
-        rewritten = server._rewrite_mailfrom("alice@sender.example", "bounces@forward.example")
-        self.assertEqual("bounces@forward.example", rewritten)
-
-    def test_rewrite_mailfrom_uses_srs_when_available(self) -> None:
-        server, _sent = self._build_server(srs_secret="topsecret")
-        calls = []  # type: List[Tuple[str, str, Any]]
-
-        class FakeSRS:
-            def forward(self, address: str, alias_host: str, sign: Any = None) -> str:
-                calls.append((address, alias_host, sign))
-                return "SRS0=NN=sender.example=alice@%s" % alias_host
-
-        server.srs = FakeSRS()
-        rewritten = server._rewrite_mailfrom("alice@sender.example", "bounces@forward.example")
-        self.assertEqual("SRS0=NN=sender.example=alice@forward.example", rewritten)
-        self.assertEqual([("alice@sender.example", "forward.example", None)], calls)
-
-    def test_process_message_uses_rewritten_mailfrom_for_forwarding(self) -> None:
+    def test_process_message_uses_list_mailfrom_when_set(self) -> None:
         alias = SimpleNamespace(
             forward_to=SimpleNamespace(
                 new_mailfrom="bounces@forward.example",
                 addresses=["ops@example.net"],
             ),
+            domain=SimpleNamespace(name="example.com"),
         )
         _FakeEmailAlias.objects = _FakeEmailAliasManager(alias)
-        server, sent = self._build_server(srs_secret="topsecret")
-        server._rewrite_mailfrom = mock.Mock(return_value="SRS0=XX=sender=alice@forward.example")  # type: ignore[assignment]
+        server, sent = self._build_server(srs_secret="")
 
         with mock.patch("mailauth.models.EmailAlias", _FakeEmailAlias), \
                 mock.patch("mailauth.models.Domain", _FakeDomain):
@@ -104,6 +85,57 @@ class ForwarderSRSTests(SimpleTestCase):
 
         self.assertEqual("250 Processing complete.", ret)
         self.assertEqual(1, len(sent))
-        self.assertEqual("SRS0=XX=sender=alice@forward.example", sent[0][0])
+        self.assertEqual("bounces@forward.example", sent[0][0])
         self.assertEqual(["ops@example.net"], list(sent[0][1]))
-        server._rewrite_mailfrom.assert_called_once_with("alice@sender.example", "bounces@forward.example")
+
+    def test_process_message_uses_srs_when_list_mailfrom_not_set(self) -> None:
+        alias = SimpleNamespace(
+            forward_to=SimpleNamespace(
+                new_mailfrom="",
+                addresses=["ops@example.net"],
+            ),
+            domain=SimpleNamespace(name="example.com"),
+        )
+        _FakeEmailAlias.objects = _FakeEmailAliasManager(alias)
+        server, sent = self._build_server(srs_secret="topsecret")
+
+        with mock.patch("mailauth.models.EmailAlias", _FakeEmailAlias), \
+                mock.patch("mailauth.models.Domain", _FakeDomain):
+            ret = server._process_message(
+                peer=("127.0.0.1", 25000),
+                helo_name="mx.sender.example",
+                mailfrom="alice@sender.example",
+                rcpttos=["team@example.com"],
+                data=b"Subject: test\r\n\r\nhello",
+            )
+
+        self.assertEqual("250 Processing complete.", ret)
+        self.assertEqual(1, len(sent))
+        self.assertTrue(sent[0][0].startswith("SRS0="), "Expected SRS-rewritten mailfrom, got: %s" % sent[0][0])
+        self.assertEqual(["ops@example.net"], list(sent[0][1]))
+
+    def test_process_message_list_mailfrom_overrides_srs_when_set(self) -> None:
+        alias = SimpleNamespace(
+            forward_to=SimpleNamespace(
+                new_mailfrom="bounces@forward.example",
+                addresses=["ops@example.net"],
+            ),
+            domain=SimpleNamespace(name="example.com"),
+        )
+        _FakeEmailAlias.objects = _FakeEmailAliasManager(alias)
+        server, sent = self._build_server(srs_secret="topsecret")
+
+        with mock.patch("mailauth.models.EmailAlias", _FakeEmailAlias), \
+                mock.patch("mailauth.models.Domain", _FakeDomain):
+            ret = server._process_message(
+                peer=("127.0.0.1", 25000),
+                helo_name="mx.sender.example",
+                mailfrom="alice@sender.example",
+                rcpttos=["team@example.com"],
+                data=b"Subject: test\r\n\r\nhello",
+            )
+
+        self.assertEqual("250 Processing complete.", ret)
+        self.assertEqual(1, len(sent))
+        self.assertEqual("bounces@forward.example", sent[0][0])
+        self.assertEqual(["ops@example.net"], list(sent[0][1]))
