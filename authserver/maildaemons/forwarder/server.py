@@ -27,7 +27,9 @@ pool = Pool()
 
 class ForwarderServer(SaneSMTPServer):
     def __init__(self, localaddr: AddressTuple, daemon_name: str,
-                 remote_relay: AddressTuple, local_delivery: AddressTuple,
+                 remote_relay: AddressTuple,
+                 forward_relay: Optional[AddressTuple],
+                 local_delivery: AddressTuple,
                  server_name: Optional[str] = None,
                  srs_secret: str = "") -> None:
         super().__init__(localaddr, daemon_name, server_name)
@@ -35,6 +37,10 @@ class ForwarderServer(SaneSMTPServer):
             relay=remote_relay,
             error_relay=local_delivery,
         )
+        self.forward_smtp = SMTPWrapper(
+            relay=forward_relay,
+            error_relay=local_delivery,
+        ) if forward_relay else None
         self.srs = srslib.SRS(srs_secret)
 
     # ** must be thread-safe, don't modify shared state,
@@ -158,8 +164,14 @@ class ForwarderServer(SaneSMTPServer):
 
         results = {k: "unsent" for k in combined_rcptto.keys()}  # type: Dict[str, str]
         for new_mailfrom in combined_rcptto.keys():
-            _log.debug("Injecting email from <%s> to <%s>", new_mailfrom, combined_rcptto[new_mailfrom])
-            ret = self.smtp.sendmail(new_mailfrom, combined_rcptto[new_mailfrom], data)
+            if new_mailfrom == mailfrom or self.forward_smtp is None:
+                _log.debug("Injecting email from <%s> to <%s> through regular relay", new_mailfrom,
+                           combined_rcptto[new_mailfrom])
+                ret = self.smtp.sendmail(new_mailfrom, combined_rcptto[new_mailfrom], data)
+            else:
+                _log.debug("Injecting email from <%s> to <%s> through forward relay", new_mailfrom,
+                           combined_rcptto[new_mailfrom])
+                ret = self.forward_smtp.sendmail(new_mailfrom, combined_rcptto[new_mailfrom], data)
             if ret is not None:
                 results[new_mailfrom] = "failure"
                 if len(combined_rcptto.keys()) > 1:
@@ -182,6 +194,7 @@ class ForwarderServer(SaneSMTPServer):
 def run(_args: argparse.Namespace) -> None:
     server = ForwarderServer(
         remote_relay=(_args.remote_relay_ip, _args.remote_relay_port),
+        forward_relay=(_args.forward_relay_ip, _args.forward_relay_port) if _args.forward_relay_ip else None,
         local_delivery=(_args.local_delivery_ip, _args.local_delivery_port),
         localaddr=(_args.input_ip, _args.input_port),
         daemon_name="mailforwarder",
@@ -240,6 +253,11 @@ def _main() -> None:
                              help="The OpenSMTPD instance IP that accepts mail for relay to external domains.")
     grp_network.add_argument("--remote-relay-port", dest="remote_relay_port", default=10045,
                              help="The port where OpenSMTPD listens for mail to relay.")
+    grp_network.add_argument("--forward-relay-ip", dest="forward_relay_ip", default=None,
+                             help="The OpenSMTPD instance IP that accepts mail for forwarded email (with SRS or "
+                                  "specified envelope senders).")
+    grp_network.add_argument("--forward-relay-port", dest="forward_relay_port", default=10047,
+                             help="The port where OpenSMTPD listens for forwarded mail")
     grp_network.add_argument("--srs-secret", dest="srs_secret",
                              default=os.getenv("MAILFORWARDER_SRS_SECRET", ""),
                              help="SRS secret used to rewrite forwarding envelope sender addresses "
