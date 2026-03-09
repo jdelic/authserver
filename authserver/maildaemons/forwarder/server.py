@@ -203,13 +203,10 @@ class ForwarderServer(SaneSMTPServer):
 
 
 def run(_args: argparse.Namespace) -> None:
-    _log.info("Starting ForwarderServer on %s:%s with \n"
-              "    remote relay %s:%s\n"
-              "    transactional relay %s:%s\n"
-              "    local delivery %s:%s",
-              _args.remote_relay_ip, _args.remote_relay_port, _args.transactional_relay_ip,
-              _args.transactional_relay_port, _args.local_delivery_ip, _args.local_delivery_port,
-              _args.input_ip, _args.input_port)
+    _log.info("Starting ForwarderServer on %s:%s with", _args.input_ip, _args.input_port)
+    _log.info("    remote relay %s:%s", _args.remote_relay_ip, _args.remote_relay_port)
+    _log.info("    transactional relay %s:%s", _args.transactional_relay_ip, _args.transactional_relay_port,)
+    _log.info("    local delivery %s:%s", _args.local_delivery_ip, _args.local_delivery_port)
     server = ForwarderServer(
         remote_relay=(_args.remote_relay_ip, _args.remote_relay_port),
         transactional_relay=(_args.transactional_relay_ip, _args.transactional_relay_port) if _args.transactional_relay_ip else None,
