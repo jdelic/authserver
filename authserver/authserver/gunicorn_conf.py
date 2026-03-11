@@ -54,6 +54,18 @@ LOGGING = {
             "level": os.getenv("APPLICATION_LOGLEVEL", "INFO"),
             "propagate": True,
         },
+        "aiosmtpd": {
+            "level": os.getenv("AIOSMTP_LOGLEVEL", "ERROR"),
+            "propagate": True,
+        },
+        "aiosmtp": {
+            "level": os.getenv("AIOSMTP_LOGLEVEL", "ERROR"),
+            "propagate": True,
+        },
+        "mail.log": {
+            "level": os.getenv("AIOSMTP_LOGLEVEL", "ERROR"),
+            "propagate": True,
+        },
         "gunicorn.access": {
             "handlers": ["server_logs"],
             "level": os.getenv("ACCESSLOG_LOGLEVEL", "INFO"),
