@@ -89,7 +89,7 @@ class ForwarderServer(SaneSMTPServer):
             # implement domain catch-all redirect
             domain = None  # type: Optional[Domain]
             try:
-                domain = Domain.objects.get(name=rcptdomain)
+                domain = Domain.objects.get(name__iexact=rcptdomain)
             except Domain.DoesNotExist:
                 pass
             except OperationalError:
@@ -170,7 +170,7 @@ class ForwarderServer(SaneSMTPServer):
             _, mfdomain = new_mailfrom.split("@", 1)
 
             try:
-                domain = Domain.objects.get(name=mfdomain)
+                domain = Domain.objects.get(name__iexact=mfdomain)
             except Domain.DoesNotExist:
                 pass
 
