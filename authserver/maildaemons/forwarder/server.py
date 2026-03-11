@@ -139,8 +139,8 @@ class ForwarderServer(SaneSMTPServer):
                                                domain__name__iexact=rcptdomain)  # type: EmailAlias
             except EmailAlias.DoesNotExist:
                 # OpenSMTPD shouldn't even call us for invalid addresses if we're configured correctly
-                _log.error("Unknown mail address: %s (from: %s, prefix: %s)",
-                           rcptto, mailfrom, user_mailprefix)
+                _log.debug("Not a local mail address: %s (from: %s, prefix: %s)",
+                          rcptto, mailfrom, user_mailprefix)
                 continue
             except OperationalError:
                 _log.exception("Database unavailable.")
