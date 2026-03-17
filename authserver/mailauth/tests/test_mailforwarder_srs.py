@@ -21,7 +21,7 @@ class _FakeDomain:
 
     class Manager:
         @staticmethod
-        def get(name: str) -> Any:
+        def get(**kwargs: Any) -> Any:
             raise _FakeDomain.DoesNotExist()
 
     objects = Manager()
