@@ -185,7 +185,7 @@ class ForwarderServer(SaneSMTPServer):
                 _log.debug("Injecting email from <%s> to <%s> through standard relay", new_mailfrom,
                            combined_rcptto[new_mailfrom])
                 ret = self.smtp.sendmail(new_mailfrom, combined_rcptto[new_mailfrom], data)
-            if not ret.startswith("250"):
+            if ret is not None and not ret.startswith("250"):
                 results[new_mailfrom] = "failure"
                 if len(combined_rcptto.keys()) > 1:
                     _log.error("Non-atomic mail sending failed from <%s> in dict(%s)", combined_rcptto.keys(),
