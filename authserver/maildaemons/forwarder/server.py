@@ -167,12 +167,14 @@ class ForwarderServer(SaneSMTPServer):
 
         results = {k: "unsent" for k in combined_rcptto.keys()}  # type: Dict[str, str]
         for new_mailfrom in combined_rcptto.keys():
-            _, mfdomain = new_mailfrom.split("@", 1)
+            domain = None
+            if "@" in new_mailfrom:  # no "@" in bounces
+                _, mfdomain = new_mailfrom.split("@", 1)
 
-            try:
-                domain = Domain.objects.get(name__iexact=mfdomain)
-            except Domain.DoesNotExist:
-                pass
+                try:
+                    domain = Domain.objects.get(name__iexact=mfdomain)
+                except Domain.DoesNotExist:
+                    pass
 
             if (new_mailfrom == mailfrom and self.transactional_smtp is not None and
                     domain is not None and domain.can_use_transactional_email):
@@ -183,7 +185,7 @@ class ForwarderServer(SaneSMTPServer):
                 _log.debug("Injecting email from <%s> to <%s> through standard relay", new_mailfrom,
                            combined_rcptto[new_mailfrom])
                 ret = self.smtp.sendmail(new_mailfrom, combined_rcptto[new_mailfrom], data)
-            if ret is not None:
+            if not ret.startswith("250"):
                 results[new_mailfrom] = "failure"
                 if len(combined_rcptto.keys()) > 1:
                     _log.error("Non-atomic mail sending failed from <%s> in dict(%s)", combined_rcptto.keys(),
