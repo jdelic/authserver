@@ -17,7 +17,7 @@ psycopg2-binary==2.9.11
 pyjwt==2.12.1
 py-consul==1.7.1
 python-json-logger==4.0.0
-requests==2.32.5
+requests==2.33.0
 sqlparse==0.5.5
 srslib==0.1.5
 typing-extensions==4.15.0
