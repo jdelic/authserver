@@ -183,7 +183,7 @@ class DockerAuthView(JWTViewHelperMixin, View):
             tr = _tkr_parse(request.POST)
 
             if tr.scope:
-                tp = TokenPermissions.parse_scope(tr.scope)
+                tps = TokenPermissions.parse_scope(tr.scope)
             else:
                 return HttpResponseBadRequest("Can't issue access token without valid scope (scope=%s)", tr.scope)
 
@@ -196,36 +196,39 @@ class DockerAuthView(JWTViewHelperMixin, View):
                                        expected_issuer=request.get_host(),
                                        expected_audience=tr.service)
             if user:
-                try:
-                    drepo = DockerRepo.objects.get(name=tp.path, registry_id=client.id)
-                except DockerRepo.DoesNotExist:
-                    if settings.DOCKERAUTH_ALLOW_UNCONFIGURED_REPOS:
-                        drepo = DockerRepo()
-                        drepo.name = tp.path
-                        drepo.registry = client
-                        drepo.unauthenticated_pull = True
-                        drepo.unauthenticated_push = True
-                    else:
-                        return HttpResponseNotFound("No such repo '%s'" % tp.path)
+                for tp in tps:
+                    try:
+                        drepo = DockerRepo.objects.get(name=tp.path, registry_id=client.id)
+                    except DockerRepo.DoesNotExist:
+                        if settings.DOCKERAUTH_ALLOW_UNCONFIGURED_REPOS:
+                            drepo = DockerRepo()
+                            drepo.name = tp.path
+                            drepo.registry = client
+                            drepo.unauthenticated_pull = True
+                            drepo.unauthenticated_push = True
+                        else:
+                            return HttpResponseNotFound("No such repo '%s'" % tp.path)
 
-                if drepo.registry.has_access(user, tp) or drepo.has_access(user, tp):
-                    rightnow = datetime.datetime.now(tz=ZoneInfo("UTC"))
-                    return HttpResponse(content=json.dumps({
-                        "access_token": self._create_jwt(
-                            self._make_access_token(request, tr, rightnow, tp, user),
-                            client.private_key_pem(),
-                        ),
-                        "scope": tr.scope,
-                        "expires_in": 119,
-                        "refresh_token": self._create_jwt(
-                            self._make_refresh_token(request, tr, rightnow, user),
-                            client.private_key_pem(),
-                        )
-                    }), status=200, content_type="application/json")
-                else:
-                    return HttpResponseForbidden("User %s doesn't have access to repo %s" % (user.pk, tp.path))
+                    if not drepo.registry.has_access(user, tp) or not drepo.has_access(user, tp):
+                        all_satisfied = False
+                        _log.debug("Client has requested and is missing access rights on %s", tp)
+                        return HttpResponseForbidden("User %s doesn't have access to repo %s" % (user.pk, tp.path))
             else:
                 return HttpResponse("Unauthorized", status=401)
+
+            rightnow = datetime.datetime.now(tz=ZoneInfo("UTC"))
+            return HttpResponse(content=json.dumps({
+                "access_token": self._create_jwt(
+                    self._make_access_token(request, tr, rightnow, tp, user),
+                    client.private_key_pem(),
+                ),
+                "scope": tr.scope,
+                "expires_in": 119,
+                "refresh_token": self._create_jwt(
+                    self._make_refresh_token(request, tr, rightnow, user),
+                    client.private_key_pem(),
+                )
+            }), status=200, content_type="application/json")
         else:
             return HttpResponseBadRequest("POSTing to this endpoint requires a refresh_token")
 
