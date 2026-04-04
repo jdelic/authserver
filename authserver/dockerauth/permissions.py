@@ -14,7 +14,7 @@ _TokenPermissionsBase = NamedTuple('_TokenPermissionsBase', [
 
 class TokenPermissions(_TokenPermissionsBase):
     @staticmethod
-    def parse_scope(scope: str) -> List['TokenPermissions']:
+    def parse_scopes(scope: str) -> List['TokenPermissions']:
         """
         :raises: ValueError when scope has the wrong type
         :param scope:
