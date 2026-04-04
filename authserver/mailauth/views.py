@@ -212,8 +212,12 @@ class UserLoginAPIView(JWTViewHelperMixin, View):
             )
 
         try:
+            hostname = request.get_host()
+            if ":" in hostname:
+                # get_host might return a port number under circumstances
+                hostname = hostname.split(":")[0]
             req_domain = Domain.objects.find_parent_domain(
-                request.get_host(),
+                hostname,
                 require_jwt_subdomains_set=True,
             )
         except Domain.DoesNotExist:
