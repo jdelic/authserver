@@ -102,7 +102,7 @@ class DockerAuthView(JWTViewHelperMixin, View):
             return HttpResponseNotFound("No such registry/client (%s)" % str(tr))
 
         if tr.scope:
-            tp = TokenPermissions.parse_scope(tr.scope)
+            tp = TokenPermissions.parse_scopes(tr.scope)[0]
         else:
             tp = TokenPermissions(
                 type="login",
@@ -183,7 +183,7 @@ class DockerAuthView(JWTViewHelperMixin, View):
             tr = _tkr_parse(request.POST)
 
             if tr.scope:
-                tps = TokenPermissions.parse_scope(tr.scope)
+                tps = TokenPermissions.parse_scopes(tr.scope)
             else:
                 return HttpResponseBadRequest("Can't issue access token without valid scope (scope=%s)", tr.scope)
 
