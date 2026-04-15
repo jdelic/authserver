@@ -209,7 +209,7 @@ class DockerAuthView(JWTViewHelperMixin, View):
                         else:
                             return HttpResponseNotFound("No such repo '%s'" % tp.path)
 
-                    if not drepo.registry.has_access(user, tp) or not drepo.has_access(user, tp):
+                    if not drepo.registry.has_access(user, tp) and not drepo.has_access(user, tp):
                         all_satisfied = False
                         _log.debug("Client has requested and is missing access rights on %s", tp)
                         return HttpResponseForbidden("User %s doesn't have access to repo %s" % (user.pk, tp.path))
