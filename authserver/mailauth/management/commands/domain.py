@@ -149,20 +149,7 @@ class Command(BaseCommand):
         if output != "-":
             sys.stderr.write("Public key exported to %s\n" % output)
 
-    def _list(self, contains: str, include_parent_domain: bool = False, format: str = "list",
-              require_jwt_subdomains: bool = True, **kwargs: Any) -> None:
-        if contains and include_parent_domain:
-            try:
-                dom = Domain.objects.find_parent_domain(
-                    contains, require_jwt_subdomains_set=require_jwt_subdomains)  # type: Optional[Domain]
-            except Domain.DoesNotExist:
-                dom = None
-            qs = [dom] if dom is not None else []  # type: Union[QuerySet, List[Domain]]
-        elif contains and not include_parent_domain:
-            qs = Domain.objects.filter(name__icontains=contains, jwt_subdomains=require_jwt_subdomains)
-        else:
-            qs = Domain.objects.all()
-
+    def _output_domainlist(self, qs: Union[QuerySet[Domain], List[Domain]], format: str = "list") -> int:
         if qs:
             export = []
             for domain in qs:
@@ -179,13 +166,44 @@ class Command(BaseCommand):
                     })
             if format == "json":
                 print(json.dumps(export))
+            return 0
         else:
             if format == "list":
                 sys.stderr.write("No results.\n")
-                sys.exit(1)
+                return 1;
             else:
                 print("[]")
-                sys.exit(0)
+                return 0
+
+    def _list(self, domainname: str, include_parent_domain: bool = False, format: str = "list", **kwargs: Any) -> None:
+        if domainname and include_parent_domain:
+            try:
+                dom = Domain.objects.find_parent_domain(domainname)  # type: Optional[Domain]
+            except Domain.DoesNotExist:
+                dom = None
+            qs = [dom] if dom is not None else []  # type: Union[QuerySet, List[Domain]]
+        elif domainname and not include_parent_domain:
+            qs = Domain.objects.filter(name__iexact=domainname)
+        else:
+            qs = Domain.objects.all()
+
+        sys.exit(self._output_domainlist(qs, format=format))
+
+    def _search(self, contains: str, include_parent_domain: bool = False, format: str = "list",
+                require_jwt_subdomains: bool = False, **kwargs: Any) -> None:
+        if contains and include_parent_domain:
+            try:
+                dom = Domain.objects.find_parent_domain(
+                    contains, require_jwt_subdomains_set=require_jwt_subdomains)  # type: Optional[Domain]
+            except Domain.DoesNotExist:
+                dom = None
+            qs = [dom] if dom is not None else []  # type: Union[QuerySet, List[Domain]]
+        elif contains and not include_parent_domain:
+            qs = Domain.objects.filter(name__icontains=contains, jwt_subdomains=require_jwt_subdomains)
+        else:
+            qs = Domain.objects.all()
+
+        sys.exit(self._output_domainlist(qs, format=format))
 
     def add_arguments(self, parser: CommandParser) -> None:
 
@@ -236,16 +254,25 @@ class Command(BaseCommand):
 
         domain_list = subparsers.add_parser("list", help="List domains")
         domain_list.add_argument("--include-parent-domain", dest="include_parent_domain", action="store_true",
-                                 default=False, help="Return a parent domain if such a domain exists")
+                                 default=False, help="Return a parent domain if such a domain exists.")
         domain_list.add_argument("--format", dest="format", choices=["json", "list"], default="list",
                                  help="The output format for the results")
-        domain_list.add_argument("--no-require-subdomain-signing", dest="require_jwt_subdomains", action="store_false",
-                                 default=True,
-                                 help="Find parent domains even if they can't sign for subdomains. By default this "
-                                      "command will only list domains that can sign for subdomains if "
-                                      "--include-parent-domain is set.")
-        domain_list.add_argument("contains", nargs="?",
-                                 help="Filter list by this string")
+        domain_list.add_argument("domainname", nargs="?",
+                                 help="Only list this specific domain or its parent domains if they exist")
+
+        domain_search = subparsers.add_parser("search", help="Search domains")
+        domain_search.add_argument("--include-parent-domain", dest="include_parent_domain", action="store_true",
+                                   default=False, help="Return a parent domain if such a domain exists. For this, the "
+                                                       "query string is split by '.' and those substrings are also "
+                                                       "searched for.")
+        domain_search.add_argument("--format", dest="format", choices=["json", "list"], default="list",
+                                   help="The output format for the results")
+        domain_search.add_argument("--require-subdomain-signing", dest="require_jwt_subdomains",
+                                   action="store_true",
+                                   default=False,
+                                   help="Find parent domains only if they can sign for subdomains.")
+        domain_search.add_argument("contains", nargs="?",
+                                   help="Return any domain containing this string and fulfilling the signing requirements")
 
         domain_edit = subparsers.add_parser("edit", help="Edit domains")
         domain_edit.add_argument("--jwt-allow-subdomain-signing", dest="jwt_allow_subdomain_signing",
@@ -277,6 +304,8 @@ class Command(BaseCommand):
             self._pubkey(**options)
         elif options["scmd"] == "list":
             self._list(**options)
+        elif options["scmd"] == "search":
+            self._search(**options)
         elif options["scmd"] == "edit":
             self._edit(**options)
         else:
