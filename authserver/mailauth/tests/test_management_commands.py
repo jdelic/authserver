@@ -76,3 +76,35 @@ class ServiceUserCommandTests(TestCase):
         payload = json.loads(out.getvalue())
         self.assertEqual(1, len(payload))
         self.assertEqual("svc-charlie", payload[0]["username"])
+
+
+class PermissionsCommandTests(TestCase):
+    def setUp(self) -> None:
+        self.permission = models.MNApplicationPermission.objects.create(
+            name="WebDAV Storage Jonas",
+            permission_name="webdav-storage-jonas",
+        )
+        models.MNApplicationPermission.objects.create(
+            name="Calendar Access",
+            permission_name="calendar-access",
+        )
+
+    def test_list_can_filter_by_permission_name_in_json_output(self) -> None:
+        out = StringIO()
+        with redirect_stdout(out):
+            call_command("permissions", "list", "--filter-permission", "storage-jonas", "--format", "json")
+
+        payload = json.loads(out.getvalue())
+        self.assertEqual(1, len(payload))
+        self.assertEqual(self.permission.permission_name, payload[0]["permission_name"])
+        self.assertEqual(self.permission.name, payload[0]["name"])
+
+    def test_list_can_filter_by_name_in_json_output(self) -> None:
+        out = StringIO()
+        with redirect_stdout(out):
+            call_command("permissions", "list", "--filter-name", "WebDAV", "--format", "json")
+
+        payload = json.loads(out.getvalue())
+        self.assertEqual(1, len(payload))
+        self.assertEqual(self.permission.permission_name, payload[0]["permission_name"])
+
