@@ -162,7 +162,7 @@ class Command(BaseCommand):
         filter_args = {}
         if filter_permission:
             filter_args.update({
-                "permission_name__icontains": kwargs["filter_permission"],
+                "permission_name__icontains": filter_permission,
             })
         if filter_name:
             filter_args.update({
