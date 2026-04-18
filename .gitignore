@@ -9,6 +9,7 @@ syntax: glob
 .settings
 .idea
 .mypy_cache
+.envdir/
 dist/
 build/
 *.egg-info
