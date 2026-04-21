@@ -299,7 +299,7 @@ class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.Permissi
     identifier = models.CharField("User ID", max_length=255, unique=True, db_index=True)
     password = PretendHasherPasswordField("Password", max_length=128)
     fullname = models.CharField("Full name", max_length=255)
-    delivery_mailbox = models.OneToOneField(EmailAlias, on_delete=models.PROTECT, null=True)
+    delivery_mailbox = models.OneToOneField(EmailAlias, on_delete=models.CASCADE, null=True)
 
     pgp_key_id = models.CharField("PGP Key ID", max_length=64, blank=True, default="")
     yubikey_serial = models.CharField("Yubikey Serial", max_length=64, blank=True, default="")
