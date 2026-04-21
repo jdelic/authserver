@@ -1,0 +1,453 @@
+{% extends "registration/base.html" %}
+
+{% block title %}Dashboard | {{ company_name }}{% endblock %}
+
+{% block body %}
+    <section class="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.45)] sm:p-8">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+                <p class="text-sm font-semibold uppercase tracking-[0.28em] text-amber-600">Dashboard</p>
+                <h1 class="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Manage your authentication surface.</h1>
+                <p class="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                    Signed in as <strong>{{ request.user.identifier }}</strong>{% if request.user.delivery_mailbox %}, primary delivery alias <strong>{{ request.user.delivery_mailbox.mailprefix }}@{{ request.user.delivery_mailbox.domain.name }}</strong>{% endif %}.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="mt-8 grid gap-6 xl:grid-cols-2">
+        <article class="panel">
+            <h2 class="text-xl font-semibold text-slate-950">Create Email Alias</h2>
+            <p class="mt-2 text-sm leading-6 text-slate-600">Any registered domain can be used in this first implementation.</p>
+            <form method="post" action="{% url 'selfservice-alias-create' %}" class="mt-6 space-y-5">
+                {% csrf_token %}
+                <div>
+                    <label for="{{ alias_form.mailprefix.id_for_label }}" class="text-sm font-medium text-slate-700">{{ alias_form.mailprefix.label }}</label>
+                    {{ alias_form.mailprefix }}
+                    {% if alias_form.mailprefix.errors %}
+                        <p class="mt-2 text-sm text-rose-600">{{ alias_form.mailprefix.errors|join:", " }}</p>
+                    {% endif %}
+                    {% if alias_form.mailprefix.help_text %}
+                        <p class="mt-2 text-xs text-slate-500">{{ alias_form.mailprefix.help_text }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ alias_form.domain.id_for_label }}" class="text-sm font-medium text-slate-700">{{ alias_form.domain.label }}</label>
+                    {{ alias_form.domain }}
+                    {% if alias_form.domain.errors %}
+                        <p class="mt-2 text-sm text-rose-600">{{ alias_form.domain.errors|join:", " }}</p>
+                    {% endif %}
+                </div>
+                {% if alias_form.non_field_errors %}
+                    <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {{ alias_form.non_field_errors|join:", " }}
+                    </div>
+                {% endif %}
+                <button type="submit" class="btn btn-primary">
+                    Create alias
+                </button>
+            </form>
+        </article>
+
+        <article class="panel">
+            <h2 class="text-xl font-semibold text-slate-950">Create Service User</h2>
+            <p class="mt-2 text-sm leading-6 text-slate-600">Service users are intended for legacy clients. Passwords are never shown again after creation.</p>
+            <form method="post" action="{% url 'selfservice-service-user-create' %}" class="mt-6 space-y-5">
+                {% csrf_token %}
+                <div>
+                    <label for="{{ service_user_form.username.id_for_label }}" class="text-sm font-medium text-slate-700">{{ service_user_form.username.label }}</label>
+                    {{ service_user_form.username }}
+                    {% if service_user_form.username.errors %}
+                        <p class="mt-2 text-sm text-rose-600">{{ service_user_form.username.errors|join:", " }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ service_user_form.password.id_for_label }}" class="text-sm font-medium text-slate-700">{{ service_user_form.password.label }}</label>
+                    {{ service_user_form.password }}
+                    {% if service_user_form.password.errors %}
+                        <p class="mt-2 text-sm text-rose-600">{{ service_user_form.password.errors|join:", " }}</p>
+                    {% endif %}
+                    {% if service_user_form.password.help_text %}
+                        <p class="mt-2 text-xs text-slate-500">{{ service_user_form.password.help_text }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ service_user_form.description.id_for_label }}" class="text-sm font-medium text-slate-700">{{ service_user_form.description.label }}</label>
+                    {{ service_user_form.description }}
+                    {% if service_user_form.description.errors %}
+                        <p class="mt-2 text-sm text-rose-600">{{ service_user_form.description.errors|join:", " }}</p>
+                    {% endif %}
+                </div>
+                {% if service_user_form.non_field_errors %}
+                    <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {{ service_user_form.non_field_errors|join:", " }}
+                    </div>
+                {% endif %}
+                <button type="submit" class="btn btn-primary">
+                    Create service user
+                </button>
+            </form>
+        </article>
+    </section>
+
+    <section class="mt-8 grid gap-6 xl:grid-cols-2">
+        <article class="panel">
+            <div class="flex items-center justify-between gap-3">
+                <h2 class="text-xl font-semibold text-slate-950">Email Aliases</h2>
+                <span class="badge badge-neutral">{{ aliases|length }}</span>
+            </div>
+            <div class="mt-6 rounded-3xl border border-slate-200 bg-slate-50/70 p-4" data-alias-manager>
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                    <div class="flex-1">
+                        <label for="alias-filter" class="text-sm font-medium text-slate-700">Filter aliases</label>
+                        <input
+                            id="alias-filter"
+                            type="search"
+                            placeholder="Search by alias, domain, or status"
+                            class="mt-2 w-full rounded-full border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-300"
+                            data-alias-filter
+                        />
+                    </div>
+                    <div class="flex flex-wrap gap-2 lg:self-end lg:justify-end">
+                        <button type="button" class="btn btn-secondary btn-sm" data-alias-select-visible>
+                            Select visible
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-alias-clear-selection>
+                            Clear selection
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-3 flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.2em] text-slate-500">
+                    <span data-alias-summary>Showing {{ aliases|length }} of {{ aliases|length }}</span>
+                    <span class="sm:ml-auto" data-alias-selected>0 selected</span>
+                </div>
+
+                <div class="mt-4 space-y-3" data-alias-list>
+                {% for alias in aliases %}
+                    <article
+                        class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
+                        data-alias-row
+                        data-filter-text="{{ alias.mailprefix }}@{{ alias.domain.name }} {% if request.user.delivery_mailbox_id == alias.id %}primary delivery{% else %}secondary alias{% endif %} {% if alias.blacklisted %}blocked{% else %}active{% endif %}"
+                    >
+                        <div class="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start sm:gap-4">
+                            <label class="flex items-start pt-1">
+                                <input
+                                    type="checkbox"
+                                    value="{{ alias.id }}"
+                                    class="h-4 w-4 rounded border-slate-300 text-slate-950"
+                                    data-alias-checkbox
+                                />
+                            </label>
+                            <div class="min-w-0">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <h3 class="min-w-0 break-all text-sm font-semibold text-slate-950 sm:text-base">{{ alias.mailprefix }}@{{ alias.domain.name }}</h3>
+                                    {% if request.user.delivery_mailbox_id == alias.id %}
+                                        <span class="badge badge-primary">Primary</span>
+                                    {% else %}
+                                        <span class="badge badge-neutral">Alias</span>
+                                    {% endif %}
+                                    {% if alias.blacklisted %}
+                                        <span class="badge badge-danger">Blocked</span>
+                                    {% endif %}
+                                </div>
+                                <p class="mt-2 text-sm text-slate-600">
+                                    {% if request.user.delivery_mailbox_id == alias.id %}
+                                        Primary delivery alias.
+                                    {% else %}
+                                        Secondary alias available for self-service actions.
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                                {% if alias.blacklisted %}
+                                    <form method="post" action="{% url 'selfservice-alias-unblock' alias.id %}">
+                                        {% csrf_token %}
+                                        <button
+                                            type="submit"
+                                            class="icon-btn icon-btn-success"
+                                            title="Unblock alias"
+                                            aria-label="Unblock alias"
+                                        >
+                                            <svg viewBox="0 0 28 24" class="h-4" style="width: 1.17rem;" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                                <rect x="4" y="11" width="16" height="9" rx="2" />
+                                                <path d="M16 11V8a4 4 0 1 1 8 0v3" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <form method="post" action="{% url 'selfservice-alias-block' alias.id %}">
+                                        {% csrf_token %}
+                                        <button
+                                            type="submit"
+                                            class="icon-btn icon-btn-danger"
+                                            title="Block alias"
+                                            aria-label="Block alias"
+                                        >
+                                            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                                <rect x="4" y="11" width="16" height="9" rx="2" />
+                                                <path d="M8 11V8a4 4 0 1 1 8 0v3" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                                {% if request.user.delivery_mailbox_id != alias.id %}
+                                    <a
+                                        href="{% url 'selfservice-alias-convert-mailing-list' alias.id %}"
+                                        class="icon-btn icon-btn-neutral"
+                                        title="Convert to mailing list"
+                                        aria-label="Convert to mailing list"
+                                    >
+                                        <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M4 6h16" />
+                                            <path d="M4 12h10" />
+                                            <path d="M4 18h16" />
+                                            <path d="M18 10v8" />
+                                            <path d="M14 14h8" />
+                                        </svg>
+                                    </a>
+                                    <form method="post" action="{% url 'selfservice-alias-delete' alias.id %}">
+                                        {% csrf_token %}
+                                        <button
+                                            type="submit"
+                                            class="icon-btn icon-btn-primary"
+                                            title="Delete alias"
+                                            aria-label="Delete alias"
+                                        >
+                                            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M3 6h18" />
+                                                <path d="M8 6V4h8v2" />
+                                                <path d="M8 10v6" />
+                                                <path d="M12 10v6" />
+                                                <path d="M16 10v6" />
+                                                <path d="M5 6l1 14h12l1-14" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </article>
+                {% empty %}
+                    <p class="rounded-3xl border border-dashed border-slate-300 bg-slate-50/70 px-5 py-8 text-sm text-slate-500">No secondary aliases yet.</p>
+                {% endfor %}
+                    <p class="hidden rounded-3xl border border-dashed border-slate-300 bg-slate-50/70 px-5 py-8 text-sm text-slate-500" data-alias-empty>No aliases match the current filter.</p>
+                </div>
+
+                {% if aliases %}
+                    <form method="post" action="{% url 'selfservice-alias-bulk' %}" class="mt-4 rounded-3xl border border-slate-200 bg-white p-4" data-alias-bulk-form>
+                        {% csrf_token %}
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <p class="text-sm font-semibold text-slate-950"><span data-alias-bulk-count>0</span> aliases selected</p>
+                                <p class="mt-1 text-sm text-slate-600">Bulk actions support block, unblock, and delete. Mailing list conversion stays per-alias because it needs extra settings.</p>
+                            </div>
+                            <div class="flex flex-wrap gap-2 lg:justify-end">
+                                <button type="submit" name="action" value="block" class="btn btn-danger-soft btn-sm disabled:opacity-50" data-alias-bulk-action>
+                                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="4" y="11" width="16" height="9" rx="2" />
+                                        <path d="M8 11V8a4 4 0 1 1 8 0v3" />
+                                    </svg>
+                                    Block selected
+                                </button>
+                                <button type="submit" name="action" value="unblock" class="btn btn-success-soft btn-sm disabled:opacity-50" data-alias-bulk-action>
+                                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M7 11V8a5 5 0 0 1 10 0" />
+                                        <rect x="4" y="11" width="16" height="9" rx="2" />
+                                    </svg>
+                                    Unblock selected
+                                </button>
+                                <button type="submit" name="action" value="delete" class="btn btn-primary btn-sm disabled:opacity-50" data-alias-bulk-action>
+                                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M3 6h18" />
+                                        <path d="M8 6V4h8v2" />
+                                        <path d="M8 10v6" />
+                                        <path d="M12 10v6" />
+                                        <path d="M16 10v6" />
+                                        <path d="M5 6l1 14h12l1-14" />
+                                    </svg>
+                                    Delete selected
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                {% endif %}
+            </div>
+        </article>
+
+        <article class="panel">
+            <div class="flex items-center justify-between gap-3">
+                <h2 class="text-xl font-semibold text-slate-950">Mailing Lists</h2>
+                <span class="badge badge-neutral">{{ mailing_lists|length }}</span>
+            </div>
+            <div class="mt-6 space-y-4">
+                {% for alias in mailing_lists %}
+                    <article class="rounded-3xl border border-slate-200 bg-slate-50/70 p-5">
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div class="min-w-0">
+                                <h3 class="truncate text-lg font-semibold text-slate-950">{{ alias.mailprefix }}@{{ alias.domain.name }}</h3>
+                                <p class="mt-2 text-sm text-slate-600">{{ alias.forward_to.addresses|length }} recipient{{ alias.forward_to.addresses|length|pluralize }}</p>
+                                {% if alias.forward_to.new_mailfrom %}
+                                    <p class="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">Mail from rewritten to {{ alias.forward_to.new_mailfrom }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <a href="{% url 'selfservice-mailing-list-edit' alias.id %}" class="btn btn-secondary btn-sm">Manage recipients</a>
+                                <form method="post" action="{% url 'selfservice-mailing-list-convert-alias' alias.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-warning-soft btn-sm">Convert to user alias</button>
+                                </form>
+                                <form method="post" action="{% url 'selfservice-mailing-list-delete' alias.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-primary btn-sm">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    </article>
+                {% empty %}
+                    <p class="rounded-3xl border border-dashed border-slate-300 bg-slate-50/70 px-5 py-8 text-sm text-slate-500">No mailing lists owned by this account yet.</p>
+                {% endfor %}
+            </div>
+        </article>
+    </section>
+
+    <section class="panel mt-8">
+        <div class="flex items-center justify-between gap-3">
+            <h2 class="text-xl font-semibold text-slate-950">Service Users</h2>
+            <span class="badge badge-neutral">{{ service_users|length }}</span>
+        </div>
+        <div class="mt-6 space-y-4">
+            {% for service_user in service_users %}
+                <article class="rounded-3xl border border-slate-200 bg-slate-50/70 p-5">
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div class="min-w-0">
+                            <h3 class="truncate text-lg font-semibold text-slate-950">{{ service_user.username }}</h3>
+                            {% if service_user.description %}
+                                <p class="mt-2 text-sm leading-6 text-slate-600">{{ service_user.description }}</p>
+                            {% else %}
+                                <p class="mt-2 text-sm leading-6 text-slate-500">No description provided.</p>
+                            {% endif %}
+                        </div>
+                        <form method="post" action="{% url 'selfservice-service-user-delete' service_user.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-primary btn-sm">Delete</button>
+                        </form>
+                    </div>
+                </article>
+            {% empty %}
+                <p class="rounded-3xl border border-dashed border-slate-300 bg-slate-50/70 px-5 py-8 text-sm text-slate-500">No service users created yet.</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <script>
+        (() => {
+            const manager = document.querySelector("[data-alias-manager]");
+            if (!manager) {
+                return;
+            }
+
+            const filterInput = manager.querySelector("[data-alias-filter]");
+            const rows = Array.from(manager.querySelectorAll("[data-alias-row]"));
+            const checkboxes = Array.from(manager.querySelectorAll("[data-alias-checkbox]"));
+            const summary = manager.querySelector("[data-alias-summary]");
+            const selectedSummary = manager.querySelector("[data-alias-selected]");
+            const emptyState = manager.querySelector("[data-alias-empty]");
+            const selectVisibleButton = manager.querySelector("[data-alias-select-visible]");
+            const clearSelectionButton = manager.querySelector("[data-alias-clear-selection]");
+            const bulkForm = manager.querySelector("[data-alias-bulk-form]");
+            const bulkCount = manager.querySelector("[data-alias-bulk-count]");
+            const bulkButtons = bulkForm ? Array.from(bulkForm.querySelectorAll("[data-alias-bulk-action]")) : [];
+
+            const selectedAliases = () => checkboxes.filter((checkbox) => checkbox.checked);
+            const visibleRows = () => rows.filter((row) => !row.classList.contains("hidden"));
+
+            const syncBulkState = () => {
+                const selectedCount = selectedAliases().length;
+                if (selectedSummary) {
+                    selectedSummary.textContent = `${selectedCount} selected`;
+                }
+                if (bulkCount) {
+                    bulkCount.textContent = String(selectedCount);
+                }
+                for (const button of bulkButtons) {
+                    button.disabled = selectedCount === 0;
+                }
+            };
+
+            const applyFilter = () => {
+                const query = filterInput ? filterInput.value.trim().toLowerCase() : "";
+                let visibleCount = 0;
+                for (const row of rows) {
+                    const haystack = (row.dataset.filterText || "").toLowerCase();
+                    const matches = !query || haystack.includes(query);
+                    row.classList.toggle("hidden", !matches);
+                    if (matches) {
+                        visibleCount += 1;
+                    }
+                }
+                if (summary) {
+                    summary.textContent = `Showing ${visibleCount} of ${rows.length}`;
+                }
+                if (emptyState) {
+                    emptyState.classList.toggle("hidden", visibleCount !== 0);
+                }
+            };
+
+            if (filterInput) {
+                filterInput.addEventListener("input", applyFilter);
+            }
+
+            for (const checkbox of checkboxes) {
+                checkbox.addEventListener("change", syncBulkState);
+            }
+
+            if (selectVisibleButton) {
+                selectVisibleButton.addEventListener("click", () => {
+                    for (const row of visibleRows()) {
+                        const checkbox = row.querySelector("[data-alias-checkbox]");
+                        if (checkbox) {
+                            checkbox.checked = true;
+                        }
+                    }
+                    syncBulkState();
+                });
+            }
+
+            if (clearSelectionButton) {
+                clearSelectionButton.addEventListener("click", () => {
+                    for (const checkbox of checkboxes) {
+                        checkbox.checked = false;
+                    }
+                    syncBulkState();
+                });
+            }
+
+            if (bulkForm) {
+                bulkForm.addEventListener("submit", (event) => {
+                    const existing = Array.from(bulkForm.querySelectorAll('input[name="alias_ids"]'));
+                    for (const field of existing) {
+                        field.remove();
+                    }
+
+                    const selected = selectedAliases();
+                    if (!selected.length) {
+                        event.preventDefault();
+                        return;
+                    }
+
+                    for (const checkbox of selected) {
+                        const field = document.createElement("input");
+                        field.type = "hidden";
+                        field.name = "alias_ids";
+                        field.value = checkbox.value;
+                        bulkForm.appendChild(field);
+                    }
+                });
+            }
+
+            applyFilter();
+            syncBulkState();
+        })();
+    </script>
+{% endblock %}

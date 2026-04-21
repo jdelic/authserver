@@ -1,12 +1,14 @@
 {% extends "oauth2_provider/base.html" %}
 
+{% block title %}Authorize Application | {{ company_name }}{% endblock %}
+
 {% block body %}
-    <div class="centered">
+    <div class="mx-auto w-full max-w-3xl">
         {% if not error %}
-            <form class="pure-form pure-form-aligned" id="authorizationForm" method="post">
-                <fieldset>
-                    <legend><img src="{{company_logo}}"/> {{company_name}}</legend>
-                    <p>Authorize {{ application.name }}?</p>
+            <form id="authorizationForm" method="post" class="panel">
+                    <p class="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500">OAuth2</p>
+                    <h1 class="mt-3 text-3xl font-semibold text-slate-950">Authorize {{ application.name }}?</h1>
+                    <p class="mt-3 text-sm leading-6 text-slate-600">The application is requesting access to the following permissions.</p>
                     {% csrf_token %}
 
                     {% for field in form %}
@@ -15,28 +17,30 @@
                         {% endif %}
                     {% endfor %}
 
-                    <p>The application requested the following permissions:</p>
-                    <ul>
+                    <ul class="mt-6 space-y-3">
                         {% for scope in scopes_descriptions %}
-                            <li>{{ scope }}</li>
+                            <li class="tile text-sm text-slate-700">{{ scope }}</li>
                         {% endfor %}
                     </ul>
 
-                    {{ form.errors }}
-                    {{ form.non_field_errors }}
-
-                    <div class="control-group">
-                        <div class="controls">
-                            <input type="submit" class="pure-button" value="Cancel"/>
-                            <input type="submit" class="pure-button pure-button-primary" name="allow" value="Authorize"/>
+                    {% if form.errors or form.non_field_errors %}
+                        <div class="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                            {{ form.errors }}
+                            {{ form.non_field_errors }}
                         </div>
+                    {% endif %}
+
+                    <div class="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                        <button type="submit" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" name="allow" value="Authorize" class="btn btn-primary">Authorize</button>
                     </div>
-                </fieldset>
             </form>
 
         {% else %}
-            <h2>Error: {{ error.error }}</h2>
-            <p>{{ error.description }}</p>
+            <div class="panel border-rose-200">
+                <h2 class="text-2xl font-semibold text-slate-950">Error: {{ error.error }}</h2>
+                <p class="mt-3 text-sm leading-6 text-slate-600">{{ error.description }}</p>
+            </div>
         {% endif %}
     </div>
 {% endblock %}
