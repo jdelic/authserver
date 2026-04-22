@@ -83,12 +83,14 @@ class MNUserAdmin(auth_admin.UserAdmin):
     search_fields = ('identifier', 'fullname')
     ordering = ('identifier',)
     filter_horizontal = ('groups', 'user_permissions', 'app_permissions', 'app_groups',)
+    autocomplete_fields = ('delivery_mailbox',)
 
 
 @admin.register(Domain)
 class DomainAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     form = DomainForm
+    ordering = ('name',)
 
     def response_add(self, request: HttpRequest, obj: Domain, post_url_continue: str = None) -> \
             HttpResponse:
@@ -159,8 +161,10 @@ class MailingListAdmin(admin.ModelAdmin):
 
 @admin.register(EmailAlias)
 class EmailAliasAdmin(admin.ModelAdmin):
-    search_fields = ('mailprefix', 'domain__name',)
+    search_fields = ('mailprefix', 'domain__name', 'user__identifier', 'forward_to__name')
     list_filter = ('blacklisted', 'domain',)
+    ordering = ('domain__name', 'mailprefix')
+    autocomplete_fields = ('domain',)
 
     def get_user(self, obj: EmailAlias) -> str:
         ret = "[Error: Unassigned]"
