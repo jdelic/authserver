@@ -2,6 +2,7 @@ from django.contrib.auth import SESSION_KEY
 from django.test import TestCase
 from django.urls import reverse
 
+from authserver.middleware import ROBOTS_POLICY
 from authserver.selfservice_views import SERVICE_USER_SESSION_KEY
 from mailauth import models
 
@@ -56,6 +57,15 @@ class SelfServiceViewTests(TestCase):
         self.assertContains(response, "Identity, aliases, and self-service in one place.")
         self.assertContains(response, "Self-service portal")
         self.assertContains(response, "Email or admin ID")
+        self.assertEqual(response.headers["X-Robots-Tag"], ROBOTS_POLICY)
+        self.assertContains(response, 'name="robots"', html=False)
+
+    def test_robots_txt_disallows_all_crawlers(self) -> None:
+        response = self.client.get("/robots.txt")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.headers["Content-Type"], "text/plain; charset=utf-8")
+        self.assertEqual(response.headers["X-Robots-Tag"], ROBOTS_POLICY)
+        self.assertEqual(response.content.decode("utf-8"), "User-agent: *\nDisallow: /\n")
 
     def test_login_page_shows_oidc_application_context(self) -> None:
         response = self.client.get(
