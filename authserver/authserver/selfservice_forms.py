@@ -119,8 +119,11 @@ class EmailAliasCreateForm(forms.ModelForm):
         self.user = user
         super().__init__(*args, **kwargs)
         self.fields["domain"].queryset = Domain.objects.order_by("name")
+        self.fields["domain"].empty_label = None
         self.fields["mailprefix"].help_text = "Enter the part before the @ sign."
         self.fields["mailprefix"].widget.attrs["placeholder"] = "team"
+        self.fields["domain"].widget.attrs["data-domain-select"] = "true"
+        self.fields["domain"].widget.attrs["size"] = "8"
         add_form_control_style(self.fields["mailprefix"])
         add_form_control_style(self.fields["domain"])
 
