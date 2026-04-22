@@ -12,6 +12,7 @@ syntax: glob
 .envdir/
 dist/
 build/
+node_modules/
 *.egg-info
 *.iml
 .gopythongo/etc/appconfig

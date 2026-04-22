@@ -1,0 +1,12 @@
+{
+  "name": "authserver",
+  "private": true,
+  "scripts": {
+    "build:css": "npx @tailwindcss/cli -i ./authserver/authserver/static_src/tailwind.css -o ./authserver/authserver/static/css/site.css --minify",
+    "watch:css": "npx @tailwindcss/cli -i ./authserver/authserver/static_src/tailwind.css -o ./authserver/authserver/static/css/site.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.0",
+    "tailwindcss": "^4.1.0"
+  }
+}

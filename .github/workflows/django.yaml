@@ -24,8 +24,15 @@ jobs:
               uses: actions/setup-python@v4
               with:
                   python-version: ${{ matrix.python-version }}
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "20"
+                  cache: "npm"
             - name: Install Dependencies
               run: |
+                  npm ci
+                  npm run build:css
                   python -m pip install --upgrade pip wheel
                   pip install -e .
                   pip install mypy typing-extensions django-stubs types-cryptography types-requests types-jwt
@@ -76,5 +83,6 @@ jobs:
                   envdir .envdir django-admin mailinglist remove smokelist -y
                   envdir .envdir django-admin permissions remove smoke.permission
                   envdir .envdir django-admin group remove smokegroup
+                  test -f authserver/authserver/static/css/site.css
                   envdir .envdir django-admin collectstatic --noinput
                   envdir .envdir django-admin test authserver.tests mailauth.tests

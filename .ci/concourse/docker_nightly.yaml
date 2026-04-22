@@ -80,6 +80,12 @@ jobs:
                             mkdir -p dist/appconfig/authserver/files && \
                             head -c 32 /dev/urandom | base64 > dist/appconfig/authserver/env/SECRET_KEY && \
                             echo authserver.settings > dist/appconfig/authserver/env/DJANGO_SETTINGS_MODULE && \
+                            apt-get update && \
+                            apt-get install -y --no-install-recommends nodejs npm && \
+                            cd authserver && \
+                            npm ci && \
+                            npm run build:css && \
+                            cd / && \
                             python -m pip install virtualenv && \
                             virtualenv /app && \
                             /app/bin/pip install authserver/ && \
@@ -88,4 +94,3 @@ jobs:
           - put: authserver-nightly
             params:
                 build: dist
-

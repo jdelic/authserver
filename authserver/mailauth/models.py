@@ -115,6 +115,8 @@ class Domain(models.Model):
 
 class MailingList(models.Model):
     name = models.CharField("Descriptive name", max_length=255)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                              related_name="managed_mailing_lists", null=True, blank=True)
     addresses = ArrayField(models.EmailField(max_length=255))
     new_mailfrom = models.EmailField(max_length=255, null=False, blank=True, default="")
 
