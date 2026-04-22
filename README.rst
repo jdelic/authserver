@@ -42,11 +42,6 @@ Planned features
   non-standard HTTP API to register as an OAuth2 client and get their OAuth2
   credentials, cutting down on manual configuration.
 
-* OpenID Connect support
-
-* Service-specific username and passwords for systems that don't support
-  OAuth2/OIDC
-
 * add Google Authenticator support via ``django-otp``
 
 
@@ -61,11 +56,13 @@ from this repository:
     $ authserver/bin/pip install net.maurus.authserver
 
 
-Or for Debian 9.0 Buster:
+Or for Debian 13.0 Trixie:
 
 .. code-block:: shell
 
-    $ echo "deb http://repo.maurus.net/nightly/buster mn-nightly main" >> /etc/apt/sources.list.d/maurusnet.list
+    $ wget -O /tmp/mnkey.pem -q http://repo.maurus.net/02CBD940A78049AF.pem
+    $ gpg --dearmor -o /etc/apt/keyrings/maurusnet-archive-keyring.gpg /tmp/mnkey.pem
+    $ echo "deb [signed-by=/etc/apt/keyrings/maurusnet-archive-keyring.gpg] http://repo.maurus.net/release/trixie mn-release main" >> /etc/apt/sources.list.d/maurusnet.list
     $ apt update
     $ apt install authserver authclient
 
