@@ -150,6 +150,30 @@ class Command(BaseCommand):
                 password varchar;
                 primary_alias varchar;
             BEGIN
+                IF position('@' in email) = 0 THEN
+                    SELECT "service_user".password,
+                           "primary_alias".mailprefix || '@' || "primary_domain".name
+                        INTO password, primary_alias
+                    FROM
+                        mailauth_mnserviceuser AS "service_user",
+                        mailauth_mnuser AS "user",
+                        mailauth_emailalias AS "primary_alias",
+                        mailauth_domain AS "primary_domain"
+                    WHERE
+                        "service_user".username=email AND
+                        "user".uuid="service_user".user_id AND
+                        "user".delivery_mailbox_id="primary_alias".id AND
+                        "primary_domain".id="primary_alias".domain_id AND
+                        "user".is_active=TRUE;
+
+                    IF password IS NULL OR password = '' THEN
+                        RETURN;
+                    ELSE
+                        RETURN QUERY SELECT email, password, primary_alias;
+                        RETURN;
+                    END IF;
+                END IF;
+
                 SELECT split_part(email, '@', 1) INTO user_mailprefix;
                 SELECT split_part(email, '@', 2) INTO user_domain;
                 SELECT "user".password INTO password FROM

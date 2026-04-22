@@ -1,0 +1,69 @@
+{% extends "registration/base.html" %}
+
+{% block title %}{{ company_name }} Authserver{% endblock %}
+
+{% block body %}
+    <div class="auth-shell">
+        <section class="auth-copy panel panel-soft">
+            <p class="text-sm font-semibold uppercase tracking-[0.3em] text-amber-600">
+                Authserver <span class="sm:ml-auto font-normal tracking-normal text-slate-500">v{{ version }}</span>
+            </p>
+            <h1 class="mt-4 max-w-2xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">Identity, aliases, and self-service in one place.</h1>
+            <p class="mt-4 max-w-3xl text-base leading-7 text-slate-600">
+                Sign in to manage email aliases, mailing lists, and service users for {{ company_name }}. OpenID Connect clients use the same account and land back on their application after authentication.
+            </p>
+
+            <div class="mt-8 grid gap-4 sm:grid-cols-3">
+                <article class="tile">
+                    <h2 class="text-sm font-semibold text-slate-900">OpenID Connect</h2>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">Single sign-on for services connected to {{ company_name }}.</p>
+                </article>
+                <article class="tile">
+                    <h2 class="text-sm font-semibold text-slate-900">Self-service</h2>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">Create aliases, maintain mailing lists, and manage service credentials.</p>
+                </article>
+                <article class="tile">
+                    <h2 class="text-sm font-semibold text-slate-900">Open Source</h2>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">Built on Django OAuth Toolkit and published as open source software.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="panel auth-form">
+            <form method="post" action="{% url 'authserver-login' %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next|default:'/' }}" />
+
+                <p class="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500">Sign In</p>
+                <h2 class="mt-3 text-2xl font-semibold text-slate-950">Self-service portal</h2>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Use your email alias or staff username to continue.</p>
+
+                {% if form.non_field_errors %}
+                    <div class="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="mt-6">
+                    <label for="{{ form.username.id_for_label }}" class="text-sm font-medium text-slate-700">{{ form.username.label }}</label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                        <p class="mt-2 text-sm text-rose-600">{{ form.username.errors|join:", " }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="mt-5">
+                    <label for="{{ form.password.id_for_label }}" class="text-sm font-medium text-slate-700">{{ form.password.label }}</label>
+                    {{ form.password }}
+                    {% if form.password.errors %}
+                        <p class="mt-2 text-sm text-rose-600">{{ form.password.errors|join:", " }}</p>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="btn btn-primary mt-8 w-full">
+                    Continue
+                </button>
+            </form>
+        </section>
+    </div>
+{% endblock %}

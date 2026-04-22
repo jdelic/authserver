@@ -19,6 +19,7 @@ from django.contrib.auth import models as auth_models
 from oauth2_provider.admin import ApplicationAdmin
 from oauth2_provider.models import get_application_model
 
+from authserver.selfservice_forms import SelfServiceAdminAuthenticationForm
 from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm, MailingListForm, \
     MNServiceUserCreationForm, MNServiceUserChangeForm
 from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroup, MNApplication, MailingList, \
@@ -26,6 +27,7 @@ from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission,
 from mailauth.utils import generate_rsa_key
 
 admin.site.unregister(auth_models.Group)
+admin.site.login_form = SelfServiceAdminAuthenticationForm
 
 
 @admin.register(MNServiceUser)
@@ -151,8 +153,8 @@ class DomainAdmin(admin.ModelAdmin):
 @admin.register(MailingList)
 class MailingListAdmin(admin.ModelAdmin):
     form = MailingListForm
-    search_fields = ('name', 'addresses',)
-    list_display = ('name', 'addresses',)
+    search_fields = ('name', 'addresses', 'owner__identifier',)
+    list_display = ('name', 'owner', 'addresses',)
 
 
 @admin.register(EmailAlias)

@@ -9,8 +9,10 @@ syntax: glob
 .settings
 .idea
 .mypy_cache
+.envdir/
 dist/
 build/
+node_modules/
 *.egg-info
 *.iml
 .gopythongo/etc/appconfig

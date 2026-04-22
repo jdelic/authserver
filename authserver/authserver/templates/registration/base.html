@@ -1,62 +1,55 @@
-<!DOCTYPE "html5">
-<html>
+{% load static %}
+<!doctype html>
+<html lang="en">
 <head>
-    <title>{{company_name}} authserver</title>
-    <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css"
-          integrity="sha384-nn4HPE8lTHyVtfCBi5yW9d20FjT8BJwUXyWZT9InLYax14RDjBj46LmSztkmNP9w"
-          crossorigin="anonymous"/>
-    <!--[if lte IE 8]>
-        <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/grids-responsive-old-ie-min.css">
-    <![endif]-->
-    <!--[if gt IE 8]><!-->
-        <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/grids-responsive-min.css">
-    <!--<![endif]-->
-    <style>
-        div.centered {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            max-width: 768px;
-            min-width: 271px;
-            border: #aaaaaa 1px solid;
-            padding: 1em;
-        }
-
-        fieldset legend img {
-            vertical-align: middle;
-        }
-
-        button.fullwidth {
-            width: 100%;
-            margin-top: 1.5em;
-        }
-
-        .pure-form .has-error input,
-        .pure-form .has-error textarea,
-        .pure-form .has-error select,
-        .pure-form input.has-error,
-        .pure-form textarea.has-error,
-        .pure-form select.has-error {
-            border-color: #b94a48;
-        }
-
-        .pure-form .has-error input:focus,
-        .pure-form .has-error textarea:focus,
-        .pure-form .has-error select:focus,
-        .pure-form input.has-error:focus,
-        .pure-form textarea.has-error:focus,
-        .pure-form select.has-error:focus {
-            border-color: #e9322d;
-        }
-
-        p.error {
-            color: #b94a48;
-        }
-    </style>
+    <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, notranslate, max-image-preview:none, max-snippet:0, max-video-preview:0" />
+    <title>{% block title %}{{ company_name }} authserver{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/site.css' %}" />
 </head>
-<body>
-    {% block body %}{% endblock %}
+<body class="min-h-screen bg-canvas text-slate-900">
+    <div class="relative flex min-h-screen flex-col">
+        {% block header %}
+            <header class="border-b border-slate-200/70 bg-white/80 backdrop-blur-sm">
+                <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+                    <a href="/" class="flex min-w-0 items-center gap-4 text-slate-900">
+                        <img src="{{ company_logo }}" alt="{{ company_name }}" width="80" height="80" class="h-15 w-15 shrink-0 object-contain" />
+                        <span class="flex min-w-0 items-center">
+                            <span class="block truncate text-xl font-semibold">{{ company_name }}</span>
+                        </span>
+                    </a>
+
+                    {% if request.user.is_authenticated %}
+                        <nav class="flex flex-wrap items-center justify-end gap-2 text-sm">
+                            {% if request.user.is_staff %}
+                                <a href="/admin/" class="btn btn-secondary btn-sm">Admin</a>
+                            {% else %}
+                                <a href="/" class="btn btn-secondary btn-sm">Dashboard</a>
+                            {% endif %}
+                            <form method="post" action="/action/logout/">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary btn-sm">Sign out</button>
+                            </form>
+                        </nav>
+                    {% endif %}
+                </div>
+            </header>
+        {% endblock %}
+
+        <main class="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">
+            {% if messages %}
+                <div class="mb-6 space-y-3">
+                    {% for message in messages %}
+                        <div class="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-sm shadow-sm {% if message.tags == 'error' %}border-rose-200 bg-rose-50/90 text-rose-700{% elif message.tags == 'success' %}border-emerald-200 bg-emerald-50/90 text-emerald-700{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% block body %}{% endblock %}
+        </main>
+    </div>
 </body>
 </html>
