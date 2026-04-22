@@ -7,7 +7,7 @@
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
                 <p class="text-sm font-semibold uppercase tracking-[0.28em] text-amber-600">Dashboard</p>
-                <h1 class="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Manage your authentication surface.</h1>
+                <h1 class="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Manage your account.</h1>
                 <p class="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
                     Signed in as <strong>{{ request.user.identifier }}</strong>{% if request.user.delivery_mailbox %}, primary delivery alias <strong>{{ request.user.delivery_mailbox.mailprefix }}@{{ request.user.delivery_mailbox.domain.name }}</strong>{% endif %}.
                 </p>
@@ -18,7 +18,7 @@
     <section class="mt-8 grid gap-6 xl:grid-cols-2">
         <article class="panel">
             <h2 class="text-xl font-semibold text-slate-950">Create Email Alias</h2>
-            <p class="mt-2 text-sm leading-6 text-slate-600">Any registered domain can be used in this first implementation.</p>
+            <p class="mt-2 text-sm leading-6 text-slate-600">Any registered domain on this server can be used for an alias.</p>
             <form method="post" action="{% url 'selfservice-alias-create' %}" class="mt-6 space-y-5">
                 {% csrf_token %}
                 <div>
@@ -33,7 +33,16 @@
                 </div>
                 <div>
                     <label for="{{ alias_form.domain.id_for_label }}" class="text-sm font-medium text-slate-700">{{ alias_form.domain.label }}</label>
+                    <input
+                        id="alias-domain-filter"
+                        type="search"
+                        placeholder="Filter domains"
+                        class="mt-2 w-full rounded-full border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-300"
+                        data-domain-filter
+                    />
+                    <p class="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500" data-domain-summary></p>
                     {{ alias_form.domain }}
+                    <p class="mt-2 hidden text-sm text-slate-500" data-domain-empty>No domains match the current filter.</p>
                     {% if alias_form.domain.errors %}
                         <p class="mt-2 text-sm text-rose-600">{{ alias_form.domain.errors|join:", " }}</p>
                     {% endif %}
@@ -51,7 +60,7 @@
 
         <article class="panel">
             <h2 class="text-xl font-semibold text-slate-950">Create Service User</h2>
-            <p class="mt-2 text-sm leading-6 text-slate-600">Service users are intended for legacy clients. Passwords are never shown again after creation.</p>
+            <p class="mt-2 text-sm leading-6 text-slate-600">Service users are intended clients where you don't want to store your real account. Passwords are never shown again after creation.</p>
             <form method="post" action="{% url 'selfservice-service-user-create' %}" class="mt-6 space-y-5">
                 {% csrf_token %}
                 <div>
@@ -341,6 +350,56 @@
     </section>
 
     <script>
+        (() => {
+            const filterInput = document.querySelector("[data-domain-filter]");
+            const domainSelect = document.querySelector("[data-domain-select]");
+            if (!filterInput || !domainSelect) {
+                return;
+            }
+
+            const allOptions = Array.from(domainSelect.options).map((option) => ({
+                label: option.textContent || "",
+                value: option.value,
+            }));
+            const emptyOption = allOptions.find((option) => !option.value) || null;
+            const domainOptions = allOptions.filter((option) => option.value);
+            const summary = document.querySelector("[data-domain-summary]");
+            const emptyState = document.querySelector("[data-domain-empty]");
+
+            const renderOptions = () => {
+                const query = filterInput.value.trim().toLowerCase();
+                const currentValue = domainSelect.value;
+                let visibleCount = 0;
+
+                domainSelect.innerHTML = "";
+
+                if (emptyOption) {
+                    domainSelect.add(new Option(emptyOption.label, emptyOption.value, false, !currentValue));
+                }
+
+                for (const optionData of domainOptions) {
+                    const matches = !query || optionData.label.toLowerCase().includes(query) || optionData.value === currentValue;
+                    if (!matches) {
+                        continue;
+                    }
+
+                    const option = new Option(optionData.label, optionData.value, false, optionData.value === currentValue);
+                    domainSelect.add(option);
+                    visibleCount += 1;
+                }
+
+                if (summary) {
+                    summary.textContent = `Showing ${visibleCount} of ${domainOptions.length}`;
+                }
+                if (emptyState) {
+                    emptyState.classList.toggle("hidden", visibleCount !== 0);
+                }
+            };
+
+            filterInput.addEventListener("input", renderOptions);
+            renderOptions();
+        })();
+
         (() => {
             const manager = document.querySelector("[data-alias-manager]");
             if (!manager) {

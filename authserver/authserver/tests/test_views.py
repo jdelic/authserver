@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from authserver.middleware import ROBOTS_POLICY
+from authserver.selfservice_forms import EmailAliasCreateForm
 from authserver.selfservice_views import SERVICE_USER_SESSION_KEY
 from mailauth import models
 
@@ -87,8 +88,27 @@ class SelfServiceViewTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get("/")
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Manage your authentication surface.")
+        self.assertContains(response, "Manage your account.")
         self.assertContains(response, "projects@example.com")
+
+    def test_alias_create_form_domains_are_sorted_and_filterable(self) -> None:
+        models.Domain.objects.create(name="zeta.example")
+        models.Domain.objects.create(name="alpha.example")
+
+        form = EmailAliasCreateForm(self.user)
+        self.assertEqual(
+            ["alpha.example", "example.com", "zeta.example"],
+            list(form.fields["domain"].queryset.values_list("name", flat=True)),
+        )
+        self.assertIsNone(form.fields["domain"].empty_label)
+        self.assertEqual("8", form.fields["domain"].widget.attrs["size"])
+
+        self.client.force_login(self.user)
+        response = self.client.get("/")
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, 'data-domain-filter')
+        self.assertContains(response, 'data-domain-summary')
+        self.assertNotContains(response, "---------")
 
     def test_service_user_cannot_login_to_self_service(self) -> None:
         response = self.client.post(
