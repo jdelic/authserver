@@ -36,6 +36,10 @@ def nothing(request: HttpRequest) -> HttpResponse:
                         content_type="text/plain; charset=utf-8")
 
 
+def robots_txt(request: HttpRequest) -> HttpResponse:
+    return HttpResponse("User-agent: *\nDisallow: /\n", content_type="text/plain; charset=utf-8")
+
+
 def test_error(request: HttpRequest) -> HttpResponse:
     if settings.DEBUG:
         raise Exception("This is a test")

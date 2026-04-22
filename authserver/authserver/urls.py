@@ -26,6 +26,7 @@ oauth2_patterns = ([
 
 urlpatterns = [
     re_path(r'^health/$', base_views.health),
+    re_path(r'^robots\.txt$', base_views.robots_txt),
     re_path(r'^$', selfservice_views.HomeView.as_view(), name='selfservice-home'),
     re_path(r'^dashboard/$', selfservice_views.DashboardView.as_view(), name='selfservice-dashboard'),
     re_path(r'^action/login/$', selfservice_views.SelfServiceLoginView.as_view(), name='authserver-login'),
