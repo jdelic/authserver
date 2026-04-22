@@ -7,7 +7,7 @@
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
                 <p class="text-sm font-semibold uppercase tracking-[0.28em] text-amber-600">Dashboard</p>
-                <h1 class="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Manage your authentication surface.</h1>
+                <h1 class="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Manage your account.</h1>
                 <p class="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
                     Signed in as <strong>{{ request.user.identifier }}</strong>{% if request.user.delivery_mailbox %}, primary delivery alias <strong>{{ request.user.delivery_mailbox.mailprefix }}@{{ request.user.delivery_mailbox.domain.name }}</strong>{% endif %}.
                 </p>
@@ -18,7 +18,7 @@
     <section class="mt-8 grid gap-6 xl:grid-cols-2">
         <article class="panel">
             <h2 class="text-xl font-semibold text-slate-950">Create Email Alias</h2>
-            <p class="mt-2 text-sm leading-6 text-slate-600">Any registered domain can be used in this first implementation.</p>
+            <p class="mt-2 text-sm leading-6 text-slate-600">Any registered domain on this server can be used for an alias.</p>
             <form method="post" action="{% url 'selfservice-alias-create' %}" class="mt-6 space-y-5">
                 {% csrf_token %}
                 <div>
@@ -51,7 +51,7 @@
 
         <article class="panel">
             <h2 class="text-xl font-semibold text-slate-950">Create Service User</h2>
-            <p class="mt-2 text-sm leading-6 text-slate-600">Service users are intended for legacy clients. Passwords are never shown again after creation.</p>
+            <p class="mt-2 text-sm leading-6 text-slate-600">Service users are intended clients where you don't want to store your real account. Passwords are never shown again after creation.</p>
             <form method="post" action="{% url 'selfservice-service-user-create' %}" class="mt-6 space-y-5">
                 {% csrf_token %}
                 <div>
