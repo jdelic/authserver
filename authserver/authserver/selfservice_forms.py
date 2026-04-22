@@ -181,7 +181,7 @@ class ServiceUserCreateForm(forms.ModelForm):
     password = forms.CharField(
         widget=forms.TextInput(),
         initial=lambda: generate_password(24),
-        help_text="The password is only shown once after creation.",
+        help_text="This password is only accessible here. Make sure to save it before you click \"Create service user\"",
     )
 
     class Meta:
