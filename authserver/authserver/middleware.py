@@ -8,12 +8,6 @@ from django.shortcuts import redirect
 from authserver.selfservice_views import SERVICE_USER_SESSION_KEY
 
 
-ROBOTS_POLICY = (
-    "noindex, nofollow, noarchive, nosnippet, noimageindex, "
-    "notranslate, max-image-preview:none, max-snippet:0, max-video-preview:0"
-)
-
-
 class ServiceUserSessionGuardMiddleware:
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
         self.get_response = get_response
@@ -41,5 +35,8 @@ class SearchEngineBlockMiddleware:
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         response = self.get_response(request)
-        response.headers.setdefault("X-Robots-Tag", ROBOTS_POLICY)
+        response.headers.setdefault(
+            "X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet, noimageindex, "
+            "notranslate, max-image-preview:none, max-snippet:0, max-video-preview:0"
+        )
         return response
