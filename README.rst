@@ -52,8 +52,9 @@ from this repository:
 
 .. code-block:: shell
 
-    $ virtualenv -p python3 authserver
-    $ authserver/bin/pip install net.maurus.authserver
+    $ git clone https://github.com/jdelic/authserver/
+    $ virtualenv -p python3 .env
+    $ .env/bin/pip install authserver/
 
 
 Or for Debian 13.0 Trixie:
