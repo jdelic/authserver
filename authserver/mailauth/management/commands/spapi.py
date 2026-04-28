@@ -15,6 +15,7 @@ class Command(BaseCommand):
         "authserver_check_domain(varchar)",
         "authserver_resolve_alias(varchar, boolean)",
         "authserver_get_credentials(varchar)",
+        "authserver_get_credentials(varchar, varchar)",
         "authserver_iterate_users()"
     ]
 
@@ -142,6 +143,37 @@ class Command(BaseCommand):
         """)
         cur.execute("""
             DROP FUNCTION IF EXISTS authserver_get_credentials(varchar);
+            DROP FUNCTION IF EXISTS authserver_get_credentials(varchar, varchar);
+            DROP FUNCTION IF EXISTS authserver_check_user_permission(uuid, varchar);
+            CREATE OR REPLACE FUNCTION authserver_check_user_permission(in_user_id uuid, in_permission varchar)
+                RETURNS boolean AS $$
+            BEGIN
+                RETURN EXISTS(
+                    SELECT 1
+                    FROM mailauth_mnapplicationpermission AS "permission"
+                    WHERE
+                        "permission".permission_name=in_permission AND
+                        (
+                            EXISTS(
+                                SELECT 1
+                                FROM mailauth_mnuser_app_permissions AS "user_permission"
+                                WHERE
+                                    "user_permission".mnuser_id=in_user_id AND
+                                    "user_permission".mnapplicationpermission_id="permission".id
+                            ) OR EXISTS(
+                                SELECT 1
+                                FROM
+                                    mailauth_mnuser_app_groups AS "user_group",
+                                    mailauth_mngroup_group_permissions AS "group_permission"
+                                WHERE
+                                    "user_group".mnuser_id=in_user_id AND
+                                    "group_permission".mngroup_id="user_group".mngroup_id AND
+                                    "group_permission".mnapplicationpermission_id="permission".id
+                            )
+                        )
+                );
+            END;
+            $$ LANGUAGE plpgsql SECURITY DEFINER;
             CREATE OR REPLACE FUNCTION authserver_get_credentials(email varchar)
                 RETURNS TABLE (username varchar, password varchar, primary_alias varchar) AS $$
             DECLARE
@@ -209,6 +241,78 @@ class Command(BaseCommand):
                 END IF;
             END;
             $$ LANGUAGE plpgsql SECURITY DEFINER;
+            CREATE OR REPLACE FUNCTION authserver_get_credentials(email varchar, required_permission varchar)
+                RETURNS TABLE (username varchar, password varchar, primary_alias varchar) AS $$
+            DECLARE
+                user_mailprefix varchar;
+                user_domain varchar;
+                user_id uuid;
+                password varchar;
+                primary_alias varchar;
+            BEGIN
+                IF position('@' in email) = 0 THEN
+                    SELECT "service_user".password,
+                           "primary_alias".mailprefix || '@' || "primary_domain".name,
+                           "user".uuid
+                        INTO password, primary_alias, user_id
+                    FROM
+                        mailauth_mnserviceuser AS "service_user",
+                        mailauth_mnuser AS "user",
+                        mailauth_emailalias AS "primary_alias",
+                        mailauth_domain AS "primary_domain"
+                    WHERE
+                        "service_user".username=email AND
+                        "user".uuid="service_user".user_id AND
+                        "user".delivery_mailbox_id="primary_alias".id AND
+                        "primary_domain".id="primary_alias".domain_id AND
+                        "user".is_active=TRUE;
+
+                    IF password IS NULL OR password = '' OR
+                            authserver_check_user_permission(user_id, required_permission) IS NOT TRUE THEN
+                        RETURN;
+                    ELSE
+                        RETURN QUERY SELECT email, password, primary_alias;
+                        RETURN;
+                    END IF;
+                END IF;
+
+                SELECT split_part(email, '@', 1) INTO user_mailprefix;
+                SELECT split_part(email, '@', 2) INTO user_domain;
+                SELECT "user".password, "user".uuid INTO password, user_id FROM
+                        mailauth_mnuser AS "user",
+                        mailauth_domain AS "domain",
+                        mailauth_emailalias AS "alias"
+                    WHERE
+                        "user".uuid="alias".user_id AND
+                        "domain".name=user_domain AND
+                        "alias".mailprefix=user_mailprefix AND
+                        "alias".domain_id="domain".id AND
+                        "user".is_active=TRUE;
+
+                SELECT "primary_alias".mailprefix || '@' || "primary_domain".name INTO primary_alias FROM
+                        mailauth_mnuser AS "user",
+                        mailauth_domain AS "domain",
+                        mailauth_domain AS "primary_domain",
+                        mailauth_emailalias AS "alias",
+                        mailauth_emailalias AS "primary_alias"
+                    WHERE
+                        "alias".mailprefix=user_mailprefix AND
+                        "domain".name=user_domain AND
+                        "user".uuid="alias".user_id AND
+                        "alias".domain_id="domain".id AND
+                        "primary_alias".id="user".delivery_mailbox_id AND
+                        "primary_domain".id="primary_alias".domain_id AND
+                        "user".is_active=TRUE;
+
+                IF password IS NULL OR password = '' OR primary_alias IS NULL OR
+                        authserver_check_user_permission(user_id, required_permission) IS NOT TRUE THEN
+                    RETURN;
+                ELSE
+                    RETURN QUERY SELECT email, password, primary_alias;
+                    RETURN;
+                END IF;
+            END;
+            $$ LANGUAGE plpgsql SECURITY DEFINER;
         """)
         cur.execute("""
             DROP FUNCTION IF EXISTS authserver_check_domain(varchar);
@@ -246,7 +350,7 @@ class Command(BaseCommand):
     def _check_install(self, **options: Any) -> None:
         q = ""
         for ix, sig in enumerate(self.spapi_signatures):
-            q = "to_regprocedure('{fnsig}') IS NOT NULL AS a{count}{comma}".format(
+            q += "to_regprocedure('{fnsig}') IS NOT NULL AS a{count}{comma}".format(
                     fnsig=sig, count=ix, comma="," if ix < len(self.spapi_signatures) - 1 else "")
 
         cur = connection.cursor()  # type: CursorWrapper
@@ -263,7 +367,7 @@ class Command(BaseCommand):
     def _check_user(self, user: Sequence[str], **options: Any) -> None:
         q = ""
         for ix, sig in enumerate(self.spapi_signatures):
-            q = "has_function_privilege('{user}', '{fnsig}', 'execute') AS a{count}{comma}".format(
+            q += "has_function_privilege('{user}', '{fnsig}', 'execute') AS a{count}{comma}".format(
                     user=user, fnsig=sig, count=ix, comma="," if ix < len(self.spapi_signatures) - 1 else "")
 
         cur = connection.cursor()  # type: CursorWrapper
