@@ -42,11 +42,6 @@ Planned features
   non-standard HTTP API to register as an OAuth2 client and get their OAuth2
   credentials, cutting down on manual configuration.
 
-* OpenID Connect support
-
-* Service-specific username and passwords for systems that don't support
-  OAuth2/OIDC
-
 * add Google Authenticator support via ``django-otp``
 
 
@@ -57,15 +52,18 @@ from this repository:
 
 .. code-block:: shell
 
-    $ virtualenv -p python3 authserver
-    $ authserver/bin/pip install net.maurus.authserver
+    $ git clone https://github.com/jdelic/authserver/
+    $ virtualenv -p python3 .env
+    $ .env/bin/pip install authserver/
 
 
-Or for Debian 9.0 Buster:
+Or for Debian 13.0 Trixie:
 
 .. code-block:: shell
 
-    $ echo "deb http://repo.maurus.net/nightly/buster mn-nightly main" >> /etc/apt/sources.list.d/maurusnet.list
+    $ wget -O /tmp/mnkey.pem -q http://repo.maurus.net/02CBD940A78049AF.pem
+    $ gpg --dearmor -o /etc/apt/keyrings/maurusnet-archive-keyring.gpg /tmp/mnkey.pem
+    $ echo "deb [signed-by=/etc/apt/keyrings/maurusnet-archive-keyring.gpg] http://repo.maurus.net/release/trixie mn-release main" >> /etc/apt/sources.list.d/maurusnet.list
     $ apt update
     $ apt install authserver authclient
 
@@ -173,9 +171,14 @@ N   Function Name                        Description
                                          the primary delivery email address.
                                          (Users can log in with every email
                                          alias and their account password.)
-2   ``authserver_check_domain(           Checks whether the passed domain is a
+2   ``authserver_get_credentials(        Like the single-argument variant, but
+    varchar, varchar)``                  only returns a row when the owning
+                                         ``MNUser`` has the requested
+                                         application permission directly or via
+                                         group membership.
+3   ``authserver_check_domain(           Checks whether the passed domain is a
     varchar)``                           valid delivery domain.
-3   ``authserver_resolve_alias(varchar,  Resolves email addresses to known
+4   ``authserver_resolve_alias(varchar,  Resolves email addresses to known
     boolean)``                           ``MNUser`` or ``MailingList``
                                          instances. Resolving a primary
                                          delivery address will return the
@@ -188,7 +191,7 @@ N   Function Name                        Description
                                          the resolved address is a
                                          ``MailingList`` it will return the
                                          input unchanged.
-4   ``authserver_iterate_users()``       Returns a list of all valid delivery
+5   ``authserver_iterate_users()``       Returns a list of all valid delivery
                                          mailboxes.
 ==  ===================================  =====================================
 
