@@ -171,9 +171,14 @@ N   Function Name                        Description
                                          the primary delivery email address.
                                          (Users can log in with every email
                                          alias and their account password.)
-2   ``authserver_check_domain(           Checks whether the passed domain is a
+2   ``authserver_get_credentials(        Like the single-argument variant, but
+    varchar, varchar)``                  only returns a row when the owning
+                                         ``MNUser`` has the requested
+                                         application permission directly or via
+                                         group membership.
+3   ``authserver_check_domain(           Checks whether the passed domain is a
     varchar)``                           valid delivery domain.
-3   ``authserver_resolve_alias(varchar,  Resolves email addresses to known
+4   ``authserver_resolve_alias(varchar,  Resolves email addresses to known
     boolean)``                           ``MNUser`` or ``MailingList``
                                          instances. Resolving a primary
                                          delivery address will return the
@@ -186,7 +191,7 @@ N   Function Name                        Description
                                          the resolved address is a
                                          ``MailingList`` it will return the
                                          input unchanged.
-4   ``authserver_iterate_users()``       Returns a list of all valid delivery
+5   ``authserver_iterate_users()``       Returns a list of all valid delivery
                                          mailboxes.
 ==  ===================================  =====================================
 
