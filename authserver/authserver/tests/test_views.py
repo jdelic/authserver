@@ -286,11 +286,14 @@ class SelfServiceViewTests(TestCase):
         token = models.EmailAgentAuthToken.objects.get(creator=self.user)
         self.assertFalse(token.burned)
         self.assertContains(create_response, token.token_hint)
+        self.assertContains(create_response, token.token)
 
         burn_response = self.client.post(
             reverse("selfservice-email-agent-auth-token-burn", args=[token.id]),
+            follow=True,
         )
-        self.assertRedirects(burn_response, f"{reverse('selfservice-dashboard')}?tab=email-agent-tokens")
+        self.assertEqual(200, burn_response.status_code)
+        self.assertContains(burn_response, "Token hidden after burn.")
         token.refresh_from_db()
         self.assertTrue(token.burned)
         self.assertIsNotNone(token.used_at)

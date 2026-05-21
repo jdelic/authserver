@@ -501,10 +501,10 @@ class ServiceUserDeleteView(SelfServiceAccessMixin, View):
 
 class EmailAgentAuthTokenCreateView(SelfServiceAccessMixin, View):
     def post(self, request: HttpRequest) -> HttpResponse:
-        token, raw_token = EmailAgentAuthToken.objects.issue_token(request.user)
+        token, _raw_token = EmailAgentAuthToken.objects.issue_token(request.user)
         messages.success(
             request,
-            f"Created email agent auth token {token.token_hint}. Copy it now because it will not be shown again: {raw_token}",
+            f"Created email agent auth token {token.token_hint}. It is now listed below for copy and paste until it is burned.",
         )
         return redirect(get_dashboard_url(DASHBOARD_TAB_EMAIL_AGENT_TOKENS))
 

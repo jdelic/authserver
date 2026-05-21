@@ -1,5 +1,5 @@
 import urllib.parse
-from typing import Any, Union, Tuple, Dict, Optional
+from typing import Any, Union, Tuple, Dict, Optional, cast
 
 import django.contrib.auth.admin as auth_admin
 import django.contrib.auth.forms as auth_forms
@@ -61,17 +61,17 @@ class MNServiceUserAdmin(admin.ModelAdmin[MNServiceUser]):
 @admin.register(EmailAgentAuthToken)
 class EmailAgentAuthTokenAdmin(admin.ModelAdmin[EmailAgentAuthToken]):
     form = EmailAgentAuthTokenCreationForm
-    list_display = ("creator", "token_hint", "burned", "created_at", "used_at")
+    list_display = ("creator", "token_hint", "token", "burned", "created_at", "used_at")
     list_filter = ("burned", "created_at", "used_at")
     ordering = ("-created_at",)
-    search_fields = ("creator__identifier", "token_hint")
-    readonly_fields = ("token_hint", "token_digest", "burned", "created_at", "used_at")
+    search_fields = ("creator__identifier", "token_hint", "token")
+    readonly_fields = ("token", "token_hint", "token_digest", "burned", "created_at", "used_at")
     actions = ("burn_selected_tokens",)
 
     def get_fields(self, request: HttpRequest, obj: Optional[EmailAgentAuthToken] = None) -> list[str]:
         if obj is None:
             return ["creator"]
-        return ["creator", "token_hint", "token_digest", "burned", "created_at", "used_at"]
+        return ["creator", "token", "token_hint", "token_digest", "burned", "created_at", "used_at"]
 
     @admin.action(description="Burn selected email agent auth tokens")
     def burn_selected_tokens(self, request: HttpRequest, queryset: models.QuerySet[EmailAgentAuthToken]) -> None:
@@ -92,7 +92,7 @@ class EmailAgentAuthTokenAdmin(admin.ModelAdmin[EmailAgentAuthToken]):
         if token_form.raw_token:
             self.message_user(
                 request,
-                f"Copy this email agent auth token now. It will not be shown again: {token_form.raw_token}",
+                f"Created email agent auth token {token_form.raw_token}. It remains visible while active.",
                 messages.SUCCESS,
             )
         for field in obj._meta.concrete_fields:

@@ -25,6 +25,7 @@ class EmailAgentAuthTokenTests(TestCase):
     def test_issue_token_stores_digest_and_validate_and_burn_marks_it_used(self) -> None:
         token, raw_token = models.EmailAgentAuthToken.objects.issue_token(self.user)
 
+        self.assertEqual(raw_token, token.token)
         self.assertEqual(raw_token[:12], token.token_hint)
         self.assertNotEqual(raw_token, token.token_digest)
         self.assertFalse(token.burned)

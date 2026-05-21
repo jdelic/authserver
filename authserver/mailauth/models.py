@@ -407,6 +407,7 @@ class EmailAgentAuthTokenManager(Manager["EmailAgentAuthToken"]):
         raw_token = secrets.token_hex(token_bytes)
         token = self.model(
             creator=creator,
+            token=raw_token,
             token_digest=self.hash_token(raw_token),
             token_hint=raw_token[:12],
         )
@@ -444,6 +445,7 @@ class EmailAgentAuthToken(models.Model):
         on_delete=models.CASCADE,
         related_name="email_agent_auth_tokens",
     )
+    token = models.CharField(max_length=32, editable=False, blank=True, default="")
     token_digest = models.CharField(max_length=64, unique=True, editable=False, db_index=True)
     token_hint = models.CharField(max_length=12, editable=False)
     burned = models.BooleanField(default=False)
