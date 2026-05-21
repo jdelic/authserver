@@ -82,31 +82,23 @@ class EmailAgentAuthTokenAdmin(admin.ModelAdmin[EmailAgentAuthToken]):
 
         self.message_user(request, f"Burned {burned_count} email agent auth token(s).", messages.SUCCESS)
 
-    def response_add(self, request: HttpRequest, obj: EmailAgentAuthToken, post_url_continue: Optional[str] = None) -> HttpResponse:
-        raw_token = getattr(request, "_created_email_agent_auth_token", None)
-        if raw_token:
-            self.message_user(
-                request,
-                f"Copy this email agent auth token now. It will not be shown again: {raw_token}",
-                messages.SUCCESS,
-            )
-            delattr(request, "_created_email_agent_auth_token")
-        return super().response_add(request, obj, post_url_continue)
-
     def save_model(self, request: HttpRequest, obj: EmailAgentAuthToken, form: forms.ModelForm, change: bool) -> None:
         if change:
             super().save_model(request, obj, form, change)
             return
 
-        created = cast(EmailAgentAuthTokenCreationForm, form).save()
-        request._created_email_agent_auth_token = cast(EmailAgentAuthTokenCreationForm, form).raw_token
-        obj.pk = created.pk
-        obj.creator = created.creator
-        obj.token_hint = created.token_hint
-        obj.token_digest = created.token_digest
-        obj.burned = created.burned
-        obj.created_at = created.created_at
-        obj.used_at = created.used_at
+        token_form = cast(EmailAgentAuthTokenCreationForm, form)
+        created = token_form.save()
+        if token_form.raw_token:
+            self.message_user(
+                request,
+                f"Copy this email agent auth token now. It will not be shown again: {token_form.raw_token}",
+                messages.SUCCESS,
+            )
+        for field in obj._meta.concrete_fields:
+            setattr(obj, field.attname, getattr(created, field.attname))
+        obj._state.adding = False
+        obj._state.db = created._state.db
 
 
 @admin.register(MNUser)
