@@ -420,10 +420,9 @@ class EmailAgentAuthTokenManager(Manager["EmailAgentAuthToken"]):
             return None
 
         try:
-            token = self.select_for_update().select_related(
-                "creator",
-                "creator__delivery_mailbox__domain",
-            ).get(token_digest=self.hash_token(raw_token))
+            token = self.select_for_update().select_related("creator").get(
+                token_digest=self.hash_token(raw_token)
+            )
         except self.model.DoesNotExist:
             return None
 
