@@ -21,9 +21,9 @@ from oauth2_provider.models import get_application_model
 
 from authserver.selfservice_forms import SelfServiceAdminAuthenticationForm
 from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm, MailingListForm, \
-    MNServiceUserCreationForm, MNServiceUserChangeForm
+    MNServiceUserCreationForm, MNServiceUserChangeForm, EmailAgentAuthTokenCreationForm
 from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroup, MNApplication, MailingList, \
-    MNServiceUser
+    MNServiceUser, EmailAgentAuthToken
 from mailauth.utils import generate_rsa_key
 
 admin.site.unregister(auth_models.Group)
@@ -56,6 +56,57 @@ class MNServiceUserAdmin(admin.ModelAdmin[MNServiceUser]):
         if db_field.name == "user":
             kwargs['queryset'] = MNUser.objects.exclude(delivery_mailbox__isnull=True)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+@admin.register(EmailAgentAuthToken)
+class EmailAgentAuthTokenAdmin(admin.ModelAdmin[EmailAgentAuthToken]):
+    form = EmailAgentAuthTokenCreationForm
+    list_display = ("creator", "token_hint", "burned", "created_at", "used_at")
+    list_filter = ("burned", "created_at", "used_at")
+    ordering = ("-created_at",)
+    search_fields = ("creator__identifier", "token_hint")
+    readonly_fields = ("token_hint", "token_digest", "burned", "created_at", "used_at")
+    actions = ("burn_selected_tokens",)
+
+    def get_fields(self, request: HttpRequest, obj: Optional[EmailAgentAuthToken] = None) -> list[str]:
+        if obj is None:
+            return ["creator"]
+        return ["creator", "token_hint", "token_digest", "burned", "created_at", "used_at"]
+
+    @admin.action(description="Burn selected email agent auth tokens")
+    def burn_selected_tokens(self, request: HttpRequest, queryset: models.QuerySet[EmailAgentAuthToken]) -> None:
+        burned_count = 0
+        for token in queryset.filter(burned=False):
+            if token.burn():
+                burned_count += 1
+
+        self.message_user(request, f"Burned {burned_count} email agent auth token(s).", messages.SUCCESS)
+
+    def response_add(self, request: HttpRequest, obj: EmailAgentAuthToken, post_url_continue: Optional[str] = None) -> HttpResponse:
+        raw_token = getattr(request, "_created_email_agent_auth_token", None)
+        if raw_token:
+            self.message_user(
+                request,
+                f"Copy this email agent auth token now. It will not be shown again: {raw_token}",
+                messages.SUCCESS,
+            )
+            delattr(request, "_created_email_agent_auth_token")
+        return super().response_add(request, obj, post_url_continue)
+
+    def save_model(self, request: HttpRequest, obj: EmailAgentAuthToken, form: forms.ModelForm, change: bool) -> None:
+        if change:
+            super().save_model(request, obj, form, change)
+            return
+
+        created = cast(EmailAgentAuthTokenCreationForm, form).save()
+        request._created_email_agent_auth_token = cast(EmailAgentAuthTokenCreationForm, form).raw_token
+        obj.pk = created.pk
+        obj.creator = created.creator
+        obj.token_hint = created.token_hint
+        obj.token_digest = created.token_digest
+        obj.burned = created.burned
+        obj.created_at = created.created_at
+        obj.used_at = created.used_at
 
 
 @admin.register(MNUser)

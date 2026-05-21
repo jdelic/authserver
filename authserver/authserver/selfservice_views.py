@@ -15,11 +15,27 @@ from django.views import View
 from oauth2_provider.models import get_application_model
 from authserver.selfservice_forms import EmailAliasCreateForm, MailingListSettingsForm, SelfServiceAuthenticationForm, \
     ServiceUserCreateForm
-from mailauth.models import EmailAlias, MailingList, MNServiceUser, MNUser
+from mailauth.models import EmailAlias, EmailAgentAuthToken, MailingList, MNServiceUser, MNUser
 
 
 SERVICE_USER_SESSION_KEY = "authserver_service_user_login"
 SERVICE_USER_USERNAME_SESSION_KEY = "authserver_service_user_username"
+DASHBOARD_TAB_ALIASES = "aliases"
+DASHBOARD_TAB_MAILING_LISTS = "mailing-lists"
+DASHBOARD_TAB_SERVICE_USERS = "service-users"
+DASHBOARD_TAB_EMAIL_AGENT_TOKENS = "email-agent-tokens"
+VALID_DASHBOARD_TABS = {
+    DASHBOARD_TAB_ALIASES,
+    DASHBOARD_TAB_MAILING_LISTS,
+    DASHBOARD_TAB_SERVICE_USERS,
+    DASHBOARD_TAB_EMAIL_AGENT_TOKENS,
+}
+
+
+def get_dashboard_url(tab: str = DASHBOARD_TAB_ALIASES) -> str:
+    if tab not in VALID_DASHBOARD_TABS:
+        tab = DASHBOARD_TAB_ALIASES
+    return f"{reverse('selfservice-dashboard')}?tab={tab}"
 
 
 class AuthPageContextMixin:
@@ -84,11 +100,21 @@ class DashboardContextMixin:
     def get_service_users(self, user: MNUser) -> QuerySet[MNServiceUser]:
         return MNServiceUser.objects.filter(user=user).order_by("username")
 
+    def get_email_agent_tokens(self, user: MNUser) -> QuerySet[EmailAgentAuthToken]:
+        return EmailAgentAuthToken.objects.filter(creator=user).order_by("-created_at")
+
+    def get_active_tab(self, request: HttpRequest, active_tab: Optional[str] = None) -> str:
+        candidate = active_tab or request.GET.get("tab", DASHBOARD_TAB_ALIASES)
+        if candidate not in VALID_DASHBOARD_TABS:
+            return DASHBOARD_TAB_ALIASES
+        return candidate
+
     def get_dashboard_context(
         self,
         request: HttpRequest,
         alias_form: Optional[EmailAliasCreateForm] = None,
         service_user_form: Optional[ServiceUserCreateForm] = None,
+        active_tab: Optional[str] = None,
     ) -> dict[str, Any]:
         user = request.user
         return {
@@ -97,6 +123,8 @@ class DashboardContextMixin:
                 service_user_form if service_user_form is not None else ServiceUserCreateForm(user)
             ),
             "aliases": self.get_aliases(user),
+            "active_tab": self.get_active_tab(request, active_tab),
+            "email_agent_tokens": self.get_email_agent_tokens(user),
             "mailing_lists": self.get_mailing_lists(user),
             "service_users": self.get_service_users(user),
         }
@@ -106,6 +134,7 @@ class DashboardContextMixin:
         request: HttpRequest,
         alias_form: Optional[EmailAliasCreateForm] = None,
         service_user_form: Optional[ServiceUserCreateForm] = None,
+        active_tab: Optional[str] = None,
         status: int = 200,
     ) -> HttpResponse:
         return render(
@@ -115,6 +144,7 @@ class DashboardContextMixin:
                 request,
                 alias_form=alias_form,
                 service_user_form=service_user_form,
+                active_tab=active_tab,
             ),
             status=status,
         )
@@ -151,12 +181,12 @@ class HomeView(AuthPageContextMixin, DashboardContextMixin, View):
         if request.user.is_staff:
             return redirect("/admin/")
 
-        return self.render_dashboard(request)
+        return self.render_dashboard(request, active_tab=self.get_active_tab(request))
 
 
 class DashboardView(SelfServiceAccessMixin, DashboardContextMixin, View):
     def get(self, request: HttpRequest) -> HttpResponse:
-        return self.render_dashboard(request)
+        return self.render_dashboard(request, active_tab=self.get_active_tab(request))
 
 
 class SelfServiceLoginView(AuthPageContextMixin, LoginView):
@@ -204,8 +234,8 @@ class EmailAliasCreateView(SelfServiceAccessMixin, DashboardContextMixin, View):
         if form.is_valid():
             alias = form.save()
             messages.success(request, f"Created alias {alias.mailprefix}@{alias.domain.name}.")
-            return redirect("selfservice-dashboard")
-        return self.render_dashboard(request, alias_form=form, status=400)
+            return redirect(get_dashboard_url(DASHBOARD_TAB_ALIASES))
+        return self.render_dashboard(request, alias_form=form, active_tab=DASHBOARD_TAB_ALIASES, status=400)
 
 
 class EmailAliasActionMixin(SelfServiceAccessMixin):
@@ -222,7 +252,7 @@ class EmailAliasBlockToggleView(EmailAliasActionMixin, View):
         alias.save(update_fields=["blacklisted"])
         action = "Blocked" if self.blacklisted else "Unblocked"
         messages.success(request, f"{action} {alias.mailprefix}@{alias.domain.name}.")
-        return redirect("selfservice-dashboard")
+        return redirect(get_dashboard_url(DASHBOARD_TAB_ALIASES))
 
 
 class EmailAliasDeleteView(EmailAliasActionMixin, View):
@@ -230,11 +260,11 @@ class EmailAliasDeleteView(EmailAliasActionMixin, View):
         alias = self.get_owned_alias(alias_id, request)
         if request.user.delivery_mailbox_id == alias.id:
             messages.error(request, "You cannot delete your primary delivery alias.")
-            return redirect("selfservice-dashboard")
+            return redirect(get_dashboard_url(DASHBOARD_TAB_ALIASES))
         alias_address = f"{alias.mailprefix}@{alias.domain.name}"
         alias.delete()
         messages.success(request, f"Deleted alias {alias_address}.")
-        return redirect("selfservice-dashboard")
+        return redirect(get_dashboard_url(DASHBOARD_TAB_ALIASES))
 
 
 class EmailAliasBulkActionView(EmailAliasActionMixin, View):
@@ -251,11 +281,11 @@ class EmailAliasBulkActionView(EmailAliasActionMixin, View):
 
         if action not in {"block", "unblock", "delete"}:
             messages.error(request, "Unknown bulk action.")
-            return redirect("selfservice-dashboard")
+            return redirect(get_dashboard_url(DASHBOARD_TAB_ALIASES))
 
         if not alias_ids:
             messages.error(request, "Select at least one alias first.")
-            return redirect("selfservice-dashboard")
+            return redirect(get_dashboard_url(DASHBOARD_TAB_ALIASES))
 
         aliases = list(
             EmailAlias.objects.select_related("domain")
@@ -264,17 +294,17 @@ class EmailAliasBulkActionView(EmailAliasActionMixin, View):
         )
         if not aliases:
             messages.error(request, "None of the selected aliases are available.")
-            return redirect("selfservice-dashboard")
+            return redirect(get_dashboard_url(DASHBOARD_TAB_ALIASES))
 
         if action == "block":
             EmailAlias.objects.filter(pk__in=[alias.id for alias in aliases]).update(blacklisted=True)
             messages.success(request, f"Blocked {len(aliases)} alias{'es' if len(aliases) != 1 else ''}.")
-            return redirect("selfservice-dashboard")
+            return redirect(get_dashboard_url(DASHBOARD_TAB_ALIASES))
 
         if action == "unblock":
             EmailAlias.objects.filter(pk__in=[alias.id for alias in aliases]).update(blacklisted=False)
             messages.success(request, f"Unblocked {len(aliases)} alias{'es' if len(aliases) != 1 else ''}.")
-            return redirect("selfservice-dashboard")
+            return redirect(get_dashboard_url(DASHBOARD_TAB_ALIASES))
 
         deleted_count = 0
         skipped_primary = 0
@@ -292,7 +322,7 @@ class EmailAliasBulkActionView(EmailAliasActionMixin, View):
                 request,
                 f"Skipped {skipped_primary} primary delivery alias{'es' if skipped_primary != 1 else ''}.",
             )
-        return redirect("selfservice-dashboard")
+        return redirect(get_dashboard_url(DASHBOARD_TAB_ALIASES))
 
 
 class MailingListBaseView(SelfServiceAccessMixin, View):
@@ -337,7 +367,7 @@ class EmailAliasConvertToMailingListView(MailingListBaseView):
         alias = self.get_owned_user_alias(request, alias_id)
         if request.user.delivery_mailbox_id == alias.id:
             messages.error(request, "You cannot convert your primary delivery alias into a mailing list.")
-            return redirect("selfservice-dashboard")
+            return redirect(get_dashboard_url(DASHBOARD_TAB_ALIASES))
 
         form = MailingListSettingsForm(initial={
             "name": f"{alias.mailprefix}@{alias.domain.name}",
@@ -348,7 +378,7 @@ class EmailAliasConvertToMailingListView(MailingListBaseView):
         alias = self.get_owned_user_alias(request, alias_id)
         if request.user.delivery_mailbox_id == alias.id:
             messages.error(request, "You cannot convert your primary delivery alias into a mailing list.")
-            return redirect("selfservice-dashboard")
+            return redirect(get_dashboard_url(DASHBOARD_TAB_ALIASES))
 
         form = MailingListSettingsForm(request.POST)
         if not form.is_valid():
@@ -374,7 +404,7 @@ class EmailAliasConvertToMailingListView(MailingListBaseView):
             return self.render_form(request, alias, form, "Convert Alias To Mailing List", status=400)
 
         messages.success(request, f"Converted {alias.mailprefix}@{alias.domain.name} into a mailing list.")
-        return redirect("selfservice-dashboard")
+        return redirect(get_dashboard_url(DASHBOARD_TAB_MAILING_LISTS))
 
 
 class MailingListEditView(MailingListBaseView):
@@ -402,7 +432,7 @@ class MailingListEditView(MailingListBaseView):
             return self.render_form(request, alias, form, "Edit Mailing List", status=400)
 
         messages.success(request, f"Updated mailing list {alias.mailprefix}@{alias.domain.name}.")
-        return redirect("selfservice-dashboard")
+        return redirect(get_dashboard_url(DASHBOARD_TAB_MAILING_LISTS))
 
 
 class MailingListConvertToAliasView(MailingListBaseView):
@@ -416,7 +446,7 @@ class MailingListConvertToAliasView(MailingListBaseView):
             alias.save(update_fields=["user", "forward_to"])
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
-            return redirect("selfservice-dashboard")
+            return redirect(get_dashboard_url(DASHBOARD_TAB_MAILING_LISTS))
 
         if mailing_list.emailalias_set.exists():
             pass
@@ -424,7 +454,7 @@ class MailingListConvertToAliasView(MailingListBaseView):
             mailing_list.delete()
 
         messages.success(request, f"Converted {alias.mailprefix}@{alias.domain.name} back to a user alias.")
-        return redirect("selfservice-dashboard")
+        return redirect(get_dashboard_url(DASHBOARD_TAB_ALIASES))
 
 
 class MailingListDeleteView(MailingListBaseView):
@@ -438,7 +468,7 @@ class MailingListDeleteView(MailingListBaseView):
         else:
             mailing_list.delete()
         messages.success(request, f"Deleted mailing list alias {alias_address}.")
-        return redirect("selfservice-dashboard")
+        return redirect(get_dashboard_url(DASHBOARD_TAB_MAILING_LISTS))
 
 
 class ServiceUserCreateView(SelfServiceAccessMixin, DashboardContextMixin, View):
@@ -451,8 +481,13 @@ class ServiceUserCreateView(SelfServiceAccessMixin, DashboardContextMixin, View)
                 request,
                 f"Created service user {service_user.username}. Password: {password}",
             )
-            return redirect("selfservice-dashboard")
-        return self.render_dashboard(request, service_user_form=form, status=400)
+            return redirect(get_dashboard_url(DASHBOARD_TAB_SERVICE_USERS))
+        return self.render_dashboard(
+            request,
+            service_user_form=form,
+            active_tab=DASHBOARD_TAB_SERVICE_USERS,
+            status=400,
+        )
 
 
 class ServiceUserDeleteView(SelfServiceAccessMixin, View):
@@ -461,4 +496,24 @@ class ServiceUserDeleteView(SelfServiceAccessMixin, View):
         username = service_user.username
         service_user.delete()
         messages.success(request, f"Deleted service user {username}.")
-        return redirect("selfservice-dashboard")
+        return redirect(get_dashboard_url(DASHBOARD_TAB_SERVICE_USERS))
+
+
+class EmailAgentAuthTokenCreateView(SelfServiceAccessMixin, View):
+    def post(self, request: HttpRequest) -> HttpResponse:
+        token, raw_token = EmailAgentAuthToken.objects.issue_token(request.user)
+        messages.success(
+            request,
+            f"Created email agent auth token {token.token_hint}. Copy it now because it will not be shown again: {raw_token}",
+        )
+        return redirect(get_dashboard_url(DASHBOARD_TAB_EMAIL_AGENT_TOKENS))
+
+
+class EmailAgentAuthTokenBurnView(SelfServiceAccessMixin, View):
+    def post(self, request: HttpRequest, token_id: int) -> HttpResponse:
+        token = get_object_or_404(EmailAgentAuthToken, pk=token_id, creator=request.user)
+        if token.burn():
+            messages.success(request, f"Burned email agent auth token {token.token_hint}.")
+        else:
+            messages.info(request, f"Email agent auth token {token.token_hint} was already burned.")
+        return redirect(get_dashboard_url(DASHBOARD_TAB_EMAIL_AGENT_TOKENS))

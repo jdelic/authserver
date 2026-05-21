@@ -1,4 +1,6 @@
 # -* encoding: utf-8 *-
+import hashlib
+import secrets
 import uuid
 from urllib.parse import urlparse
 
@@ -7,10 +9,11 @@ from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.contrib.postgres.fields.array import ArrayField
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from typing import Any, Optional, Set, Iterable, List, cast, Union
 
 from django.db.models import Manager, Q
+from django.utils import timezone
 from oauth2_provider import models as oauth2_models, validators as oauth2_validators
 from jwcrypto import jwk
 
@@ -393,6 +396,74 @@ class MNServiceUser(PasswordMaskMixin, models.Model):
 
     def __str__(self) -> str:
         return "%s (%s)" % (self.username, self.user.identifier,)
+
+
+class EmailAgentAuthTokenManager(Manager["EmailAgentAuthToken"]):
+    @staticmethod
+    def hash_token(raw_token: str) -> str:
+        return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+    def issue_token(self, creator: MNUser, token_bytes: int = 16) -> tuple["EmailAgentAuthToken", str]:
+        raw_token = secrets.token_hex(token_bytes)
+        token = self.model(
+            creator=creator,
+            token_digest=self.hash_token(raw_token),
+            token_hint=raw_token[:12],
+        )
+        token.full_clean()
+        token.save()
+        return token, raw_token
+
+    @transaction.atomic
+    def validate_and_burn(self, raw_token: str) -> Optional["EmailAgentAuthToken"]:
+        if not raw_token:
+            return None
+
+        try:
+            token = self.select_for_update().select_related(
+                "creator",
+                "creator__delivery_mailbox__domain",
+            ).get(token_digest=self.hash_token(raw_token))
+        except self.model.DoesNotExist:
+            return None
+
+        if token.burned:
+            return None
+
+        token.burn()
+        return token
+
+
+class EmailAgentAuthToken(models.Model):
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "Email Agent Auth Token"
+        verbose_name_plural = "Email Agent Auth Tokens"
+
+    creator = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="email_agent_auth_tokens",
+    )
+    token_digest = models.CharField(max_length=64, unique=True, editable=False, db_index=True)
+    token_hint = models.CharField(max_length=12, editable=False)
+    burned = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    objects = EmailAgentAuthTokenManager()
+
+    def burn(self) -> bool:
+        if self.burned:
+            return False
+
+        self.burned = True
+        self.used_at = timezone.now()
+        self.save(update_fields=["burned", "used_at"])
+        return True
+
+    def __str__(self) -> str:
+        return f"{self.creator.identifier} / {self.token_hint}"
 
 
 class MNApplication(oauth2_models.AbstractApplication):

@@ -97,8 +97,23 @@ urlpatterns = [
         selfservice_views.ServiceUserDeleteView.as_view(),
         name='selfservice-service-user-delete',
     ),
+    path(
+        'email-agent-auth-tokens/create/',
+        selfservice_views.EmailAgentAuthTokenCreateView.as_view(),
+        name='selfservice-email-agent-auth-token-create',
+    ),
+    path(
+        'email-agent-auth-tokens/<int:token_id>/burn/',
+        selfservice_views.EmailAgentAuthTokenBurnView.as_view(),
+        name='selfservice-email-agent-auth-token-burn',
+    ),
 
     # user authentication api
     re_path(r'^checkpassword/$', mail_views.UserLoginAPIView.as_view(), name='checkpassword'),
+    re_path(
+        r'^email-agent-auth-tokens/validate/$',
+        mail_views.EmailAgentAuthTokenValidationAPIView.as_view(),
+        name='email-agent-auth-token-validate',
+    ),
     re_path(r'^getkey/$', shared_views.JWTPublicKeyView.as_view(), name='getkey'),
 ]
