@@ -274,7 +274,7 @@ class SelfServiceViewTests(TestCase):
         self.assertRedirects(delete_response, f"{reverse('selfservice-dashboard')}?tab=service-users")
         self.assertFalse(models.MNServiceUser.objects.filter(pk=service_user.pk).exists())
 
-    def test_user_can_create_and_burn_email_agent_auth_tokens(self) -> None:
+    def test_user_can_create_burn_and_cleanup_email_agent_auth_tokens(self) -> None:
         self.client.force_login(self.user)
 
         create_response = self.client.post(
@@ -288,12 +288,24 @@ class SelfServiceViewTests(TestCase):
         self.assertContains(create_response, token.token_hint)
         self.assertContains(create_response, token.token)
 
+        second_token, _ = models.EmailAgentAuthToken.objects.issue_token(self.user)
+
         burn_response = self.client.post(
             reverse("selfservice-email-agent-auth-token-burn", args=[token.id]),
             follow=True,
         )
         self.assertEqual(200, burn_response.status_code)
-        self.assertContains(burn_response, "Token hidden after burn.")
+        self.assertContains(burn_response, token.token)
+        self.assertContains(burn_response, "line-through")
         token.refresh_from_db()
         self.assertTrue(token.burned)
         self.assertIsNotNone(token.used_at)
+
+        cleanup_response = self.client.post(
+            reverse("selfservice-email-agent-auth-token-cleanup"),
+            follow=True,
+        )
+        self.assertEqual(200, cleanup_response.status_code)
+        self.assertContains(cleanup_response, "Deleted 1 burned email agent auth token.")
+        self.assertFalse(models.EmailAgentAuthToken.objects.filter(pk=token.pk).exists())
+        self.assertTrue(models.EmailAgentAuthToken.objects.filter(pk=second_token.pk).exists())

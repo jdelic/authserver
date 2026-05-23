@@ -403,6 +403,25 @@ class EmailAgentAuthTokenManager(Manager["EmailAgentAuthToken"]):
     def hash_token(raw_token: str) -> str:
         return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
+    def get_by_raw_token(
+        self,
+        raw_token: str,
+        *,
+        lock_for_update: bool = False,
+    ) -> Optional["EmailAgentAuthToken"]:
+        raw_token = raw_token.strip()
+        if not raw_token:
+            return None
+
+        queryset = self.select_related("creator")
+        if lock_for_update:
+            queryset = queryset.select_for_update()
+
+        try:
+            return queryset.get(token_digest=self.hash_token(raw_token))
+        except self.model.DoesNotExist:
+            return None
+
     def issue_token(self, creator: MNUser, token_bytes: int = 16) -> tuple["EmailAgentAuthToken", str]:
         raw_token = secrets.token_hex(token_bytes)
         token = self.model(
@@ -415,16 +434,26 @@ class EmailAgentAuthTokenManager(Manager["EmailAgentAuthToken"]):
         token.save()
         return token, raw_token
 
+    def check_token(self, raw_token: str) -> Optional["EmailAgentAuthToken"]:
+        token = self.get_by_raw_token(raw_token)
+        if token is None or token.burned:
+            return None
+        return token
+
     @transaction.atomic
-    def validate_and_burn(self, raw_token: str) -> Optional["EmailAgentAuthToken"]:
-        if not raw_token:
+    def burn_token(self, raw_token: str) -> Optional["EmailAgentAuthToken"]:
+        token = self.get_by_raw_token(raw_token, lock_for_update=True)
+        if token is None:
             return None
 
-        try:
-            token = self.select_for_update().select_related("creator").get(
-                token_digest=self.hash_token(raw_token)
-            )
-        except self.model.DoesNotExist:
+        if not token.burned:
+            token.burn()
+        return token
+
+    @transaction.atomic
+    def validate_and_burn(self, raw_token: str) -> Optional["EmailAgentAuthToken"]:
+        token = self.get_by_raw_token(raw_token, lock_for_update=True)
+        if token is None:
             return None
 
         if token.burned:

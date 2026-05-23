@@ -38,6 +38,23 @@ class EmailAgentAuthTokenTests(TestCase):
         self.assertIsNotNone(burned_token.used_at)
         self.assertIsNone(models.EmailAgentAuthToken.objects.validate_and_burn(raw_token))
 
+    def test_check_token_does_not_burn_and_burn_token_marks_it_used(self) -> None:
+        token, raw_token = models.EmailAgentAuthToken.objects.issue_token(self.user)
+
+        checked_token = models.EmailAgentAuthToken.objects.check_token(raw_token)
+        self.assertIsNotNone(checked_token)
+        token.refresh_from_db()
+        self.assertFalse(token.burned)
+        self.assertIsNone(token.used_at)
+
+        burned_token = models.EmailAgentAuthToken.objects.burn_token(raw_token)
+        self.assertIsNotNone(burned_token)
+        token.refresh_from_db()
+        self.assertTrue(token.burned)
+        self.assertIsNotNone(token.used_at)
+
+        self.assertIsNone(models.EmailAgentAuthToken.objects.check_token(raw_token))
+
     def test_validation_endpoint_burns_token_and_returns_creator_details(self) -> None:
         token, raw_token = models.EmailAgentAuthToken.objects.issue_token(self.user)
 

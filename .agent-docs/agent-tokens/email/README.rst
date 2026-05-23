@@ -28,8 +28,9 @@ Issued tokens currently have these properties:
 * ``burned``: ``False`` initially
 * ``used_at``: ``NULL`` initially
 
-The full active token is visible in the self-service dashboard for easy
-copy/paste until it is burned.
+The full token stays visible in the self-service dashboard both before and after
+burn. Burned tokens are shown with strike-through styling until the user cleans
+them up from the dashboard.
 
 Validation and burn-on-use
 ++++++++++++++++++++++++++
@@ -46,6 +47,8 @@ Manual burn
 +++++++++++
 
 Users can burn their own tokens from the self-service dashboard.
+Users can also delete their own burned tokens from the self-service dashboard
+with the cleanup action.
 Admins can burn tokens from Django admin, including bulk actions.
 
 Operational rule
@@ -201,6 +204,25 @@ Minimal JSON example
      -H 'Content-Type: application/json' \
      --data '{"token":"9f4c0e7626bc1f4098e31c39c51f0b0d"}' \
      https://auth.example.com/email-agent-auth-tokens/validate/
+
+Management command reference
+----------------------------
+
+The existing management-command style now includes ``emailagenttoken`` with
+these subcommands:
+
+* ``django-admin emailagenttoken create -u <user>`` prints a newly issued token
+  to stdout
+* ``django-admin emailagenttoken list`` shows existing tokens, with ``-u`` to
+  filter by owner and ``-f json`` for machine-readable output
+* ``django-admin emailagenttoken check <token>`` exits with ``0`` when the token
+  is valid and ``1`` when it is invalid or already burned
+* ``django-admin emailagenttoken burn <token>`` burns a token administratively
+* ``django-admin emailagenttoken cleanup`` deletes burned tokens, optionally
+  scoped with ``-u <user>``
+* ``django-admin emailagenttoken check-and-burn <token>`` atomically validates
+  and burns a token, exiting with ``0`` on success and ``1`` on invalid/reused
+  tokens
 
 Implementation pointers
 +++++++++++++++++++++++

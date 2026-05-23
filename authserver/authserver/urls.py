@@ -103,6 +103,11 @@ urlpatterns = [
         name='selfservice-email-agent-auth-token-create',
     ),
     path(
+        'email-agent-auth-tokens/cleanup/',
+        selfservice_views.EmailAgentAuthTokenCleanupView.as_view(),
+        name='selfservice-email-agent-auth-token-cleanup',
+    ),
+    path(
         'email-agent-auth-tokens/<int:token_id>/burn/',
         selfservice_views.EmailAgentAuthTokenBurnView.as_view(),
         name='selfservice-email-agent-auth-token-burn',

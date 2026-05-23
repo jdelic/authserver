@@ -397,12 +397,18 @@
                         <h2 class="text-xl font-semibold text-slate-950">Email Agent Tokens</h2>
                         <span class="badge badge-neutral">{{ email_agent_tokens|length }}</span>
                     </div>
-                    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Create one-time tokens for AI agents that need to hand off outbound email through the external SMTP filter. Active tokens stay visible here for easy copy and paste until they are burned after use.</p>
+                    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Create one-time tokens for AI agents that need to hand off outbound email through the external SMTP filter. Tokens stay visible here for easy copy and paste, and burned tokens remain listed with strike-through until you clean them up.</p>
                 </div>
-                <form method="post" action="{% url 'selfservice-email-agent-auth-token-create' %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-primary">Create token</button>
-                </form>
+                <div class="flex flex-wrap gap-3">
+                    <form method="post" action="{% url 'selfservice-email-agent-auth-token-cleanup' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-secondary">Clean up burned</button>
+                    </form>
+                    <form method="post" action="{% url 'selfservice-email-agent-auth-token-create' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary">Create token</button>
+                    </form>
+                </div>
             </div>
 
             <div class="mt-6 space-y-4">
@@ -411,18 +417,13 @@
                         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                             <div class="min-w-0">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <h3 class="text-lg font-semibold text-slate-950">{{ token.token_hint }}</h3>
                                     {% if token.burned %}
                                         <span class="badge badge-danger">Burned</span>
                                     {% else %}
                                         <span class="badge badge-primary">Active</span>
                                     {% endif %}
                                 </div>
-                                {% if token.burned %}
-                                    <p class="mt-2 break-all rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm text-slate-500">Token hidden after burn.</p>
-                                {% else %}
-                                    <p class="mt-2 break-all rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm text-slate-700">{{ token.token }}</p>
-                                {% endif %}
+                                <p class="mt-2 break-all rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm {% if token.burned %}text-slate-500 line-through{% else %}text-slate-700{% endif %}">{{ token.token }}</p>
                                 <p class="mt-2 text-sm text-slate-600">Created {{ token.created_at|date:"Y-m-d H:i:s T" }}</p>
                                 {% if token.used_at %}
                                     <p class="mt-1 text-sm text-slate-600">Used {{ token.used_at|date:"Y-m-d H:i:s T" }}</p>

@@ -509,6 +509,19 @@ class EmailAgentAuthTokenCreateView(SelfServiceAccessMixin, View):
         return redirect(get_dashboard_url(DASHBOARD_TAB_EMAIL_AGENT_TOKENS))
 
 
+class EmailAgentAuthTokenCleanupView(SelfServiceAccessMixin, View):
+    def post(self, request: HttpRequest) -> HttpResponse:
+        deleted_count, _ = EmailAgentAuthToken.objects.filter(creator=request.user, burned=True).delete()
+        if deleted_count:
+            messages.success(
+                request,
+                f"Deleted {deleted_count} burned email agent auth token{'s' if deleted_count != 1 else ''}.",
+            )
+        else:
+            messages.info(request, "No burned email agent auth tokens needed cleanup.")
+        return redirect(get_dashboard_url(DASHBOARD_TAB_EMAIL_AGENT_TOKENS))
+
+
 class EmailAgentAuthTokenBurnView(SelfServiceAccessMixin, View):
     def post(self, request: HttpRequest, token_id: int) -> HttpResponse:
         token = get_object_or_404(EmailAgentAuthToken, pk=token_id, creator=request.user)
