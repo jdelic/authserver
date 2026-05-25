@@ -90,6 +90,7 @@ class SelfServiceViewTests(TestCase):
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "Manage your account.")
         self.assertContains(response, "projects@example.com")
+        self.assertContains(response, "Email Agent Tokens")
 
     def test_alias_create_form_domains_are_sorted_and_filterable(self) -> None:
         models.Domain.objects.create(name="zeta.example")
@@ -163,17 +164,17 @@ class SelfServiceViewTests(TestCase):
                 "domain": self.domain.pk,
             },
         )
-        self.assertRedirects(create_response, reverse("selfservice-dashboard"))
+        self.assertRedirects(create_response, f"{reverse('selfservice-dashboard')}?tab=aliases")
         alias = models.EmailAlias.objects.get(mailprefix="alerts", domain=self.domain)
         self.assertEqual(self.user, alias.user)
 
         block_response = self.client.post(reverse("selfservice-alias-block", args=[alias.id]))
-        self.assertRedirects(block_response, reverse("selfservice-dashboard"))
+        self.assertRedirects(block_response, f"{reverse('selfservice-dashboard')}?tab=aliases")
         alias.refresh_from_db()
         self.assertTrue(alias.blacklisted)
 
         delete_response = self.client.post(reverse("selfservice-alias-delete", args=[alias.id]))
-        self.assertRedirects(delete_response, reverse("selfservice-dashboard"))
+        self.assertRedirects(delete_response, f"{reverse('selfservice-dashboard')}?tab=aliases")
         self.assertFalse(models.EmailAlias.objects.filter(pk=alias.pk).exists())
 
     def test_user_can_convert_alias_to_mailing_list_and_back(self) -> None:
@@ -187,7 +188,7 @@ class SelfServiceViewTests(TestCase):
                 "new_mailfrom": "lists@example.com",
             },
         )
-        self.assertRedirects(convert_response, reverse("selfservice-dashboard"))
+        self.assertRedirects(convert_response, f"{reverse('selfservice-dashboard')}?tab=mailing-lists")
         self.secondary_alias.refresh_from_db()
         self.assertIsNone(self.secondary_alias.user)
         self.assertEqual(self.user, self.secondary_alias.forward_to.owner)
@@ -196,7 +197,7 @@ class SelfServiceViewTests(TestCase):
         back_response = self.client.post(
             reverse("selfservice-mailing-list-convert-alias", args=[self.secondary_alias.id]),
         )
-        self.assertRedirects(back_response, reverse("selfservice-dashboard"))
+        self.assertRedirects(back_response, f"{reverse('selfservice-dashboard')}?tab=aliases")
         self.secondary_alias.refresh_from_db()
         self.assertEqual(self.user, self.secondary_alias.user)
         self.assertIsNone(self.secondary_alias.forward_to)
@@ -217,7 +218,7 @@ class SelfServiceViewTests(TestCase):
                 "alias_ids": [self.secondary_alias.id, third_alias.id],
             },
         )
-        self.assertRedirects(block_response, reverse("selfservice-dashboard"))
+        self.assertRedirects(block_response, f"{reverse('selfservice-dashboard')}?tab=aliases")
         self.secondary_alias.refresh_from_db()
         third_alias.refresh_from_db()
         self.assertTrue(self.secondary_alias.blacklisted)
@@ -230,7 +231,7 @@ class SelfServiceViewTests(TestCase):
                 "alias_ids": [self.secondary_alias.id, third_alias.id],
             },
         )
-        self.assertRedirects(unblock_response, reverse("selfservice-dashboard"))
+        self.assertRedirects(unblock_response, f"{reverse('selfservice-dashboard')}?tab=aliases")
         self.secondary_alias.refresh_from_db()
         third_alias.refresh_from_db()
         self.assertFalse(self.secondary_alias.blacklisted)
@@ -270,5 +271,41 @@ class SelfServiceViewTests(TestCase):
         delete_response = self.client.post(
             reverse("selfservice-service-user-delete", args=[service_user.id]),
         )
-        self.assertRedirects(delete_response, reverse("selfservice-dashboard"))
+        self.assertRedirects(delete_response, f"{reverse('selfservice-dashboard')}?tab=service-users")
         self.assertFalse(models.MNServiceUser.objects.filter(pk=service_user.pk).exists())
+
+    def test_user_can_create_burn_and_cleanup_email_agent_auth_tokens(self) -> None:
+        self.client.force_login(self.user)
+
+        create_response = self.client.post(
+            reverse("selfservice-email-agent-auth-token-create"),
+            follow=True,
+        )
+        self.assertEqual(200, create_response.status_code)
+        self.assertContains(create_response, "Created email agent auth token")
+        token = models.EmailAgentAuthToken.objects.get(creator=self.user)
+        self.assertFalse(token.burned)
+        self.assertContains(create_response, token.token_hint)
+        self.assertContains(create_response, token.token)
+
+        second_token, _ = models.EmailAgentAuthToken.objects.issue_token(self.user)
+
+        burn_response = self.client.post(
+            reverse("selfservice-email-agent-auth-token-burn", args=[token.id]),
+            follow=True,
+        )
+        self.assertEqual(200, burn_response.status_code)
+        self.assertContains(burn_response, token.token)
+        self.assertContains(burn_response, "line-through")
+        token.refresh_from_db()
+        self.assertTrue(token.burned)
+        self.assertIsNotNone(token.used_at)
+
+        cleanup_response = self.client.post(
+            reverse("selfservice-email-agent-auth-token-cleanup"),
+            follow=True,
+        )
+        self.assertEqual(200, cleanup_response.status_code)
+        self.assertContains(cleanup_response, "Deleted 1 burned email agent auth token.")
+        self.assertFalse(models.EmailAgentAuthToken.objects.filter(pk=token.pk).exists())
+        self.assertTrue(models.EmailAgentAuthToken.objects.filter(pk=second_token.pk).exists())

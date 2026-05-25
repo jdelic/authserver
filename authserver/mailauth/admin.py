@@ -1,5 +1,5 @@
 import urllib.parse
-from typing import Any, Union, Tuple, Dict, Optional
+from typing import Any, Union, Tuple, Dict, Optional, cast
 
 import django.contrib.auth.admin as auth_admin
 import django.contrib.auth.forms as auth_forms
@@ -21,9 +21,9 @@ from oauth2_provider.models import get_application_model
 
 from authserver.selfservice_forms import SelfServiceAdminAuthenticationForm
 from mailauth.forms import MNUserChangeForm, MNUserCreationForm, DomainForm, MailingListForm, \
-    MNServiceUserCreationForm, MNServiceUserChangeForm
+    MNServiceUserCreationForm, MNServiceUserChangeForm, EmailAgentAuthTokenCreationForm
 from mailauth.models import MNUser, Domain, EmailAlias, MNApplicationPermission, MNGroup, MNApplication, MailingList, \
-    MNServiceUser
+    MNServiceUser, EmailAgentAuthToken
 from mailauth.utils import generate_rsa_key
 
 admin.site.unregister(auth_models.Group)
@@ -56,6 +56,49 @@ class MNServiceUserAdmin(admin.ModelAdmin[MNServiceUser]):
         if db_field.name == "user":
             kwargs['queryset'] = MNUser.objects.exclude(delivery_mailbox__isnull=True)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+@admin.register(EmailAgentAuthToken)
+class EmailAgentAuthTokenAdmin(admin.ModelAdmin[EmailAgentAuthToken]):
+    form = EmailAgentAuthTokenCreationForm
+    list_display = ("creator", "token_hint", "token", "burned", "created_at", "used_at")
+    list_filter = ("burned", "created_at", "used_at")
+    ordering = ("-created_at",)
+    search_fields = ("creator__identifier", "token_hint", "token")
+    readonly_fields = ("token", "token_hint", "token_digest", "burned", "created_at", "used_at")
+    actions = ("burn_selected_tokens",)
+
+    def get_fields(self, request: HttpRequest, obj: Optional[EmailAgentAuthToken] = None) -> list[str]:
+        if obj is None:
+            return ["creator"]
+        return ["creator", "token", "token_hint", "token_digest", "burned", "created_at", "used_at"]
+
+    @admin.action(description="Burn selected email agent auth tokens")
+    def burn_selected_tokens(self, request: HttpRequest, queryset: models.QuerySet[EmailAgentAuthToken]) -> None:
+        burned_count = 0
+        for token in queryset.filter(burned=False):
+            if token.burn():
+                burned_count += 1
+
+        self.message_user(request, f"Burned {burned_count} email agent auth token(s).", messages.SUCCESS)
+
+    def save_model(self, request: HttpRequest, obj: EmailAgentAuthToken, form: forms.ModelForm, change: bool) -> None:
+        if change:
+            super().save_model(request, obj, form, change)
+            return
+
+        token_form = cast(EmailAgentAuthTokenCreationForm, form)
+        created = token_form.save()
+        if token_form.raw_token:
+            self.message_user(
+                request,
+                f"Created email agent auth token {token_form.raw_token}. It remains visible while active.",
+                messages.SUCCESS,
+            )
+        for field in obj._meta.concrete_fields:
+            setattr(obj, field.attname, getattr(created, field.attname))
+        obj._state.adding = False
+        obj._state.db = created._state.db
 
 
 @admin.register(MNUser)
@@ -96,6 +139,7 @@ class DomainAdmin(admin.ModelAdmin):
             HttpResponse:
         opts = self.opts
         preserved_filters = self.get_preserved_filters(request)
+        preserved_qsl = self._get_preserved_qsl(request, preserved_filters)
 
         msg_dict = {
             'name': force_str(opts.verbose_name),
@@ -120,7 +164,7 @@ class DomainAdmin(admin.ModelAdmin):
                     if post_url_continue is None:
                         post_url_continue = obj_url
                     post_url_continue = add_preserved_filters(
-                        {'preserved_filters': preserved_filters, 'opts': opts},
+                        {'preserved_filters': preserved_filters, 'preserved_qsl': preserved_qsl, 'opts': opts},
                         post_url_continue
                     )
                     return HttpResponseRedirect(post_url_continue)
@@ -129,6 +173,7 @@ class DomainAdmin(admin.ModelAdmin):
     def response_change(self, request: HttpRequest, obj: Domain) -> HttpResponse:
         opts = self.model._meta
         preserved_filters = self.get_preserved_filters(request)
+        preserved_qsl = self._get_preserved_qsl(request, preserved_filters)
 
         msg_dict = {
             'name': force_str(opts.verbose_name),
@@ -145,7 +190,8 @@ class DomainAdmin(admin.ModelAdmin):
                     )
                     self.message_user(request, msg, messages.SUCCESS)
                     redirect_url = request.path
-                    redirect_url = add_preserved_filters({'preserved_filters': preserved_filters, 'opts': opts},
+                    redirect_url = add_preserved_filters({'preserved_filters': preserved_filters,
+                                                          'preserved_qsl': preserved_qsl, 'opts': opts},
                                                          redirect_url)
                     return HttpResponseRedirect(redirect_url)
 
