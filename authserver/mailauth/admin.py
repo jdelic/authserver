@@ -96,6 +96,7 @@ class DomainAdmin(admin.ModelAdmin):
             HttpResponse:
         opts = self.opts
         preserved_filters = self.get_preserved_filters(request)
+        preserved_qsl = self._get_preserved_qsl(request, preserved_filters)
 
         msg_dict = {
             'name': force_str(opts.verbose_name),
@@ -120,7 +121,7 @@ class DomainAdmin(admin.ModelAdmin):
                     if post_url_continue is None:
                         post_url_continue = obj_url
                     post_url_continue = add_preserved_filters(
-                        {'preserved_filters': preserved_filters, 'opts': opts},
+                        {'preserved_filters': preserved_filters, 'preserved_qsl': preserved_qsl, 'opts': opts},
                         post_url_continue
                     )
                     return HttpResponseRedirect(post_url_continue)
@@ -129,6 +130,7 @@ class DomainAdmin(admin.ModelAdmin):
     def response_change(self, request: HttpRequest, obj: Domain) -> HttpResponse:
         opts = self.model._meta
         preserved_filters = self.get_preserved_filters(request)
+        preserved_qsl = self._get_preserved_qsl(request, preserved_filters)
 
         msg_dict = {
             'name': force_str(opts.verbose_name),
@@ -145,7 +147,8 @@ class DomainAdmin(admin.ModelAdmin):
                     )
                     self.message_user(request, msg, messages.SUCCESS)
                     redirect_url = request.path
-                    redirect_url = add_preserved_filters({'preserved_filters': preserved_filters, 'opts': opts},
+                    redirect_url = add_preserved_filters({'preserved_filters': preserved_filters,
+                                                          'preserved_qsl': preserved_qsl, 'opts': opts},
                                                          redirect_url)
                     return HttpResponseRedirect(redirect_url)
 
