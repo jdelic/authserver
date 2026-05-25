@@ -1,6 +1,6 @@
 import json
 from io import StringIO
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 
 from django.core.management import call_command
 from django.test import TestCase
@@ -78,6 +78,80 @@ class ServiceUserCommandTests(TestCase):
         self.assertEqual("svc-charlie", payload[0]["username"])
 
 
+class EmailAgentTokenCommandTests(TestCase):
+    def setUp(self) -> None:
+        self.domain = models.Domain.objects.create(name="example.com")
+        self.user = models.MNUser.objects.create_user(
+            identifier="dana",
+            fullname="Dana Example",
+            password="secret",
+        )
+        self.alias = models.EmailAlias.objects.create(
+            mailprefix="dana",
+            domain=self.domain,
+            user=self.user,
+            blacklisted=False,
+        )
+        self.user.delivery_mailbox = self.alias
+        self.user.save()
+
+    def test_create_check_and_check_and_burn_token(self) -> None:
+        create_out = StringIO()
+        call_command("emailagenttoken", "create", "-u", "dana", stdout=create_out)
+        raw_token = create_out.getvalue().strip()
+        token = models.EmailAgentAuthToken.objects.get(creator=self.user)
+        self.assertEqual(token.token, raw_token)
+
+        check_out = StringIO()
+        with self.assertRaises(SystemExit) as check_exit:
+            call_command("emailagenttoken", "check", raw_token, stdout=check_out)
+        self.assertEqual(0, check_exit.exception.code)
+        self.assertEqual("VALID", check_out.getvalue().strip())
+
+        burn_out = StringIO()
+        with self.assertRaises(SystemExit) as burn_exit:
+            call_command("emailagenttoken", "check-and-burn", raw_token, stdout=burn_out)
+        self.assertEqual(0, burn_exit.exception.code)
+        self.assertEqual("VALID", burn_out.getvalue().strip())
+
+        token.refresh_from_db()
+        self.assertTrue(token.burned)
+        self.assertIsNotNone(token.used_at)
+
+        invalid_out = StringIO()
+        with self.assertRaises(SystemExit) as invalid_exit:
+            call_command("emailagenttoken", "check", raw_token, stdout=invalid_out)
+        self.assertEqual(1, invalid_exit.exception.code)
+        self.assertEqual("INVALID", invalid_out.getvalue().strip())
+
+    def test_burn_marks_token_burned(self) -> None:
+        token, raw_token = models.EmailAgentAuthToken.objects.issue_token(self.user)
+
+        burn_err = StringIO()
+        with self.assertRaises(SystemExit) as burn_exit, redirect_stderr(burn_err):
+            call_command("emailagenttoken", "burn", raw_token)
+        self.assertEqual(0, burn_exit.exception.code)
+
+        token.refresh_from_db()
+        self.assertTrue(token.burned)
+        self.assertIsNotNone(token.used_at)
+
+    def test_list_and_cleanup_commands(self) -> None:
+        active_token, _ = models.EmailAgentAuthToken.objects.issue_token(self.user)
+        burned_token, burned_raw_token = models.EmailAgentAuthToken.objects.issue_token(self.user)
+        models.EmailAgentAuthToken.objects.validate_and_burn(burned_raw_token)
+
+        list_out = StringIO()
+        call_command("emailagenttoken", "list", "-u", "dana", "-f", "json", stdout=list_out)
+        payload = json.loads(list_out.getvalue())
+        self.assertEqual(2, len(payload))
+        self.assertEqual({active_token.token, burned_token.token}, {item["token"] for item in payload})
+
+        call_command("emailagenttoken", "cleanup", "-u", "dana")
+        self.assertTrue(models.EmailAgentAuthToken.objects.filter(pk=active_token.pk).exists())
+        self.assertFalse(models.EmailAgentAuthToken.objects.filter(pk=burned_token.pk).exists())
+
+
 class PermissionsCommandTests(TestCase):
     def setUp(self) -> None:
         self.permission = models.MNApplicationPermission.objects.create(
@@ -107,4 +181,3 @@ class PermissionsCommandTests(TestCase):
         payload = json.loads(out.getvalue())
         self.assertEqual(1, len(payload))
         self.assertEqual(self.permission.permission_name, payload[0]["permission_name"])
-

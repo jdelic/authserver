@@ -18,7 +18,7 @@ from django.utils.html import format_html
 from django.utils.safestring import SafeString
 from django_select2.forms import Select2TagWidget
 
-from mailauth.models import MNUser, Domain, MailingList, MNServiceUser
+from mailauth.models import MNUser, Domain, MailingList, MNServiceUser, EmailAgentAuthToken
 from mailauth.utils import import_rsa_key
 
 
@@ -169,3 +169,25 @@ class MailingListForm(forms.ModelForm):
         model = MailingList
         widgets = {'addresses': ArrayFieldWidget(attrs={"style": "width: 750px"})}
         fields = forms.models.ALL_FIELDS
+
+
+class EmailAgentAuthTokenCreationForm(forms.ModelForm):
+    raw_token: Optional[str]
+
+    class Meta:
+        model = EmailAgentAuthToken
+        fields = ("creator",)
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.raw_token = None
+
+    def save(self, commit: bool = True) -> EmailAgentAuthToken:
+        if not commit:
+            self.instance.creator = self.cleaned_data["creator"]
+            return self.instance
+
+        token, raw_token = EmailAgentAuthToken.objects.issue_token(self.cleaned_data["creator"])
+        self.instance = token
+        self.raw_token = raw_token
+        return token

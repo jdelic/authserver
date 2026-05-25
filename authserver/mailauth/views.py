@@ -24,7 +24,7 @@ from jwcrypto import jwk
 
 from dockerauth.jwtutils import JWTViewHelperMixin
 from mailauth.models import MNApplication, UnresolvableUserException, Domain
-from mailauth.models import MNUser
+from mailauth.models import EmailAgentAuthToken, MNUser
 from mailauth.permissions import find_missing_permissions
 from mailauth.utils import AuthenticatedHttpRequest, import_rsa_key
 
@@ -300,6 +300,67 @@ class UserLoginAPIView(JWTViewHelperMixin, View):
                 content_type="application/jwt",
                 status=200,
             )
+
+
+class EmailAgentAuthTokenValidationAPIView(View):
+    def _parse_token(self, request: HttpRequest) -> str:
+        if request.content_type == "application/json":
+            data = json.loads(request.body.decode("utf-8"))
+            token = data.get("token", "")
+        else:
+            token = request.POST.get("token", "")
+
+        if not isinstance(token, str):
+            raise InvalidAuthRequest()
+        return token.strip()
+
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponseBase:
+        return super().dispatch(*args, **kwargs)
+
+    @method_decorator(ratelimit(key='ip', rate='60/m', method="POST", block=True))
+    def post(self, request: HttpRequest) -> HttpResponse:
+        if not request.is_secure():
+            return HttpResponseBadRequest(
+                '{"error": "This endpoint must be called securely"}',
+                content_type="application/json",
+            )
+
+        try:
+            raw_token = self._parse_token(request)
+        except json.JSONDecodeError:
+            return HttpResponseBadRequest(
+                '{"error": "Invalid JSON"}',
+                content_type="application/json",
+            )
+        except InvalidAuthRequest:
+            return HttpResponseBadRequest(
+                '{"error": "Missing or invalid parameters"}',
+                content_type="application/json",
+            )
+
+        token = EmailAgentAuthToken.objects.validate_and_burn(raw_token)
+        if token is None:
+            return JsonResponse({"valid": False}, status=401)
+
+        creator = token.creator
+        primary_email = None
+        if creator.delivery_mailbox is not None:
+            primary_email = f"{creator.delivery_mailbox.mailprefix}@{creator.delivery_mailbox.domain.name}"
+
+        return JsonResponse(
+            {
+                "valid": True,
+                "burned": True,
+                "creator": {
+                    "identifier": creator.identifier,
+                    "uuid": str(creator.uuid),
+                    "primary_email": primary_email,
+                },
+                "token_hint": token.token_hint,
+                "used_at": token.used_at.isoformat() if token.used_at is not None else None,
+            }
+        )
 
 
 class JwksInfoView(View):
