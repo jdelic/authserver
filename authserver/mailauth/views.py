@@ -3,6 +3,7 @@ import json
 import logging
 from datetime import datetime
 from typing import Any, List, NamedTuple, cast
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 import binascii
@@ -29,6 +30,7 @@ from mailauth.permissions import find_missing_permissions
 from mailauth.utils import AuthenticatedHttpRequest, import_rsa_key
 
 _log = logging.getLogger(__name__)
+OIDC_ISSUER_REL = "http://openid.net/specs/connect/1.0/issuer"
 
 
 class ScopeValidationAuthView(AuthorizationView):
@@ -386,4 +388,74 @@ class JwksInfoView(View):
                 + f"stale-while-revalidate={oauth2_settings.OIDC_JWKS_MAX_AGE_SECONDS}, "
                 + f"stale-if-error={oauth2_settings.OIDC_JWKS_MAX_AGE_SECONDS}"
         )
+        return response
+
+
+class WebFingerView(View):
+    def _get_resource_host(self, resource: str) -> str:
+        if resource.startswith("acct:"):
+            account_name, _, domain = resource[5:].rpartition("@")
+            if not account_name or not domain:
+                raise InvalidAuthRequest()
+            return domain.lower()
+
+        parsed = urlparse(resource)
+        if not parsed.scheme or not parsed.hostname:
+            raise InvalidAuthRequest()
+        return parsed.hostname.lower()
+
+    def get(self, request: HttpRequest) -> HttpResponse:
+        if not request.is_secure():
+            return HttpResponseBadRequest(
+                '{"error": "This endpoint must be called securely"}',
+                content_type="application/json",
+            )
+
+        resource = request.GET.get("resource", "").strip()
+        if not resource:
+            return HttpResponseBadRequest(
+                '{"error": "Missing or invalid resource"}',
+                content_type="application/json",
+            )
+
+        try:
+            request_host = request.get_host().split(":", 1)[0].lower()
+            request_domain = Domain.objects.find_parent_domain(
+                request_host,
+                require_jwt_subdomains_set=True,
+                require_jwt_key=True,
+            )
+            resource_domain = Domain.objects.find_parent_domain(
+                self._get_resource_host(resource),
+                require_jwt_subdomains_set=True,
+                require_jwt_key=True,
+            )
+        except (Domain.DoesNotExist, InvalidAuthRequest):
+            return HttpResponseBadRequest(
+                '{"error": "Not a valid authorization domain"}',
+                content_type="application/json",
+            )
+
+        if request_domain.pk != resource_domain.pk:
+            return HttpResponseBadRequest(
+                '{"error": "Resource does not match this authorization domain"}',
+                content_type="application/json",
+            )
+
+        requested_rels = set(request.GET.getlist("rel"))
+        links = []
+        if not requested_rels or OIDC_ISSUER_REL in requested_rels:
+            links.append({
+                "rel": OIDC_ISSUER_REL,
+                "href": oauth2_settings.oidc_issuer(request),
+            })
+
+        response = JsonResponse(
+            {
+                "subject": resource,
+                "links": links,
+            },
+            content_type="application/jrd+json",
+        )
+        response["Access-Control-Allow-Origin"] = "*"
         return response
