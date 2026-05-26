@@ -1,5 +1,6 @@
 from django.contrib.auth import SESSION_KEY
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.urls import reverse
 
 from authserver.middleware import ROBOTS_POLICY
@@ -11,6 +12,10 @@ from mailauth.utils import generate_rsa_key
 
 class SelfServiceViewTests(TestCase):
     def setUp(self) -> None:
+        allowed_hosts = override_settings(ALLOWED_HOSTS=["testserver", "example.com", "auth.example.com"])
+        allowed_hosts.enable()
+        self.addCleanup(allowed_hosts.disable)
+
         self.domain = models.Domain.objects.create(
             name="example.com",
             jwtkey=generate_rsa_key().private_key,
@@ -96,7 +101,7 @@ class SelfServiceViewTests(TestCase):
         )
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual("application/jrd+json", response.headers["Content-Type"])
+        self.assertEqual("application/jrd+json", response.headers["Content-Type"].split(";", 1)[0])
         self.assertEqual("acct:alice@example.com", response.json()["subject"])
         self.assertEqual(
             [{"rel": "http://openid.net/specs/connect/1.0/issuer", "href": "https://example.com/o2"}],
