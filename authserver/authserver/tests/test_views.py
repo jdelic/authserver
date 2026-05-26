@@ -1,16 +1,23 @@
 from django.contrib.auth import SESSION_KEY
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.urls import reverse
 
 from authserver.middleware import ROBOTS_POLICY
 from authserver.selfservice_forms import EmailAliasCreateForm
 from authserver.selfservice_views import SERVICE_USER_SESSION_KEY
 from mailauth import models
+from mailauth.utils import generate_rsa_key
 
 
+@override_settings(ALLOWED_HOSTS=["testserver", "example.com", "auth.example.com"])
 class SelfServiceViewTests(TestCase):
     def setUp(self) -> None:
-        self.domain = models.Domain.objects.create(name="example.com")
+        self.domain = models.Domain.objects.create(
+            name="example.com",
+            jwtkey=generate_rsa_key().private_key,
+            jwt_subdomains=True,
+        )
 
         self.user = models.MNUser.objects.create_user(
             identifier="alice",
@@ -78,6 +85,65 @@ class SelfServiceViewTests(TestCase):
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "Calendar Gateway")
         self.assertContains(response, "OpenID Connect")
+
+    def test_webfinger_returns_oidc_issuer_for_account_resource(self) -> None:
+        response = self.client.get(
+            reverse("oidc-webfinger"),
+            {
+                "resource": "acct:alice@example.com",
+                "rel": "http://openid.net/specs/connect/1.0/issuer",
+            },
+            secure=True,
+            HTTP_HOST="example.com",
+        )
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("application/jrd+json", response.headers["Content-Type"].split(";", 1)[0])
+        self.assertEqual("acct:alice@example.com", response.json()["subject"])
+        self.assertEqual(
+            [{"rel": "http://openid.net/specs/connect/1.0/issuer", "href": "https://example.com/o2"}],
+            response.json()["links"],
+        )
+
+    def test_webfinger_allows_subdomain_hosts_for_parent_authorization_domain(self) -> None:
+        response = self.client.get(
+            reverse("oidc-webfinger"),
+            {
+                "resource": "acct:alice@example.com",
+                "rel": "http://openid.net/specs/connect/1.0/issuer",
+            },
+            secure=True,
+            HTTP_HOST="auth.example.com",
+        )
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            [{"rel": "http://openid.net/specs/connect/1.0/issuer", "href": "https://auth.example.com/o2"}],
+            response.json()["links"],
+        )
+
+    def test_webfinger_rejects_mismatched_resource_domains(self) -> None:
+        other_domain = models.Domain.objects.create(
+            name="elsewhere.example",
+            jwtkey=generate_rsa_key().private_key,
+            jwt_subdomains=True,
+        )
+
+        response = self.client.get(
+            reverse("oidc-webfinger"),
+            {
+                "resource": f"acct:alice@{other_domain.name}",
+                "rel": "http://openid.net/specs/connect/1.0/issuer",
+            },
+            secure=True,
+            HTTP_HOST="example.com",
+        )
+
+        self.assertEqual(400, response.status_code)
+        self.assertJSONEqual(
+            response.content.decode("utf-8"),
+            {"error": "Resource does not match this authorization domain"},
+        )
 
     def test_root_for_staff_user_redirects_to_admin(self) -> None:
         self.client.force_login(self.staff_user)
