@@ -394,7 +394,9 @@ class JwksInfoView(View):
 class WebFingerView(View):
     def _parse_resource_host(self, resource: str) -> str:
         if resource.startswith("acct:"):
-            local_part, _, domain = resource[5:].rpartition("@")
+            local_part, separator, domain = resource[5:].rpartition("@")
+            if separator != "@":
+                raise InvalidAuthRequest()
             if not local_part or not domain:
                 raise InvalidAuthRequest()
             return domain.lower()
