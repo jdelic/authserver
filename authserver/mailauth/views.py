@@ -392,10 +392,10 @@ class JwksInfoView(View):
 
 
 class WebFingerView(View):
-    def _get_resource_host(self, resource: str) -> str:
+    def _parse_resource_host(self, resource: str) -> str:
         if resource.startswith("acct:"):
-            account_name, _, domain = resource[5:].rpartition("@")
-            if not account_name or not domain:
+            local_part, _, domain = resource[5:].rpartition("@")
+            if not local_part or not domain:
                 raise InvalidAuthRequest()
             return domain.lower()
 
@@ -426,7 +426,7 @@ class WebFingerView(View):
                 require_jwt_key=True,
             )
             resource_domain = Domain.objects.find_parent_domain(
-                self._get_resource_host(resource),
+                self._parse_resource_host(resource),
                 require_jwt_subdomains_set=True,
                 require_jwt_key=True,
             )

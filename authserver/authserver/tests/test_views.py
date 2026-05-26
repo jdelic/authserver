@@ -10,12 +10,9 @@ from mailauth import models
 from mailauth.utils import generate_rsa_key
 
 
+@override_settings(ALLOWED_HOSTS=["testserver", "example.com", "auth.example.com"])
 class SelfServiceViewTests(TestCase):
     def setUp(self) -> None:
-        allowed_hosts = override_settings(ALLOWED_HOSTS=["testserver", "example.com", "auth.example.com"])
-        allowed_hosts.enable()
-        self.addCleanup(allowed_hosts.disable)
-
         self.domain = models.Domain.objects.create(
             name="example.com",
             jwtkey=generate_rsa_key().private_key,
