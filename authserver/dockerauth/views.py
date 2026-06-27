@@ -169,6 +169,16 @@ class DockerAuthView(JWTViewHelperMixin, View):
             else:
                 return HttpResponseForbidden("Authentication failed")
         else:
+            # unauthenticated request
+            if ((tp.pull and drepo.unauthenticated_pull) or
+                   (tp.push and drepo.unauthenticated_push)):
+                rightnow = datetime.datetime.now(tz=ZoneInfo("UTC"))
+                response = HttpResponse(content=json.dumps({
+                    "token": self._create_jwt(
+                        self._make_access_token(request, tr, rightnow, tp, MNUser.get_anonymous_user()), drepo.registry.private_key_pem()
+                    ),
+                }), status=200, content_type="application/json")
+                return response
             return HttpResponse("Unauthorized", status=401)
 
     def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
