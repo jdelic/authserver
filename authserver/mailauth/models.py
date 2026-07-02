@@ -2,7 +2,6 @@
 import hashlib
 import secrets
 import uuid
-from urllib.parse import urlparse
 
 from django.contrib.auth import models as auth_models, base_user
 from django.conf import settings
@@ -14,7 +13,7 @@ from typing import Any, Optional, Set, Iterable, List, cast, Union
 
 from django.db.models import Manager, Q
 from django.utils import timezone
-from oauth2_provider import models as oauth2_models, validators as oauth2_validators
+from oauth2_provider import models as oauth2_models
 from jwcrypto import jwk
 
 #
@@ -369,6 +368,17 @@ class MNUser(base_user.AbstractBaseUser, PasswordMaskMixin, auth_models.Permissi
     @property
     def id(self):
         return self.uuid
+
+    @property
+    def is_anonymous(self):
+        return self.uuid == "00000000-0000-0000-0000-000000000001"
+
+    @staticmethod
+    def get_anonymous_user() -> 'MNUser':
+        anon = MNUser()
+        anon.uuid = "00000000-0000-0000-0000-000000000001"
+        anon.identifier = "anonymous"
+        return anon
 
 
 class MNServiceUser(PasswordMaskMixin, models.Model):
