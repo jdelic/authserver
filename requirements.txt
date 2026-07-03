@@ -20,7 +20,7 @@ python-json-logger==4.1.0
 requests==2.34.2
 sqlparse==0.5.5
 srslib==0.1.5
-typing-extensions==4.15.0
+typing-extensions==4.16.0
 whitenoise==6.12.0
 
 # DKIM filter dependencies
