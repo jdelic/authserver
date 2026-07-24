@@ -109,6 +109,33 @@ class Domain(models.Model):
                   "email with higher deliverability. Please note that this flag alone is not enough, mailforwarder "
                   "and your local mail server must have the necessary configuration as well.")
 
+    cimd_enabled = models.BooleanField(
+        verbose_name="Allow CIMD client registration",
+        default=False,
+        help_text="Allow OAuth2 clients to self-register on this domain using "
+                  "Client ID Metadata Documents (their client_id is an https URL "
+                  "that authserver fetches). Which client hosts are acceptable is "
+                  "controlled by the CIMD client host allowlist below.")
+
+    cimd_client_hosts = ArrayField(
+        models.CharField(max_length=255),
+        verbose_name="CIMD client host allowlist",
+        default=list, blank=True,
+        help_text="Hosts that CIMD client_id URLs may use, in Django "
+                  "ALLOWED_HOSTS syntax: 'client.example.com' (exact), "
+                  "'.example.com' (domain and all subdomains), '*' (any host - "
+                  "must be set explicitly). An EMPTY list blocks all CIMD "
+                  "clients even when CIMD is enabled.")
+
+    cimd_auto_permissions = models.BooleanField(
+        verbose_name="Auto-generate permissions for CIMD applications",
+        default=True,
+        help_text="When a CIMD application registers on this domain, create a "
+                  "dedicated application permission, require it on the "
+                  "application, and assign it to nobody - so no user can "
+                  "authorize against the client until an admin grants the "
+                  "permission.")
+
     objects = DomainManager()
 
     def __str__(self) -> str:
@@ -529,7 +556,7 @@ class MNApplication(oauth2_models.AbstractApplication):
         related_query_name='application',
     )
 
-    domain = models.ForeignKey(Domain, on_delete=models.DO_NOTHING, null=True,
+    domain = models.ForeignKey(Domain, on_delete=models.DO_NOTHING, null=True, blank=True,
                                help_text="To enable OpenID Connect, the application must "
                                          "be connected to (and served under) a domain instance "
                                          "with a JWT signing key or a parent domain with a "

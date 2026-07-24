@@ -112,3 +112,13 @@ class ClientPermissionValidator(OAuth2Validator):
         })
         _log.debug("Userinfo claims %s", cl)
         return cl
+
+    def _load_application(self, client_id, request):
+        application = super()._load_application(client_id, request)
+        if (
+            application is not None
+            and application.registration_source == application.RegistrationSource.CIMD
+        ):
+            from mailauth.cimd import ensure_cimd_application_defaults
+            ensure_cimd_application_defaults(application, request)
+        return application

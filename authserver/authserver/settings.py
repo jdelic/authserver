@@ -180,6 +180,10 @@ OAUTH2_PROVIDER = {
     'DCR_REGISTRATION_PERMISSION_CLASSES': (
         'mailauth.dcr.InitialAccessTokenDCRPermission',
     ),
+    'CIMD_ENABLED': True,
+    # policy lives on the Domain model (cimd_enabled/cimd_client_hosts),
+    # see mailauth/cimd.py
+    'CIMD_REGISTRATION_PERMISSION_CLASSES': ('mailauth.cimd.DomainCIMDPermission',),
 }
 
 # we use our own modular crypt format sha256 hasher for maximum compatibility
