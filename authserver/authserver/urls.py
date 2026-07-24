@@ -28,6 +28,15 @@ urlpatterns = [
     re_path(r'^health/$', base_views.health),
     re_path(r'^robots\.txt$', base_views.robots_txt),
     re_path(r'^\.well-known/webfinger/?$', mail_views.WebFingerView.as_view(), name='oidc-webfinger'),
+    # RFC 8414 OAuth2 Authorization Server Metadata (new in django-oauth-toolkit 3.4.0). RFC 8414
+    # requires this document at the server root, not under the o2/ prefix. The path-component form
+    # is the authoritative one for our issuer "https://<host>/o2": clients must fetch
+    # /.well-known/oauth-authorization-server/o2 for it. The plain form (issuer "https://<host>")
+    # is served as well for clients that don't implement RFC 8414 issuer path handling.
+    re_path(r'^\.well-known/oauth-authorization-server/?$',
+            oauth2_views.OAuthServerMetadataView.as_view(), name='oauth-server-metadata'),
+    path('.well-known/oauth-authorization-server/<path:issuer_path>',
+         oauth2_views.OAuthServerMetadataView.as_view(), name='oauth-server-metadata-issuer'),
     re_path(r'^$', selfservice_views.HomeView.as_view(), name='selfservice-home'),
     re_path(r'^dashboard/$', selfservice_views.DashboardView.as_view(), name='selfservice-dashboard'),
     re_path(r'^action/login/$', selfservice_views.SelfServiceLoginView.as_view(), name='authserver-login'),
