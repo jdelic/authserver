@@ -121,16 +121,16 @@ class Command(BaseCommand):
     def _list(self, **kwargs: Any) -> None:
         clients = []  # type: List[oauth2_models.Application]
         if kwargs["search_client_id"]:
-            try:
-                clients = list(appmodel.objects.filter(client_id__ilike=kwargs["search_client_id"]))
-            except appmodel.DoesNotExist:
+            clients = list(appmodel.objects.filter(client_id__icontains=kwargs["search_client_id"]))
+            if not clients:
                 self.stderr.write(self.style.ERROR("Client ID not found %s" % kwargs["search_client_id"]))
+                return
 
         elif kwargs["search_client_name"]:
-            try:
-                clients = list(appmodel.objects.file(name__ilike=kwargs["search_client_name"]))
-            except appmodel.DoesNotExist:
+            clients = list(appmodel.objects.filter(name__icontains=kwargs["search_client_name"]))
+            if not clients:
                 self.stderr.write(self.style.ERROR("Client name not found %s" % kwargs["search_client_name"]))
+                return
 
         else:
             clients = list(appmodel.objects.all())
