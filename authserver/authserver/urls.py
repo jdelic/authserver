@@ -6,6 +6,7 @@ from oauth2_provider import views as oauth2_views
 from authserver import base_views
 from authserver import selfservice_views
 from mailauth import views as mail_views
+from mailauth.dcr import MNDynamicClientRegistrationView
 from dockerauth import views as docker_views
 from authserver import views as shared_views
 
@@ -19,7 +20,11 @@ oauth2_patterns = ([
     re_path(r'^userinfo/$', oauth2_views.UserInfoView.as_view(), name='user-info'),
     re_path(r'^\.well-known/openid-configuration/?$', mail_views.MNConnectDiscoveryInfoView.as_view(),
             name='oidc-connect-discovery-info'),
-    re_path(r"^\.well-known/jwks.json$", mail_views.JwksInfoView.as_view(), name="jwks-info")
+    re_path(r"^\.well-known/jwks.json$", mail_views.JwksInfoView.as_view(), name="jwks-info"),
+    path('register/', MNDynamicClientRegistrationView.as_view(), name='dcr-register'),
+    path('register/<str:client_id>/',
+         oauth2_views.DynamicClientRegistrationManagementView.as_view(),
+         name='dcr-register-management'),
 ], 'oauth2_provider')
 
 

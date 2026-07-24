@@ -174,6 +174,12 @@ OAUTH2_PROVIDER = {
     # .agent-docs/dcr-cimd-authz-iss/implementation-plan.rst section 5.
     'COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS': False,
     'OAUTH2_BACKEND_CLASS': 'mailauth.oauth2_backends.MNOAuthLibCore',
+    'DCR_ENABLED': True,
+    # registration requires an operator-minted initial access token,
+    # see mailauth/dcr.py and the `dcrtoken` management command
+    'DCR_REGISTRATION_PERMISSION_CLASSES': (
+        'mailauth.dcr.InitialAccessTokenDCRPermission',
+    ),
 }
 
 # we use our own modular crypt format sha256 hasher for maximum compatibility
