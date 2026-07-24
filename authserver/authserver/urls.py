@@ -3,7 +3,6 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 
 from oauth2_provider import views as oauth2_views
-from oauth2_provider.views import oidc as oidc_views
 from authserver import base_views
 from authserver import selfservice_views
 from mailauth import views as mail_views
@@ -18,7 +17,7 @@ oauth2_patterns = ([
     re_path(r'^revoke_token/$', oauth2_views.RevokeTokenView.as_view(), name='revoke-token'),
     re_path(r'^fake-userinfo/$', mail_views.FakeUserInfoView.as_view(), name='fake-user-info'),
     re_path(r'^userinfo/$', oauth2_views.UserInfoView.as_view(), name='user-info'),
-    re_path(r'^\.well-known/openid-configuration/?$', oidc_views.ConnectDiscoveryInfoView.as_view(),
+    re_path(r'^\.well-known/openid-configuration/?$', mail_views.MNConnectDiscoveryInfoView.as_view(),
             name='oidc-connect-discovery-info'),
     re_path(r"^\.well-known/jwks.json$", mail_views.JwksInfoView.as_view(), name="jwks-info")
 ], 'oauth2_provider')
@@ -34,9 +33,9 @@ urlpatterns = [
     # /.well-known/oauth-authorization-server/o2 for it. The plain form (issuer "https://<host>")
     # is served as well for clients that don't implement RFC 8414 issuer path handling.
     re_path(r'^\.well-known/oauth-authorization-server/?$',
-            oauth2_views.OAuthServerMetadataView.as_view(), name='oauth-server-metadata'),
+            mail_views.MNOAuthServerMetadataView.as_view(), name='oauth-server-metadata'),
     path('.well-known/oauth-authorization-server/<path:issuer_path>',
-         oauth2_views.OAuthServerMetadataView.as_view(), name='oauth-server-metadata-issuer'),
+         mail_views.MNOAuthServerMetadataView.as_view(), name='oauth-server-metadata-issuer'),
     re_path(r'^$', selfservice_views.HomeView.as_view(), name='selfservice-home'),
     re_path(r'^dashboard/$', selfservice_views.DashboardView.as_view(), name='selfservice-dashboard'),
     re_path(r'^action/login/$', selfservice_views.SelfServiceLoginView.as_view(), name='authserver-login'),

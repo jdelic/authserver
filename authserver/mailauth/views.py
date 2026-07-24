@@ -18,6 +18,8 @@ from django.views.decorators.csrf import csrf_exempt
 from oauth2_provider.forms import AllowForm
 from oauth2_provider.models import get_application_model
 from oauth2_provider.views import ProtectedResourceView
+from oauth2_provider import views as oauth2_views
+from oauth2_provider.views import oidc as oidc_views
 from oauth2_provider.views.base import AuthorizationView
 from oauth2_provider.settings import oauth2_settings
 from django_ratelimit.decorators import ratelimit
@@ -461,3 +463,31 @@ class WebFingerView(View):
         )
         response["Access-Control-Allow-Origin"] = "*"
         return response
+
+
+class IssAdvertisingDiscoveryMixin:
+    """
+    Advertises RFC 9207 support in discovery documents. Upstream only sets
+    ``authorization_response_iss_parameter_supported`` when
+    ``COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS`` is True; authserver pins that
+    gate False and emits the `iss` parameter itself (mailauth.oauth2_backends
+    .MNOAuthLibCore), so the flag must be advertised independently here.
+    """
+
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        response = super().get(request, *args, **kwargs)  # type: ignore[misc]
+        if response.status_code == 200:
+            data = json.loads(response.content)
+            data["authorization_response_iss_parameter_supported"] = True
+            new_response = JsonResponse(data)
+            new_response["Access-Control-Allow-Origin"] = "*"
+            return new_response
+        return response
+
+
+class MNConnectDiscoveryInfoView(IssAdvertisingDiscoveryMixin, oidc_views.ConnectDiscoveryInfoView):
+    pass
+
+
+class MNOAuthServerMetadataView(IssAdvertisingDiscoveryMixin, oauth2_views.OAuthServerMetadataView):
+    pass
