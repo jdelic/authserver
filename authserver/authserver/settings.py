@@ -165,6 +165,15 @@ OAUTH2_PROVIDER = {
     # This is here because django-oauth-toolkit checks for it in oauth2_provider.models, but we provide the keys
     # from the Domain object associated with the JWT
     'OIDC_RSA_PRIVATE_KEY': '<unused>',
+    # RFC 9207: we emit the `iss` authorization-response parameter ourselves
+    # (see mailauth/oauth2_backends.py) because upstream's issuer derivation
+    # cannot produce our per-host 'https://<host>/o2' issuers. Pinned False so
+    # the django-oauth-toolkit 4.0 default flip cannot turn on the upstream
+    # emission (which would produce a mismatching 'https://<host>' issuer and
+    # break RFC 9207-validating clients). Do not remove without reading
+    # .agent-docs/dcr-cimd-authz-iss/implementation-plan.rst section 5.
+    'COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS': False,
+    'OAUTH2_BACKEND_CLASS': 'mailauth.oauth2_backends.MNOAuthLibCore',
 }
 
 # we use our own modular crypt format sha256 hasher for maximum compatibility
