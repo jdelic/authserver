@@ -148,23 +148,14 @@ class RFC9207AuthzResponseIssTests(TestCase):
         oidc_data = json.loads(oidc_response.content)
         self.assertIs(True, oidc_data["authorization_response_iss_parameter_supported"])
 
-        rfc8414_response = self.client.get(
-            "/.well-known/oauth-authorization-server/o2", secure=True
-        )
-        self.assertEqual(200, rfc8414_response.status_code)
-        rfc8414_data = json.loads(rfc8414_response.content)
-        self.assertIs(True, rfc8414_data["authorization_response_iss_parameter_supported"])
-
-    def test_root_form_metadata_does_not_advertise_iss_parameter_support(self) -> None:
-        """
-        The root form advertises issuer "https://<host>", which is not the
-        issuer we put in `iss`, so it must not claim RFC 9207 support.
-        """
-        response = self.client.get("/.well-known/oauth-authorization-server", secure=True)
-        self.assertEqual(200, response.status_code)
-        data = json.loads(response.content)
-        self.assertEqual("https://testserver", data["issuer"])
-        self.assertNotIn("authorization_response_iss_parameter_supported", data)
+        for url in ("/.well-known/oauth-authorization-server/o2",
+                    "/o2/.well-known/oauth-authorization-server"):
+            rfc8414_response = self.client.get(url, secure=True)
+            self.assertEqual(200, rfc8414_response.status_code, url)
+            rfc8414_data = json.loads(rfc8414_response.content)
+            self.assertIs(True, rfc8414_data["authorization_response_iss_parameter_supported"], url)
+            # every document we serve names the issuer we put in `iss`
+            self.assertEqual("https://testserver/o2", rfc8414_data["issuer"], url)
 
     def test_upstream_iss_emission_gate_is_pinned_off(self) -> None:
         self.assertIs(False, oauth2_settings.COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS)

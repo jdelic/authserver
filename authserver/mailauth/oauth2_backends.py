@@ -19,10 +19,9 @@ def add_iss_parameter(uri: str, request: HttpRequest) -> str:
 class MNOAuthLibCore(OAuthLibCore):
     """
     Adds the RFC 9207 `iss` parameter to authorization responses (both the
-    success redirect and the redirect produced when a user denies the request).
-    Upstream's own emission, gated by COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS,
-    derives the issuer from the root RFC 8414 metadata URL and so cannot
-    produce authserver's per-host issuers.
+    success redirect and the redirect produced when a user denies the request),
+    using the issuer of the discovery documents. Upstream's own emission stays
+    off, see COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS in settings.
 
     Authorization errors that django-oauth-toolkit turns into redirects inside
     the view never reach this method; ScopeValidationAuthView.error_response()

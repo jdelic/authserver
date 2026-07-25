@@ -166,12 +166,13 @@ OAUTH2_PROVIDER = {
     # from the Domain object associated with the JWT
     'OIDC_RSA_PRIVATE_KEY': '<unused>',
     # RFC 9207: the `iss` authorization-response parameter is emitted by our own
-    # OAUTH2_BACKEND_CLASS below, which knows the per-host 'https://<host>/o2'
-    # issuers. Upstream's emission would derive 'https://<host>' from the root
-    # RFC 8414 metadata URL, which is not an issuer we publish, so the gate stays
-    # off (our backend overwrites any `iss` upstream adds; keeping the gate off
-    # just avoids doing the work twice). This makes the `check --deploy` warning
-    # oauth2_provider.W005 a false positive for this deployment.
+    # OAUTH2_BACKEND_CLASS below, on success and error redirects alike, using the
+    # per-host 'https://<host>/o2' issuer. Turning this gate on would only add a
+    # second, redundant emission on the success path: upstream derives the issuer
+    # from reverse('oauth2_provider:oauth-server-metadata') and falls back to
+    # 'https://<host>' when that route is missing, where our own derivation raises
+    # instead of quietly emitting an issuer nobody publishes. That makes the
+    # `check --deploy` warning oauth2_provider.W005 a false positive here.
     'COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS': False,
     'OAUTH2_BACKEND_CLASS': 'mailauth.oauth2_backends.MNOAuthLibCore',
     'DCR_ENABLED': True,

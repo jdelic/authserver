@@ -486,18 +486,13 @@ class DiscoveryDocumentMixin:
     Every document gets ``authorization_response_iss_parameter_supported``:
     upstream only advertises it when ``COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS``
     is True, while authserver keeps that gate off and emits the `iss` parameter
-    from mailauth.oauth2_backends.MNOAuthLibCore instead.
-
-    The flag is only set on documents that name the issuer MNOAuthLibCore
-    actually emits: the RFC 8414 document served at the server root advertises
-    ``https://<host>`` as its issuer, which never matches the emitted
-    ``https://<host>/o2``, so a client validating `iss` against that document
-    would have to reject every authorization response.
+    from mailauth.oauth2_backends.MNOAuthLibCore instead. Advertising it in
+    every document is only correct because they all name the one issuer we
+    emit, ``https://<host>/o2`` (see the metadata routes in authserver.urls).
     """
 
     def extend_discovery_document(self, data: Dict[str, Any], request: HttpRequest) -> Dict[str, Any]:
-        if data.get("issuer") == oauth2_settings.oidc_issuer(request):
-            data["authorization_response_iss_parameter_supported"] = True
+        data["authorization_response_iss_parameter_supported"] = True
         return data
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:

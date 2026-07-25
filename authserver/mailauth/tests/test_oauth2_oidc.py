@@ -187,9 +187,33 @@ class OIDCAuthorizationCodeFlowTests(TestCase):
         )
         self.assertEqual(oidc_data["token_endpoint"], rfc8414_data["token_endpoint"])
 
-    def test_oauth_server_metadata_root_form_is_served(self) -> None:
+    def test_oauth_server_metadata_suffix_form_matches_path_form(self) -> None:
+        """
+        The <issuer>/.well-known/oauth-authorization-server form that OpenID
+        Connect Discovery style clients build serves the same document.
+        """
+        suffix_response = self.client.get("/o2/.well-known/oauth-authorization-server", secure=True)
+        self.assertEqual(200, suffix_response.status_code)
+
+        path_response = self.client.get("/.well-known/oauth-authorization-server/o2", secure=True)
+        self.assertEqual(200, path_response.status_code)
+
+        self.assertEqual(json.loads(path_response.content), json.loads(suffix_response.content))
+        self.assertEqual("https://testserver/o2", json.loads(suffix_response.content)["issuer"])
+
+    def test_oauth_server_metadata_root_form_redirects_to_the_issuer_document(self) -> None:
+        """
+        The bare well-known URL is about the issuer "https://<host>", which we
+        don't have, so it must not answer with a document of its own.
+        """
         response = self.client.get("/.well-known/oauth-authorization-server", secure=True)
-        self.assertEqual(200, response.status_code)
-        data = json.loads(response.content)
-        self.assertIn("authorization_endpoint", data)
-        self.assertIn("token_endpoint", data)
+        self.assertEqual(302, response.status_code)
+        self.assertEqual("/.well-known/oauth-authorization-server/o2", response["Location"])
+
+        followed = self.client.get(response["Location"], secure=True)
+        self.assertEqual(200, followed.status_code)
+        self.assertEqual("https://testserver/o2", json.loads(followed.content)["issuer"])
+
+    def test_oauth_server_metadata_is_not_served_for_other_issuer_paths(self) -> None:
+        response = self.client.get("/.well-known/oauth-authorization-server/nope", secure=True)
+        self.assertEqual(404, response.status_code)
