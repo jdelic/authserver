@@ -3,8 +3,13 @@ import hashlib
 import json
 import secrets
 from datetime import timedelta
+from io import StringIO
+from typing import Any, Optional, Tuple
 from urllib.parse import parse_qs, urlsplit
 
+from django.core.cache import cache
+from django.core.management import call_command
+from django.http import HttpResponse
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -44,6 +49,9 @@ class DCRRegistrationTests(TestCase):
         cls.user.save()
 
     def setUp(self) -> None:
+        # the registration endpoints are IP rate limited and django-ratelimit
+        # counts in the (process-wide) default cache
+        cache.clear()
         self.raw_initial_token = secrets.token_urlsafe(32)
         self.initial_token = AccessToken.objects.create(
             application=None,
@@ -53,7 +61,7 @@ class DCRRegistrationTests(TestCase):
             expires=timezone.now() + timedelta(days=1),
         )
 
-    def _register(self, metadata: dict, *, token: str = None, **extra) -> "HttpResponse":  # noqa: F821
+    def _register(self, metadata: dict, *, token: Optional[str] = None, **extra: Any) -> HttpResponse:
         headers = {}
         if token is not None:
             headers["HTTP_AUTHORIZATION"] = "Bearer %s" % token
@@ -102,6 +110,38 @@ class DCRRegistrationTests(TestCase):
         self.assertEqual(401, response.status_code, response.content)
         self.assertFalse(models.MNApplication.objects.exists())
 
+    def test_register_with_token_of_another_scope_is_rejected(self) -> None:
+        """A plain user access token must not double as an initial access token."""
+        raw_user_token = secrets.token_urlsafe(32)
+        AccessToken.objects.create(
+            application=None,
+            user=self.user,
+            token=raw_user_token,
+            scope="openid profile email",
+            expires=timezone.now() + timedelta(days=1),
+        )
+        response = self._register(self._public_metadata(), token=raw_user_token)
+        self.assertEqual(401, response.status_code, response.content)
+        self.assertFalse(models.MNApplication.objects.exists())
+
+    def test_registration_endpoint_is_rate_limited_per_ip(self) -> None:
+        for _ in range(20):
+            self._register(self._public_metadata())
+        response = self._register(self._public_metadata(), token=self.raw_initial_token)
+        self.assertEqual(403, response.status_code)
+        self.assertFalse(models.MNApplication.objects.exists())
+
+    def test_register_over_plaintext_is_rejected(self) -> None:
+        response = self.client.post(
+            reverse("oauth2_provider:dcr-register"),
+            data=json.dumps(self._public_metadata()),
+            content_type="application/json",
+            HTTP_AUTHORIZATION="Bearer %s" % self.raw_initial_token,
+        )
+        self.assertEqual(400, response.status_code, response.content)
+        self.assertEqual("invalid_request", json.loads(response.content)["error"])
+        self.assertFalse(models.MNApplication.objects.exists())
+
     # 3. POST with valid token and metadata -> 201, public app with domain set
     def test_register_public_client_succeeds(self) -> None:
         response = self._register(self._public_metadata(), token=self.raw_initial_token)
@@ -129,6 +169,29 @@ class DCRRegistrationTests(TestCase):
         self.assertIn("client_secret", data)
         self.assertTrue(data["client_secret"])
 
+    def test_registered_confidential_client_can_authenticate_at_token_endpoint(self) -> None:
+        """The returned secret must work against the (hashed) stored secret."""
+        metadata = self._public_metadata(
+            token_endpoint_auth_method="client_secret_basic",
+            grant_types=["client_credentials"],
+            redirect_uris=[],
+        )
+        response = self._register(metadata, token=self.raw_initial_token)
+        self.assertEqual(201, response.status_code, response.content)
+        data = json.loads(response.content)
+
+        credentials = base64.b64encode(
+            ("%s:%s" % (data["client_id"], data["client_secret"])).encode("utf-8")
+        ).decode("ascii")
+        token_response = self.client.post(
+            reverse("oauth2_provider:token"),
+            {"grant_type": "client_credentials"},
+            HTTP_AUTHORIZATION="Basic %s" % credentials,
+            secure=True,
+        )
+        self.assertEqual(200, token_response.status_code, token_response.content)
+        self.assertIn("access_token", json.loads(token_response.content))
+
     # 5. POST on a Host with no signing domain -> 400, no app created
     @override_settings(ALLOWED_HOSTS=["testserver", "unknown.example"])
     def test_register_on_host_without_signing_domain_fails(self) -> None:
@@ -137,6 +200,32 @@ class DCRRegistrationTests(TestCase):
         )
         self.assertEqual(400, response.status_code, response.content)
         self.assertFalse(models.MNApplication.objects.exists())
+
+    @override_settings(ALLOWED_HOSTS=["testserver", "unknown.example"])
+    def test_unauthenticated_request_cannot_probe_registration_domains(self) -> None:
+        """
+        Without a valid initial access token the answer is 401 for every host,
+        so the endpoint doesn't reveal which vhosts can register clients.
+        """
+        response = self._register(self._public_metadata(), HTTP_HOST="unknown.example")
+        self.assertEqual(401, response.status_code, response.content)
+
+    def test_discovery_documents_advertise_the_registration_endpoint(self) -> None:
+        registration_endpoint = "https://testserver%s" % reverse("oauth2_provider:dcr-register")
+
+        oidc_response = self.client.get("/o2/.well-known/openid-configuration", secure=True)
+        self.assertEqual(200, oidc_response.status_code)
+        self.assertEqual(
+            registration_endpoint, json.loads(oidc_response.content)["registration_endpoint"]
+        )
+
+        rfc8414_response = self.client.get(
+            "/.well-known/oauth-authorization-server/o2", secure=True
+        )
+        self.assertEqual(200, rfc8414_response.status_code)
+        self.assertEqual(
+            registration_endpoint, json.loads(rfc8414_response.content)["registration_endpoint"]
+        )
 
     # 6. RFC 7592 management endpoint
     def test_management_endpoint_get_put_delete(self) -> None:
@@ -253,98 +342,71 @@ class DCRRegistrationTests(TestCase):
 class DCRTokenManagementCommandTests(TestCase):
     """Tests for `manage.py dcrtoken create/list/revoke`."""
 
+    def _call(self, *args: str) -> Tuple[str, str]:
+        out, err = StringIO(), StringIO()
+        call_command("dcrtoken", *args, stdout=out, stderr=err)
+        return out.getvalue(), err.getvalue()
+
     def test_create_prints_token_once_and_stores_scope(self) -> None:
-        from io import StringIO
+        out, err = self._call("create", "--expires-days", "7")
 
-        from django.core.management import call_command
-
-        out = StringIO()
-        err = StringIO()
-        call_command("dcrtoken", "create", "--expires-days", "7", stdout=out, stderr=err)
-
-        raw_token = out.getvalue().strip()
+        raw_token = out.strip()
         self.assertTrue(raw_token)
         token = AccessToken.objects.get(scope=INITIAL_ACCESS_TOKEN_SCOPE)
         self.assertEqual(raw_token, token.token)
-        self.assertIn("Store this token now", err.getvalue())
+        self.assertIn("Store this token now", err)
 
     def test_create_with_zero_expires_days_is_far_future(self) -> None:
-        from django.core.management import call_command
-        from io import StringIO
-
-        out = StringIO()
-        call_command("dcrtoken", "create", "--expires-days", "0", stdout=out)
+        self._call("create", "--expires-days", "0")
         token = AccessToken.objects.get(scope=INITIAL_ACCESS_TOKEN_SCOPE)
         self.assertEqual(9999, token.expires.year)
 
     def test_list_shows_created_tokens(self) -> None:
-        from django.core.management import call_command
-        from io import StringIO
+        raw_token = self._call("create")[0].strip()
 
-        create_out = StringIO()
-        call_command("dcrtoken", "create", stdout=create_out)
-        raw_token = create_out.getvalue().strip()
-
-        list_out = StringIO()
-        call_command("dcrtoken", "list", stdout=list_out)
-        listing = list_out.getvalue()
+        listing = self._call("list")[0]
         self.assertIn(raw_token[:8], listing)
 
     def test_list_with_no_tokens_writes_to_stderr(self) -> None:
-        from django.core.management import call_command
-        from io import StringIO
-
-        out = StringIO()
-        err = StringIO()
-        call_command("dcrtoken", "list", stdout=out, stderr=err)
-        self.assertEqual("", out.getvalue())
-        self.assertIn("No initial access tokens found", err.getvalue())
+        out, err = self._call("list")
+        self.assertEqual("", out)
+        self.assertIn("No initial access tokens found", err)
 
     def test_revoke_by_id_deletes_token(self) -> None:
-        from django.core.management import call_command
-        from io import StringIO
-
-        create_out = StringIO()
-        call_command("dcrtoken", "create", stdout=create_out)
+        self._call("create")
         token = AccessToken.objects.get(scope=INITIAL_ACCESS_TOKEN_SCOPE)
 
-        revoke_err = StringIO()
-        call_command("dcrtoken", "revoke", str(token.id), stderr=revoke_err)
+        err = self._call("revoke", str(token.id))[1]
         self.assertFalse(AccessToken.objects.filter(pk=token.pk).exists())
-        self.assertIn(str(token.id), revoke_err.getvalue())
+        self.assertIn(str(token.id), err)
 
     def test_revoke_by_unique_prefix_deletes_token(self) -> None:
-        from django.core.management import call_command
-        from io import StringIO
-
-        create_out = StringIO()
-        call_command("dcrtoken", "create", stdout=create_out)
-        raw_token = create_out.getvalue().strip()
+        raw_token = self._call("create")[0].strip()
         token = AccessToken.objects.get(scope=INITIAL_ACCESS_TOKEN_SCOPE)
 
-        call_command("dcrtoken", "revoke", raw_token[:12])
+        self._call("revoke", raw_token[:12])
         self.assertFalse(AccessToken.objects.filter(pk=token.pk).exists())
 
-    def test_revoke_unknown_id_exits_nonzero(self) -> None:
-        from django.core.management import call_command
-
+    def test_create_with_negative_expires_days_exits_nonzero(self) -> None:
         with self.assertRaises(SystemExit) as exit_ctx:
-            call_command("dcrtoken", "revoke", "999999")
+            self._call("create", "--expires-days", "-1")
+        self.assertNotEqual(0, exit_ctx.exception.code)
+        self.assertFalse(AccessToken.objects.exists())
+
+    def test_revoke_unknown_id_exits_nonzero(self) -> None:
+        with self.assertRaises(SystemExit) as exit_ctx:
+            self._call("revoke", "999999")
         self.assertNotEqual(0, exit_ctx.exception.code)
 
     def test_dcrtoken_does_not_grant_registration_management_access(self) -> None:
         """
-        Sanity check for the design note in the plan: an initial access
-        token cannot be used against the RFC 7592 management endpoint even
-        if it somehow carried the DCR_REGISTRATION_SCOPE, because it has no
-        application. Exercised end-to-end in DCRRegistrationTests; this just
-        confirms the token has no application attached at creation time.
+        An initial access token cannot be used against the RFC 7592 management
+        endpoint even if it somehow carried the DCR_REGISTRATION_SCOPE, because
+        it has no application to match the client_id in the URL against.
+        Exercised end-to-end in DCRRegistrationTests; this just confirms the
+        token has no application attached at creation time.
         """
-        from django.core.management import call_command
-        from io import StringIO
-
-        out = StringIO()
-        call_command("dcrtoken", "create", stdout=out)
+        self._call("create")
         token = AccessToken.objects.get(scope=INITIAL_ACCESS_TOKEN_SCOPE)
         self.assertIsNone(token.application)
         self.assertIsNone(token.user)

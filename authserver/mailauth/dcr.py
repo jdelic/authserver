@@ -1,13 +1,18 @@
-"""DCR (RFC 7591) support: initial-access-token permission and view."""
+"""DCR (RFC 7591/7592) support: initial-access-token permission and views."""
 import hashlib
+from typing import Any
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.utils.decorators import method_decorator
 
+from django_ratelimit.decorators import ratelimit
 from oauth2_provider.models import get_access_token_model, get_application_model
+from oauth2_provider.settings import oauth2_settings
 from oauth2_provider.utils import parse_bearer_token
 from oauth2_provider.views.dynamic_client_registration import (
+    DynamicClientRegistrationManagementView,
     DynamicClientRegistrationView,
     _application_to_response,
     _build_application_kwargs,
@@ -32,7 +37,7 @@ class InitialAccessTokenDCRPermission:
     OAUTH2_PROVIDER["DCR_REGISTRATION_PERMISSION_CLASSES"].
     """
 
-    def has_permission(self, request) -> bool:
+    def has_permission(self, request: HttpRequest) -> bool:
         raw_token = parse_bearer_token(request.META.get("HTTP_AUTHORIZATION", ""))
         if raw_token is None:
             return False
@@ -45,29 +50,46 @@ class InitialAccessTokenDCRPermission:
         return token.is_valid([INITIAL_ACCESS_TOKEN_SCOPE])
 
 
-class MNDynamicClientRegistrationView(DynamicClientRegistrationView):
+class RegistrationEndpointMixin:
     """
-    Wraps the upstream RFC 7591 view to bind the new application to the
-    Domain that signs for the request host, mirroring how the rest of
-    authserver resolves issuers. Rejects hosts without a signing domain
-    BEFORE the upstream view creates anything.
-
-    DEVIATION from implementation-plan.rst section 3.4a: the plan's reference
-    implementation calls ``super().post(...)`` and assigns ``domain`` to the
-    already-saved row afterwards (``MNApplication.objects.filter(client_id=
-    ...).update(domain=domain)``), on the assumption that
-    ``application.full_clean()`` (called inside upstream's ``post()``)
-    tolerates ``domain=None``. In reality ``MNApplication.domain`` is
-    ``null=True`` but not ``blank=True``, so ``full_clean()`` rejects a
-    domain-less application with "domain: This field cannot be blank." -
-    every registration would 400 before upstream's ``post()`` could ever
-    save anything. Adding ``blank=True`` to the model was out of scope
-    (task instructions excluded ``mailauth/models.py`` and migrations), so
-    this inlines upstream's ``post()`` body instead, setting ``domain`` on
-    the ``Application`` *before* ``full_clean()`` runs.
+    The RFC 7591 and RFC 7592 endpoints both hand out client credentials, so
+    they are TLS-only (RFC 7591 section 5), like the other credential-carrying
+    APIs in mailauth.views.
     """
 
-    def post(self, request, *args, **kwargs):
+    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        # upstream's DCR_ENABLED gate answers first, so a disabled endpoint
+        # still 404s instead of commenting on the transport
+        if oauth2_settings.DCR_ENABLED and not request.is_secure():
+            return _error_response("invalid_request", "This endpoint must be called securely")
+        return super().dispatch(request, *args, **kwargs)  # type: ignore[misc]
+
+
+@method_decorator(ratelimit(key='ip', rate='20/m', group='dcr-register', block=True), name='dispatch')
+class MNDynamicClientRegistrationView(RegistrationEndpointMixin, DynamicClientRegistrationView):
+    """
+    RFC 7591 registration, binding the new application to the Domain that
+    signs for the request host so every dynamically registered client can be
+    issued ID tokens. Hosts without a signing domain are rejected before
+    anything is created.
+
+    ``post()`` is a copy of ``DynamicClientRegistrationView.post()``
+    (django-oauth-toolkit 3.4.0) with the domain lookup added instead of a
+    call to ``super()``: ``MNApplication.domain`` is ``null=True`` but not
+    ``blank=True``, so the ``full_clean()`` inside upstream's ``post()``
+    rejects an application that has no domain yet - the domain has to be on
+    the instance before that runs. Keep in sync when upgrading
+    django-oauth-toolkit.
+    """
+
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        if not _check_permissions(request):
+            return _error_response(
+                "access_denied",
+                "Authentication required to register a client",
+                status=401,
+            )
+
         hostname = request.get_host().split(":")[0]
         try:
             domain = Domain.objects.find_parent_domain(
@@ -77,13 +99,6 @@ class MNDynamicClientRegistrationView(DynamicClientRegistrationView):
             return _error_response(
                 "invalid_client_metadata",
                 "This host is not a valid registration domain",
-            )
-
-        if not _check_permissions(request):
-            return _error_response(
-                "access_denied",
-                "Authentication required to register a client",
-                status=401,
             )
 
         data, err = _parse_metadata(request.body)
@@ -120,3 +135,12 @@ class MNDynamicClientRegistrationView(DynamicClientRegistrationView):
             response_data["client_secret"] = raw_secret
 
         return JsonResponse(response_data, status=201)
+
+
+@method_decorator(ratelimit(key='ip', rate='60/m', group='dcr-manage', block=True), name='dispatch')
+class MNDynamicClientRegistrationManagementView(RegistrationEndpointMixin,
+                                                DynamicClientRegistrationManagementView):
+    """
+    RFC 7592 client configuration endpoint. Upstream's implementation is used
+    as-is, it only gains the transport rules of RegistrationEndpointMixin.
+    """

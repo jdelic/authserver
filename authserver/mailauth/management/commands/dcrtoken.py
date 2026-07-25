@@ -17,7 +17,9 @@ class Command(BaseCommand):
     """
     Manage RFC 7591 initial access tokens: pre-shared bearer tokens minted by
     an operator that allow a client to self-register through the DCR
-    endpoint (see mailauth/dcr.py, InitialAccessTokenDCRPermission).
+    endpoint (see mailauth/dcr.py, InitialAccessTokenDCRPermission). A token
+    stays usable for any number of registrations until it expires or is
+    revoked, so mint one per client integration and keep the lifetime short.
     """
 
     requires_migrations_checks = True
@@ -48,6 +50,10 @@ class Command(BaseCommand):
         )
 
     def _create(self, expires_days: int = 30, **kwargs: Any) -> None:
+        if expires_days < 0:
+            self.stderr.write(self.style.ERROR("--expires-days must not be negative"))
+            sys.exit(1)
+
         if expires_days == 0:
             expires = datetime(9999, 12, 31, 23, 59, 59, tzinfo=dt_timezone.utc)
         else:
@@ -85,8 +91,8 @@ class Command(BaseCommand):
                 fmtstr.format(
                     token.id,
                     "%s…" % token.token[:8],
-                    token.expires.isoformat(),
-                    token.created.isoformat(),
+                    token.expires.isoformat(timespec="seconds"),
+                    token.created.isoformat(timespec="seconds"),
                 )
             )
 
