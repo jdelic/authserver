@@ -2,8 +2,10 @@ import base64
 import hashlib
 import json
 import secrets
+from typing import Optional
 from urllib.parse import parse_qs, urlsplit
 
+from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
 from oauth2_provider.settings import oauth2_settings
@@ -59,7 +61,8 @@ class RFC9207AuthzResponseIssTests(TestCase):
             hash_client_secret=False,
         )
 
-    def _authorize(self, app, redirect_uri, code_verifier: str, state: "str | None" = None):
+    def _authorize(self, app: models.MNApplication, redirect_uri: str, code_verifier: str,
+                   state: Optional[str] = None, scope: str = "openid profile email") -> HttpResponse:
         code_challenge = (
             base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode("ascii")).digest())
             .rstrip(b"=")
@@ -70,7 +73,7 @@ class RFC9207AuthzResponseIssTests(TestCase):
             "response_type": "code",
             "client_id": app.client_id,
             "redirect_uri": redirect_uri,
-            "scope": "openid profile email",
+            "scope": scope,
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
         }
@@ -129,18 +132,30 @@ class RFC9207AuthzResponseIssTests(TestCase):
         self.assertEqual(["https://testserver/o2"], query["iss"])
         self.assertIn("code", query)
 
+    def test_authorization_error_redirect_contains_iss_parameter(self) -> None:
+        """RFC 9207: authorization error responses carry `iss` as well."""
+        code_verifier = secrets.token_urlsafe(48)
+        response = self._authorize(self.app, REDIRECT_URI, code_verifier, scope="not-a-real-scope")
+
+        self.assertEqual(302, response.status_code)
+        query = parse_qs(urlsplit(response.url).query)
+        self.assertEqual(["invalid_scope"], query["error"])
+        self.assertEqual(["https://testserver/o2"], query["iss"])
+
     def test_discovery_documents_advertise_iss_parameter_support(self) -> None:
         oidc_response = self.client.get("/o2/.well-known/openid-configuration", secure=True)
         self.assertEqual(200, oidc_response.status_code)
         oidc_data = json.loads(oidc_response.content)
         self.assertIs(True, oidc_data["authorization_response_iss_parameter_supported"])
 
-        rfc8414_response = self.client.get(
-            "/.well-known/oauth-authorization-server/o2", secure=True
-        )
-        self.assertEqual(200, rfc8414_response.status_code)
-        rfc8414_data = json.loads(rfc8414_response.content)
-        self.assertIs(True, rfc8414_data["authorization_response_iss_parameter_supported"])
+        for url in ("/.well-known/oauth-authorization-server/o2",
+                    "/o2/.well-known/oauth-authorization-server"):
+            rfc8414_response = self.client.get(url, secure=True)
+            self.assertEqual(200, rfc8414_response.status_code, url)
+            rfc8414_data = json.loads(rfc8414_response.content)
+            self.assertIs(True, rfc8414_data["authorization_response_iss_parameter_supported"], url)
+            # every document we serve names the issuer we put in `iss`
+            self.assertEqual("https://testserver/o2", rfc8414_data["issuer"], url)
 
     def test_upstream_iss_emission_gate_is_pinned_off(self) -> None:
         self.assertIs(False, oauth2_settings.COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS)

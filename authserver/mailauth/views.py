@@ -2,7 +2,7 @@ import base64
 import json
 import logging
 from datetime import datetime
-from typing import Any, List, NamedTuple, cast
+from typing import Any, Dict, List, NamedTuple, cast
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
@@ -12,6 +12,7 @@ from django.http import HttpResponseBadRequest
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse, HttpResponseBase, JsonResponse
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -26,6 +27,7 @@ from django_ratelimit.decorators import ratelimit
 from jwcrypto import jwk
 
 from dockerauth.jwtutils import JWTViewHelperMixin
+from mailauth.oauth2_backends import add_iss_parameter
 from mailauth.models import MNApplication, UnresolvableUserException, Domain
 from mailauth.models import EmailAgentAuthToken, MNUser
 from mailauth.permissions import find_missing_permissions
@@ -38,6 +40,17 @@ OIDC_ISSUER_REL = "http://openid.net/specs/connect/1.0/issuer"
 class ScopeValidationAuthView(AuthorizationView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
+
+    def error_response(self, error: Any, application: Any, **kwargs: Any) -> HttpResponse:
+        """
+        RFC 9207 requires the `iss` parameter in authorization error responses
+        as well. django-oauth-toolkit builds those redirects here in the view
+        instead of going through MNOAuthLibCore, so add it on the way out.
+        """
+        response = super().error_response(error, application, **kwargs)
+        if response.has_header("Location"):
+            response["Location"] = add_iss_parameter(response["Location"], self.request)
+        return response
 
     def form_valid(self, form: AllowForm) -> HttpResponse:
         """
@@ -465,29 +478,48 @@ class WebFingerView(View):
         return response
 
 
-class IssAdvertisingDiscoveryMixin:
+class DiscoveryDocumentMixin:
     """
-    Advertises RFC 9207 support in discovery documents. Upstream only sets
-    ``authorization_response_iss_parameter_supported`` when
-    ``COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS`` is True; authserver pins that
-    gate False and emits the `iss` parameter itself (mailauth.oauth2_backends
-    .MNOAuthLibCore), so the flag must be advertised independently here.
+    Post-processes the discovery documents rendered by django-oauth-toolkit
+    through ``extend_discovery_document()``.
+
+    Every document gets ``authorization_response_iss_parameter_supported``:
+    upstream only advertises it when ``COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS``
+    is True, while authserver keeps that gate off and emits the `iss` parameter
+    from mailauth.oauth2_backends.MNOAuthLibCore instead. Advertising it in
+    every document is only correct because they all name the one issuer we
+    emit, ``https://<host>/o2`` (see the metadata routes in authserver.urls).
     """
+
+    def extend_discovery_document(self, data: Dict[str, Any], request: HttpRequest) -> Dict[str, Any]:
+        data["authorization_response_iss_parameter_supported"] = True
+        return data
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         response = super().get(request, *args, **kwargs)  # type: ignore[misc]
         if response.status_code == 200:
-            data = json.loads(response.content)
-            data["authorization_response_iss_parameter_supported"] = True
+            data = self.extend_discovery_document(json.loads(response.content), request)
             new_response = JsonResponse(data)
             new_response["Access-Control-Allow-Origin"] = "*"
             return new_response
         return response
 
 
-class MNConnectDiscoveryInfoView(IssAdvertisingDiscoveryMixin, oidc_views.ConnectDiscoveryInfoView):
-    pass
+class MNConnectDiscoveryInfoView(DiscoveryDocumentMixin, oidc_views.ConnectDiscoveryInfoView):
+    """
+    OpenID Connect discovery document. Also advertises the Dynamic Client
+    Registration endpoint, which upstream only publishes in the RFC 8414
+    metadata document, so OIDC clients that read openid-configuration find it.
+    """
+
+    def extend_discovery_document(self, data: Dict[str, Any], request: HttpRequest) -> Dict[str, Any]:
+        data = super().extend_discovery_document(data, request)
+        if oauth2_settings.DCR_ENABLED:
+            data["registration_endpoint"] = request.build_absolute_uri(
+                reverse("oauth2_provider:dcr-register")
+            )
+        return data
 
 
-class MNOAuthServerMetadataView(IssAdvertisingDiscoveryMixin, oauth2_views.OAuthServerMetadataView):
+class MNOAuthServerMetadataView(DiscoveryDocumentMixin, oauth2_views.OAuthServerMetadataView):
     pass
