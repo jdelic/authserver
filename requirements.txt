@@ -1,7 +1,7 @@
 12factor-vault==0.1.23
 aiosmtpd==1.4.6
 # cryptography is an optional dependency of pyjwt for RSA support
-cryptography==50.0.0
+cryptography==50.0.1
 Django==6.1
 django-cors-headers==4.9.0
 django-dbconn-retry==0.3.1
