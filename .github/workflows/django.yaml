@@ -74,6 +74,9 @@ jobs:
                   envdir .envdir django-admin serviceuser create -u smoke-user --username smoke-svc --password smoke123
                   envdir .envdir django-admin emailalias blacklist smoke-user-temp@smoke.example.com
                   envdir .envdir django-admin emailalias unblacklist smoke-user-temp@smoke.example.com
+                  DCR_TOKEN="$(envdir .envdir django-admin dcrtoken create --expires-days 1)"
+                  envdir .envdir django-admin dcrtoken list
+                  envdir .envdir django-admin dcrtoken revoke "${DCR_TOKEN:0:12}"
                   envdir .envdir django-admin dockerauth registry create --client-id smoke-reg --name smoke-reg --domain smoke.example.com
                   envdir .envdir django-admin dockerauth registry show --name smoke-reg
                   envdir .envdir django-admin dockerauth registry remove --name smoke-reg -y

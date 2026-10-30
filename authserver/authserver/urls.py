@@ -1,13 +1,21 @@
-from django.urls import path, re_path, include
+from django.urls import path, re_path, include, reverse_lazy
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
+from django.views.generic.base import RedirectView
 
 from oauth2_provider import views as oauth2_views
 from authserver import base_views
 from authserver import selfservice_views
 from mailauth import views as mail_views
+from mailauth.dcr import MNDynamicClientRegistrationManagementView, MNDynamicClientRegistrationView
 from dockerauth import views as docker_views
 from authserver import views as shared_views
+
+
+# the path component under which the OAuth2/OpenID Connect endpoints are mounted. authserver's
+# issuer is "https://<host>/" + OAUTH2_MOUNT, so this also decides where the RFC 8414 metadata
+# documents live and what their "issuer" says.
+OAUTH2_MOUNT = 'o2'
 
 
 oauth2_patterns = ([
@@ -19,7 +27,18 @@ oauth2_patterns = ([
     re_path(r'^userinfo/$', oauth2_views.UserInfoView.as_view(), name='user-info'),
     re_path(r'^\.well-known/openid-configuration/?$', mail_views.MNConnectDiscoveryInfoView.as_view(),
             name='oidc-connect-discovery-info'),
-    re_path(r"^\.well-known/jwks.json$", mail_views.JwksInfoView.as_view(), name="jwks-info")
+    re_path(r"^\.well-known/jwks.json$", mail_views.JwksInfoView.as_view(), name="jwks-info"),
+    # RFC 8414 metadata in the issuer-suffix form (<issuer>/.well-known/oauth-authorization-server),
+    # the way OpenID Connect Discovery builds its URL. Identical document to the path-insertion
+    # form mounted at the URL root below. Registering it under this name inside the
+    # oauth2_provider namespace also makes django-oauth-toolkit's own issuer helper
+    # (oauth2_settings.oauth2_authorization_server_issuer) resolve to "https://<host>/o2".
+    re_path(r'^\.well-known/oauth-authorization-server/?$',
+            mail_views.MNOAuthServerMetadataView.as_view(), name='oauth-server-metadata'),
+    path('register/', MNDynamicClientRegistrationView.as_view(), name='dcr-register'),
+    path('register/<str:client_id>/',
+         MNDynamicClientRegistrationManagementView.as_view(),
+         name='dcr-register-management'),
 ], 'oauth2_provider')
 
 
@@ -27,15 +46,20 @@ urlpatterns = [
     re_path(r'^health/$', base_views.health),
     re_path(r'^robots\.txt$', base_views.robots_txt),
     re_path(r'^\.well-known/webfinger/?$', mail_views.WebFingerView.as_view(), name='oidc-webfinger'),
-    # RFC 8414 OAuth2 Authorization Server Metadata (new in django-oauth-toolkit 3.4.0). RFC 8414
-    # requires this document at the server root, not under the o2/ prefix. The path-component form
-    # is the authoritative one for our issuer "https://<host>/o2": clients must fetch
-    # /.well-known/oauth-authorization-server/o2 for it. The plain form (issuer "https://<host>")
-    # is served as well for clients that don't implement RFC 8414 issuer path handling.
-    re_path(r'^\.well-known/oauth-authorization-server/?$',
-            mail_views.MNOAuthServerMetadataView.as_view(), name='oauth-server-metadata'),
-    path('.well-known/oauth-authorization-server/<path:issuer_path>',
+    # RFC 8414 OAuth2 Authorization Server Metadata (new in django-oauth-toolkit 3.4.0) in the
+    # path-insertion form required by RFC 8414 section 3.1, which is the authoritative location
+    # for our issuer "https://<host>/o2". Only that issuer is served: a document under any other
+    # path would have to name an issuer this server never puts in `iss` or an ID token.
+    path('.well-known/oauth-authorization-server/%s' % OAUTH2_MOUNT,
          mail_views.MNOAuthServerMetadataView.as_view(), name='oauth-server-metadata-issuer'),
+    # A request to the bare well-known URL asks about the issuer "https://<host>", which this
+    # server does not have. Send those clients - the ones that don't implement RFC 8414 issuer
+    # paths - to the real document instead of answering with a made-up issuer.
+    re_path(r'^\.well-known/oauth-authorization-server/?$',
+            RedirectView.as_view(
+                url=reverse_lazy('oauth-server-metadata-issuer'), permanent=False
+            ),
+            name='oauth-server-metadata-root'),
     re_path(r'^$', selfservice_views.HomeView.as_view(), name='selfservice-home'),
     re_path(r'^dashboard/$', selfservice_views.DashboardView.as_view(), name='selfservice-dashboard'),
     re_path(r'^action/login/$', selfservice_views.SelfServiceLoginView.as_view(), name='authserver-login'),
@@ -50,7 +74,7 @@ urlpatterns = [
     re_path(r'^admin/', admin.site.urls),
 
     # Oauth2 and OpenIDC
-    path('o2/', include(oauth2_patterns)),
+    path('%s/' % OAUTH2_MOUNT, include(oauth2_patterns)),
 
     # Docker auth
     re_path(r'^docker/token/$', docker_views.DockerAuthView.as_view()),
