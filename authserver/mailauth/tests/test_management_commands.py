@@ -181,3 +181,40 @@ class PermissionsCommandTests(TestCase):
         payload = json.loads(out.getvalue())
         self.assertEqual(1, len(payload))
         self.assertEqual(self.permission.permission_name, payload[0]["permission_name"])
+
+
+class OAuth2CommandTests(TestCase):
+    def setUp(self) -> None:
+        self.app = models.MNApplication.objects.create(
+            name="testclient",
+            client_type=models.MNApplication.CLIENT_CONFIDENTIAL,
+            authorization_grant_type=models.MNApplication.GRANT_AUTHORIZATION_CODE,
+            redirect_uris="https://client.example.com/callback",
+        )
+
+    def test_list_all(self) -> None:
+        out = StringIO()
+        with redirect_stdout(out):
+            call_command("oauth2", "list")
+        self.assertIn("testclient", out.getvalue())
+        self.assertIn(self.app.client_id, out.getvalue())
+
+    def test_list_search_by_client_name(self) -> None:
+        out = StringIO()
+        with redirect_stdout(out):
+            call_command("oauth2", "list", "--search-client-name", "testclient")
+        self.assertIn(self.app.client_id, out.getvalue())
+
+    def test_list_search_by_client_id(self) -> None:
+        out = StringIO()
+        with redirect_stdout(out):
+            call_command("oauth2", "list", "--search-client-id", self.app.client_id)
+        self.assertIn("testclient", out.getvalue())
+
+    def test_list_search_by_client_name_not_found(self) -> None:
+        out = StringIO()
+        err = StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            call_command("oauth2", "list", "--search-client-name", "does-not-exist")
+        self.assertNotIn(self.app.client_id, out.getvalue())
+        self.assertIn("Client name not found", err.getvalue())

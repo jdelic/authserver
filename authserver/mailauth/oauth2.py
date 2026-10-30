@@ -1,8 +1,10 @@
+import hashlib
 import logging
 from datetime import datetime
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
+from django.db.models import F
 from django.utils import timezone
 from oauth2_provider.models import RefreshToken
 from oauth2_provider.oauth2_validators import OAuth2Validator
@@ -54,7 +56,15 @@ class ClientPermissionValidator(OAuth2Validator):
                 return False
             return True
         else:
-            rt = RefreshToken.objects.filter(token=refresh_token).first()
+            # since django-oauth-toolkit 3.4.0 refresh tokens are looked up by SHA-256 checksum
+            # (uniqueness is on (token_checksum, revoked)), so mirror the base validator's query:
+            # prefer the unrevoked row, otherwise the most recently revoked one
+            token_checksum = hashlib.sha256(refresh_token.encode("utf-8")).hexdigest()
+            rt = (
+                RefreshToken.objects.filter(token_checksum=token_checksum)
+                .order_by(F("revoked").desc(nulls_first=True))
+                .first()
+            )
             if not rt:
                 _log.warning(
                     "Rejecting refresh token for client %s (%s): token not found (prefix=%s)",
