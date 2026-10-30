@@ -1,4 +1,4 @@
-12factor-vault==0.1.23
+12factor-vault==0.1.24
 aiosmtpd==1.4.6
 # cryptography is an optional dependency of pyjwt for RSA support
 cryptography==50.0.2
