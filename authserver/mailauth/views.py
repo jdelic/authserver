@@ -1,9 +1,10 @@
 import base64
+import ipaddress
 import json
 import logging
 from datetime import datetime
-from typing import Any, List, NamedTuple, cast
-from urllib.parse import urlparse
+from typing import Any, List, NamedTuple, Optional, cast
+from urllib.parse import parse_qs, urlparse, urlsplit
 from zoneinfo import ZoneInfo
 
 import binascii
@@ -12,6 +13,8 @@ from django.http import HttpResponseBadRequest
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse, HttpResponseBase, JsonResponse
 from django.shortcuts import render
+from django.template.loader import render_to_string
+from django.utils.cache import add_never_cache_headers
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -35,9 +38,70 @@ _log = logging.getLogger(__name__)
 OIDC_ISSUER_REL = "http://openid.net/specs/connect/1.0/issuer"
 
 
+def is_native_app_redirect_uri(uri: str) -> bool:
+    """
+    Returns True if ``uri`` hands the authorization response to an application running on the user's
+    device rather than to a website: a private-use URI scheme (RFC 8252 section 7.1) or a loopback
+    redirect (RFC 8252 section 7.3, e.g. ``http://127.0.0.1:53682/callback``).
+    """
+    parsed = urlsplit(uri)
+    if parsed.scheme.lower() not in ("http", "https"):
+        return True
+
+    host = (parsed.hostname or "").lower()
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+class AppHandoffResponse(HttpResponse):
+    """
+    A rendered page that forwards the browser to a native application's redirect URI. Native apps
+    usually answer the redirect with no content (or never navigate the browser at all for private-use
+    schemes), which leaves the last rendered page - typically the login form - sitting in the user's
+    browser. Rendering this page first means the user ends up on a "login successful" page instead.
+    """
+    def __init__(self, redirect_to: str, content: str) -> None:
+        super().__init__(content)
+        self.redirect_to = redirect_to
+        # the page contains the authorization code
+        add_never_cache_headers(self)
+        self["Referrer-Policy"] = "no-referrer"
+
+    @property
+    def url(self) -> str:
+        return self.redirect_to
+
+
 class ScopeValidationAuthView(AuthorizationView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
+
+    def redirect(self, redirect_to: str, application: Optional[MNApplication]) -> HttpResponse:
+        # let the base class validate the redirect URI's scheme against the allowed schemes
+        response = super().redirect(redirect_to, application)
+        target = response.url
+        if not is_native_app_redirect_uri(target):
+            return response
+
+        parsed = urlsplit(target)
+        is_error = "error" in parse_qs(parsed.query) or "error" in parse_qs(parsed.fragment)
+        return AppHandoffResponse(
+            target,
+            render_to_string(
+                "oauth2_provider/app_handoff.html",
+                context={
+                    "redirect_to": target,
+                    "application": application,
+                    "is_error": is_error,
+                },
+                request=self.request,
+            ),
+        )
 
     def form_valid(self, form: AllowForm) -> HttpResponse:
         """
@@ -56,7 +120,9 @@ class ScopeValidationAuthView(AuthorizationView):
         # super.get will initialize self.oauth2_data and now we can do additional validation
         resp = super().get(request, *args, **kwargs)
 
-        if not (resp.status_code >= 200 and resp.status_code < 300):
+        # An AppHandoffResponse is a redirect to the client rendered as a page, so it has the
+        # same semantics as the 302 the base class would otherwise return.
+        if isinstance(resp, AppHandoffResponse) or not (resp.status_code >= 200 and resp.status_code < 300):
             return resp
 
         app = self.oauth2_data['application']  # type: MNApplication
