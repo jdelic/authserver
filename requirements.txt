@@ -13,7 +13,7 @@ envdir==1.0.1
 gunicorn==27.0.1
 hvac==2.4.0
 passlib==1.7.4
-psycopg[binary]==3.3.6
+psycopg[binary]==3.3.9
 pyjwt==2.15.1
 py-consul==1.8.0
 python-json-logger==4.2.0
